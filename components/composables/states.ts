@@ -1,0 +1,1 @@
+export const toggleFaq = useState<boolean>('open', () => false)

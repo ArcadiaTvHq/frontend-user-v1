@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+@theme{
+  --color-cod: #0B0B0B;
+  --color-gold: #FFD005;
+  --color-darkgold: #7F6527;
+  --font-orbitron: orbitron;
+  --text-smallest: 12px;
+  --text-tiny: 10.21px;
+  --text-type: 14px;
+  --text-normal: 24px;
+  --text-small: 16px;
+  --color-textprimary: #fff;
+  --color-grayish: #5E5E5E;
+  --color-cardgray: #3D3D3D;
+  --color-darkgray: #424242;
+  --font-inter:inter;
+  --font-mont:mont;
+  --text-big: 64px;
+  --text-medium:48px;
+  --text-smedium:44px;
+  --color-body:#0B0B0B;
+  --text-h6: 31.64px;
+  --text-seemore: 20px;
+  --color-inputb: #5B5B5B
+}
+
+@font-face {
+  font-family: orbitron;
+  src: url(../font/orbitron.ttf);
+}
+@font-face{
+  font-family: inter;
+  src:url(../font/inter.ttf)
+}
+@font-face{
+  font-family:mont;
+  src: url(../font/mont.ttf)
+}
