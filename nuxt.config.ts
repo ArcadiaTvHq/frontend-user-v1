@@ -15,10 +15,6 @@ export default defineNuxtConfig({
     {src:'~/plugins/Lenis.client.js'}
   ],
 
-  imports: {
-    autoImport: true
-  },
-
   modules: [
     '@nuxt/fonts',
     '@nuxt/icon',

@@ -22,7 +22,8 @@
   --color-body:#0B0B0B;
   --text-h6: 31.64px;
   --text-seemore: 20px;
-  --color-inputb: #5B5B5B
+  --color-inputb: #5B5B5B;
+  --color-minputb: #888888;
 }
 
 @font-face {

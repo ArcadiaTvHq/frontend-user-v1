@@ -9,7 +9,7 @@
     </div>
 
     <p class="text-center text-smallest mt-11 md:mt-14 font-inter ">Get a 7-day free trial on any plan! Cancel anytime during the trial period with no charges.</p>
-    <p class="text-center text-smallest mb-15 md:mb-50 font-inter">Get ready for an incredible movie streaming journey with PlayCine. <a class="underline text-gold">Sign up </a>today and let the entertainment begin! </p>
+    <p class="text-center text-smallest mb-15 md:mb-50 font-inter">Get ready for an incredible movie streaming journey with PlayCine. <a class="underline text-gold cursor-pointer">Sign up </a>today and let the entertainment begin! </p>
   </section>
 </template>
 
@@ -31,7 +31,6 @@
         trigger: trigger,
         start: 'top bottom',
         end: 'bottom 90%',
-        markers:true
       },
       duration: 2
 
