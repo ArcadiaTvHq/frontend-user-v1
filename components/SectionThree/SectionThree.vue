@@ -3,9 +3,9 @@
     <h1 class="text-normal mb-[6px] md:text-medium">Arcadia Membership</h1>
     <p class="text-smallest text-center font-inter md:text-small">Choose the perfect subscription plan for your streaming needs</p>
     <div class="2xl:flex gap-9">
-      <Card type="Free"  :logo=free price="$0" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer" class="slide-left" />
-      <Card type="standard"   :logo=standard price="$14.99" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer" />
-      <Card type="Premium" :logo=premium  price="$19.99" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium text-gold" button=" h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer bg-gold" class="slide-right"/>
+      <Card type="Free"  :logo=free price="$0" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" class="slide-left" />
+      <Card type="standard"   :logo=standard price="$14.99" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" />
+      <Card type="Premium" :logo=premium  price="$19.99" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium text-gold" button=" h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer bg-gold btn" class="slide-right"/>
     </div>
 
     <p class="text-center text-smallest mt-11 md:mt-14 font-inter ">Get a 7-day free trial on any plan! Cancel anytime during the trial period with no charges.</p>
@@ -56,3 +56,16 @@
 
   })
 </script>
+
+<style>
+  .cardbtn:hover{
+    animation: cardbtnhover 0.5s linear forwards;
+  }
+  @keyframes cardbtnhover{
+    to{
+      transform: scale(1.1);
+      color: #000;
+      background-color: white;
+    }
+  }
+</style>

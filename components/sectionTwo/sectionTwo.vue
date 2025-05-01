@@ -1,69 +1,39 @@
 <template>
   <section class="px-9 md:px-28 flex flex-col gap-7 mt-20 font-orbitron">
     <div class="flex justify-center items-center gap-1 metaText">
-      <img src="../../assets/flame.png">
-      <h6 class="text-textprimary md:text-h6">Trending</h6>
-      <div class="border-grayish flex flex-1 h-0 w-[165.4px] shhrink border-[0.85px]"></div>
-      <p class="text-textprimary text-smallest  md:text-seemore">See More</p>
+      <img class="size-[35px]" src="../../assets/flame.svg">
+      <h6 class="text-textprimary md:text-h6">Coming soon</h6>
+      <div class=" hidden border-grayish flex flex-1 h-0 w-[165.4px] shhrink border-[0.85px]"></div>
+      <p class=" hidden text-textprimary text-smallest  md:text-seemore">See More</p>
     </div>
     <div class="grid grid-cols-3 gap-3 md:gap-7 md:grid-cols-4 lg:grid-cols-6 text-textprimary tileHolder">
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div >
-      <div class="scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="hidden md:block scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="hidden md:block scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="hidden md:block scale">
-        <img class="grid grid-cols-3" src="../../assets/movie.png">
+      <div class="">
+        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
         <p>Guardian of the galaxy</p>
         <span>2020 <span>2hrs</span></span>
       </div>

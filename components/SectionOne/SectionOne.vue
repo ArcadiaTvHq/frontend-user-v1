@@ -1,14 +1,14 @@
 <template>
-  <section class="bg-[url(../../assets/effect.png)] text-textprimary font-orbitron flex flex-col gap-4 lg:gap-11 pt-[30px] items-center overflow-x-hidden holder mb-80">
+  <section class="bg-[url(../../assets/effect.png)] text-textprimary font-orbitron flex flex-col gap-4 lg:gap-11 pt-[30px] items-center overflow-x-hidden holder lg:mb-80">
     <h1 class="font-bold text-[24px] text-center  text-white px-13 w-full lg:text-big md:px-36">{{ text }}</h1>
 
     <p class="text-[12px] text-white text-center px-4 lg:px-28 md:text-small md:font-medium">{{small}}</p>
     <button @click ="handleClick" class="cursor-pointer bg-gold text-cod w-fit p-5 flex items-center md:w-49 md:h-[50px] rounded-[6.53px] h-[32.6px] font-extrabold btn">
       Join the waitlist
     </button>
-    <div class="flex gap-[6.39px] mt-[38.41px] items-center pb-1 flex-1 overflow-hidden mb-60">
+    <div class="flex gap-[6.39px] mt-[38.41px] items-start pb-1 overflow-x-hidden lg:mb-60 h-[20vh] lg:h-fit w-full">
       
-      <div class="scroller w-fit flex gap-5 items-center justify-center absolute top-120 left-0">
+      <div class="scroller w-fit flex gap-5 items-center justify-center left-0">
         <div
     class="carousel"
     @mouseenter="pauseRotation"
@@ -79,6 +79,11 @@
   transition: all 0.5s ease;
   touch-action: pan-y;
   user-select: none;
+  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  transform: translateY(50%) ;
+
 }
 
 .poster {
@@ -126,6 +131,74 @@
   transform: scale(0.8);
   opacity: 0.5;
   z-index: 1;
+}
+
+@media screen and (max-width: 1000px) {
+  .poster img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+
+
+.pos-1 {
+  min-width: 150px;
+  height:100%;
+  min-height: 125px;
+  transform: scale(0.8);
+  opacity: 0.5;
+  z-index: 1;
+}
+.pos-2 {
+  min-width: 115px;
+  height:100%;
+  min-height: 125px;
+  transform: scale(0.9);
+  opacity: 0.7;
+  z-index: 2;
+}
+.pos-3 {
+  min-width: 150px;
+  height:100%;
+  min-height: 165px;
+  transform: scale(1);
+  opacity: 1;
+  z-index: 3;
+}
+.pos-4 {
+  min-width: 150px;
+  height: 100%;
+  min-height: 125px;
+  transform: scale(0.9);
+  opacity: 0.7;
+  z-index: 2;
+}
+.pos-5 {
+  min-width: 150px;
+  height:100%;
+  min-height: 125px;
+  transform: scale(0.8);
+  opacity: 0.5;
+  z-index: 1;
+}
+}
+
+@media screen and (max-width: 800px) {
+  .carousel {
+  display: flex;
+  width: 100vw;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.5s ease;
+  touch-action: pan-y;
+  user-select: none;
+  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  transform: translateY(90%) ;
+}
 }
 </style>
 

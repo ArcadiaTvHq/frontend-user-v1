@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-9 md:mt-32 overflow-hidden">
+  <div class="mt-15 md:mt-32 overflow-hidden">
     <div class="bg-[#5E5E5E] pl-1 py-1 md:py-3">
       <div class="flex gap-1 md:gap-3 movie-reel">
         <div class="size-[9.38px] md:size-5 rounded-[5px] bg-white flex shrink-0" v-for="i in 70" :key="i"></div>
