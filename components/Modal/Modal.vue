@@ -1,5 +1,6 @@
 <template>
-  <div @click="close" class="bg-body bg-[url('@/assets/signup/bg.png')] bg-blend-overlay bg-cover fixed h-[100vh] w-[100vw] z-5 flex justify-center items-center" v-if="modal">
+  <div @click="close" class="bg-body bg-[url('@/assets/signup/bg.png')] bg-blend-overlay bg-cover fixed h-[100vh] w-[100vw] z-5 flex justify-center items-center opacity-99" v-if="modal">
+
     <form class="w-full md:w-fit h-fit flex justify-center items-center flex-col text-white font-orbitron bg-cod gap-5 lg:px-40 rounded-[18px] border-inputb border-1 py-21 px-10">
       <img src="../../assets/logo2.png">
       <h1 class="text-normal">Join the waitlist</h1>
@@ -17,7 +18,7 @@
           <label>Email</label>
           <input placeholder="david.a@gmail.com">
       </div>
-      <button class='bg-gold text-black w-full h-13 rounded-[8px] mt-4 font-bold'>Join the waitlist</button>
+      <button class='bg-gold text-black w-full h-13 rounded-[8px] mt-4 font-bold btn'>Join the waitlist</button>
     </form>
   </div>
 </template>

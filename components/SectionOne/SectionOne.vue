@@ -3,7 +3,7 @@
     <h1 class="font-bold text-[24px] text-center  text-white px-13 w-full lg:text-big md:px-36">{{ text }}</h1>
 
     <p class="text-[12px] text-white text-center px-4 lg:px-28 md:text-small md:font-medium">{{small}}</p>
-    <button @click ="handleClick" class="cursor-pointer bg-gold text-cod w-fit p-5 flex items-center md:w-49 md:h-[50px] rounded-[6.53px] h-[32.6px] font-extrabold">
+    <button @click ="handleClick" class="cursor-pointer bg-gold text-cod w-fit p-5 flex items-center md:w-49 md:h-[50px] rounded-[6.53px] h-[32.6px] font-extrabold btn">
       Join the waitlist
     </button>
     <div class="flex gap-[6.39px] mt-[38.41px] items-center pb-1 flex-1 overflow-hidden mb-60">

@@ -14,4 +14,16 @@
 </template>
 
 
+<style>
+  .btn:hover{
+    animation: hover-state 0.5s linear forwards
+  }
 
+  @keyframes hover-state{
+    to{
+      transform: scale(1.1);
+      background-color: var(--color-hover);
+      
+    }
+  }
+</style>
