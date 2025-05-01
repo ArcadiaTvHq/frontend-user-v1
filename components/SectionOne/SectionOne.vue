@@ -1,5 +1,5 @@
 <template>
-  <section class="bg-[url(../../assets/effect.png)] text-textprimary font-orbitron flex flex-col gap-4 lg:gap-11 pt-[30px] items-center overflow-x-hidden holder lg:mb-80">
+  <section class="bg-[url(../../assets/effect.png)] text-textprimary font-orbitron flex flex-col gap-4 lg:gap-11 pt-[30px] items-center overflow-hidden holder lg:mb-80">
     <h1 class="font-bold text-[24px] text-center  text-white px-13 w-full lg:text-big md:px-36">{{ text }}</h1>
 
     <p class="text-[12px] text-white text-center px-4 lg:px-28 md:text-small md:font-medium">{{small}}</p>

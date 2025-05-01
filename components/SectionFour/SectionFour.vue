@@ -7,19 +7,19 @@
     <img class=" hidden lg:block w-110 h-103 animation"  src="../../assets/Decoration.png">
     </div>
     <div class="flex flex-col gap-4 mt-9">
-      <div class="bg-darkgray rounded-[8px] md:w-[624px]">
+      <div class="bg-darkgray rounded-[8px] md:max-w-[624px]">
     <button @click="handleToggle" class="bg-darkgold w-full h-13 flex items-center justify-between rounded-[8px] px-5 md:px-10 md:py-8 cursor-pointer btn"><p class="text-left text-smallest md:text-normal">Pellentesque ac bibendum tortor?</p> <img class="w-3 h-2 icon" src="../../assets/chevron.png"></button>
     <div v-if="usetoggle" class="px-5 py-3 md:px-10 md:py-6 ">
       <p class="text-smallest  md:text-normal">Vivamus sit amet interdum elit. Proin lacinia erat ac velit tempus auctor.</p>
     </div>
   </div>
-  <div class="bg-darkgray rounded-[8px] md:w-[624px]">
+  <div class="bg-darkgray rounded-[8px] md:max-w-[624px]">
     <button @click="handleToggleMid" class="bg-darkgold w-full h-13 flex items-center justify-between rounded-[8px] px-5 md:px-10 md:py-8 cursor-pointer btn"><p class="text-left text-smallest md:text-normal">Pellentesque ac bibendum tortor?</p> <img class="w-3 h-2 icon2" src="../../assets/chevron.png"></button>
     <div v-if="usetogglemid" class="px-5 py-3 md:px-10 md:py-6 ">
       <p class="text-smallest  md:text-normal">Vivamus sit amet interdum elit. Proin lacinia erat ac velit tempus auctor.</p>
     </div>
   </div>
-  <div class="bg-darkgray rounded-[8px] md:w-[624px]">
+  <div class="bg-darkgray rounded-[8px] md:max-w-[624px]">
     <button @click="handleToggleLast" class="bg-darkgold w-full h-13 flex items-center justify-between rounded-[8px] px-5 md:px-10 md:py-8 cursor-pointer btn"><p class="text-left text-smallest md:text-normal">Pellentesque ac bibendum tortor?</p> <img class="w-3 h-2 icon3" src="../../assets/chevron.png"></button>
     <div v-if="usetogglelast" class="px-5 py-3 md:px-10 md:py-6 ">
       <p class="text-smallest  md:text-normal">Vivamus sit amet interdum elit. Proin lacinia erat ac velit tempus auctor.</p>
