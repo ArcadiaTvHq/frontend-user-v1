@@ -6,10 +6,10 @@
     </div>
     <h6 :class="priceStyling">{{price}}<span class="text-smallest">/month</span></h6>
     <button :class="button" >Select this plan</button>
-    <List class="mb-[9px] md:mb-[16px]" benefit="Stream movies in high-definition (HD) quality"/>
-    <List class="mb-[9px] md:mb-[16px]" benefit="Access to our vast library of movies and TV shows"/>
-    <List class="mb-[9px] md:mb-[16px]"  benefit="Watch movies on up to two devices simultaneously"/>
-    <List class="mb-[9px] md:mb-[16px]"  benefit="Watch movies on up to two devices simultaneously"/>
+    <List class="mb-[9px] md:mb-[16px]" :benefit=l1 :img=checked />
+    <List class="mb-[9px] md:mb-[16px]" :benefit=l2 :img=checked />
+    <List class="mb-[9px] md:mb-[16px]" :benefit=l3 :img=cross />
+    <List class="mb-[9px] md:mb-[16px]" :benefit=l4 :img=cross />
   </div>
 </template>
 
@@ -29,6 +29,6 @@
 </style>
 
 <script setup >
-  defineProps(['type','price', 'logo', 'color', 'priceStyling', 'button'])
+  const props = defineProps(['type','price', 'logo', 'color', 'priceStyling', 'button', 'l1', 'l2', 'l3', 'l4', 'checked', 'cross'])
 </script>
   

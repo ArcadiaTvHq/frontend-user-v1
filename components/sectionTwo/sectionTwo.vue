@@ -2,40 +2,21 @@
   <section class="px-9 md:px-28 flex flex-col gap-7 mt-20 font-orbitron">
     <div class="flex justify-center items-center gap-1 metaText">
       <img class="size-[35px]" src="../../assets/flame.svg">
-      <h6 class="text-textprimary md:text-h6">Coming soon</h6>
+      <h6 class="text-textprimary md:text-h6">Anticipate</h6>
       <div class=" hidden border-grayish flex flex-1 h-0 w-[165.4px] shhrink border-[0.85px]"></div>
       <p class=" hidden text-textprimary text-smallest  md:text-seemore">See More</p>
     </div>
-    <div class="grid grid-cols-3 gap-3 md:gap-7 md:grid-cols-4 lg:grid-cols-6 text-textprimary tileHolder">
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
-      </div>
-      <div class="">
-        <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-        <p>Guardian of the galaxy</p>
-        <span>2020 <span>2hrs</span></span>
+    <div class="grid grid-cols-2 gap-3 md:gap-7 md:grid-cols-3 lg:grid-cols-6 text-textprimary tileHolder">
+      <div class="miniplayer" @mouseenter="e => preview(e)" @mouseleave="e=>close(e)" v-for="i in 6" :key="i" :id="i">
+        <div class="mini-display" hidden="true" >
+          <img src="@/assets/hoverimage.jpg">
+          <p class="text-tiny font-inter md:text-type ">The heroes that protect the galxy and their goofy adventures</p>
+        </div>
+        <div>
+          <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
+          <p class="font-semibold lg:text-seemore text-small new">Guardian of the galaxy</p>
+          <span class="font-inter text-tiny lg:text-small ">2020 <span>2hrs</span></span>
+        </div>
       </div>
 
       
@@ -45,7 +26,55 @@
 
 <style scoped>
 
+  @media screen and (max-width: 750px) {
+    .miniplayer:nth-child(1n):hover{
+    animation: move-center 0.5s forwards linear
+  }
+  .miniplayer:nth-child(2n):hover{
+    animation: move-centerl 0.5s forwards linear
+  }
+  }
 
+  .miniplayer:nth-child(1):hover{
+    animation: move-center 0.5s forwards linear
+  }
+  .miniplayer:last-child:hover{
+    animation: move-centerl 0.5s forwards linear
+  }
+
+  @keyframes move-centerl {
+    to{
+      transform: translateX(-50%);  
+    }
+  } 
+
+  @keyframes move-center {
+    to{
+      transform: translateX(50%);  
+    }
+  } 
+    
+
+  .mini-display{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 70%;
+    animation: fitsize 1s forwards linear;
+    color: white;
+    background-color: var(--color-gold);
+  }
+  .mini-display img{
+    height: 50%;
+    width: 100%;
+  }
+  @keyframes fitsize{
+    to{
+      transform: scale3d(2, 1.5, 0.5)
+    }
+  }
+
+  
   .scale:hover{
     animation: scale 0.3s linear forwards;
     cursor: pointer;
@@ -60,9 +89,30 @@
 </style>
 
 <script setup>
+import hoverimage from '@/assets/hoverimage.jpg'
 import gsap from 'gsap'
 import {ScrollTrigger} from 'gsap/ScrollTrigger'
+const display = ref(false)
+const preview = (e) =>{
+    const child = e.target.firstElementChild
+    const hide = e.target.lastElementChild
+    console.log(hide)
+    hide.hidden =true
+    child.hidden = false
+  }
+  const close =(e) =>{
+    const child = e.target.firstElementChild
+    const hide = e.target.lastElementChild
+    hide.hidden = false
+    child.hidden = true
+  }
   onMounted(()=>{
+    const player = document.querySelectorAll('.miniplayer')
+    console.log(player)
+
+    
+
+    
     gsap.registerPlugin(ScrollTrigger)
     
     const metaText = document.querySelector(".metaText")
@@ -89,13 +139,13 @@ import {ScrollTrigger} from 'gsap/ScrollTrigger'
   })
 
   const tlTile = gsap.timeline({
-      scrollTrigger:{
-        trigger: metaTile,
-        start:'top bottom',
-        end: 'bottom 90%',
-        scrub: false,
-        duration: 1
-      }
+    scrollTrigger:{
+      trigger: metaTile,
+      start:'top bottom',
+      end: 'bottom 90%',
+      scrub: false,
+      duration: 1
+    }
     })
 
     tlTile.fromTo(metaTile, {
@@ -107,5 +157,9 @@ import {ScrollTrigger} from 'gsap/ScrollTrigger'
     opacity:1
   })
 
-  })
+})
+
+
+
+
 </script>
