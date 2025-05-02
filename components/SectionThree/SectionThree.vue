@@ -3,29 +3,32 @@
     <h1 class="text-normal mb-[6px] md:text-medium">Arcadia Membership</h1>
     <p class="text-smallest text-center font-inter md:text-small">Choose the perfect subscription plan for your streaming needs</p>
     <div class="flex  lg:flex-row flex-col items-center justify-center gap-9 w-full lg:w-full ">
-      <Card type="Free"  :logo=free price="₦0" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" class="slide-left lg:max-w-[500px] w-4/5 flex-1" 
+      <Card type="Free" :logo=free price="₦0" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" class="slide-left lg:max-w-[500px] w-4/5 flex-1" 
       l3 = 'No pause ads'
       l2="No playtime ads"
       l4="International Content"
       l1="4k HD streaming content"
-      :checked=cross
-      :cross=cross
+      :checked=false
+      :cross=false
+      typeclass="text-type font-medium  md:text-[21px]"
       />
-      <Card type="standard"   :logo=standard price="₦500" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" 
+      <Card type="standard" :logo=standard price="₦500" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium" button=" border-[0.85px] h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer cardbtn" 
       l3 ='No pause ads'
       l2="No playtime ads"
       l4="International Content"
       l1="4k HD streaming content" class="lg:max-w-[500px] w-4/5  flex-1"
-      :checked=checked
-      :cross=cross
+      :checked=true
+      :cross=false
+      typeclass="text-type font-medium  md:text-[21px]"
       />
       <Card type="Premium" :logo=premium  price="₦1000" priceStyling="text-normal font-semibold mb-[13px] md:text-smedium text-gold" button=" h-13 w-full md:w-full h-17 rounded-[8.51px] mb-[18px] cursor-pointer bg-gold cardbtngold" class="slide-right lg:max-w-[500px] w-4/5 flex-1 "
       l3 = 'No pause ads'
       l2="No playtime ads"
       l4="International Content"
       l1="4k HD streaming content"
-      :checked=checked
-      :cross=cross
+      :checked=true
+      :cross=true
+      typeclass="text-type font-medium  md:text-[21px] text-gold"
       />
     </div>
 

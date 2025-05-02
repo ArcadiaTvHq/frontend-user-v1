@@ -10,7 +10,9 @@
       <div class="miniplayer" @mouseenter="e => preview(e)" @mouseleave="e=>close(e)" v-for="i in 6" :key="i" :id="i">
         <div class="mini-display" hidden="true" >
           <img src="@/assets/hoverimage.jpg">
-          <p class="text-tiny font-inter md:text-type ">The heroes that protect the galxy and their goofy adventures</p>
+          <div class="px-4 below">
+            <p class="font-semibold lg:text-seemore text-tiny ">The protectors of the galaxy and their goofy adventures</p>
+          </div>
         </div>
         <div>
           <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
@@ -63,6 +65,7 @@
     animation: fitsize 1s forwards linear;
     color: white;
     background-color: var(--color-gold);
+    
   }
   .mini-display img{
     height: 50%;

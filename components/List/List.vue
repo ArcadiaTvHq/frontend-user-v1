@@ -1,11 +1,13 @@
 <template>
   <div class="flex gap-1 md:gap-4 font-inter">
-    <img class="size-[10.21px] md:size-4" :src=img>
-    <p class="text-tiny md:text-small">{{ benefit }}</p>
+    <Checked class="size-7" v-if=props.ischecked />
+    <Cross class="size-7" v-else/>
+    <p class="text-tiny md:text-small text-gold" v-if="ischecked">{{ benefit }}</p>
+    <p class="text-tiny md:text-small" v-else>{{ benefit }}</p>
   </div>
 </template>
 
 <script setup>
-const props = defineProps(['benefit', 'img'])
+const props = defineProps(['benefit', 'ischecked'])
 
 </script>
