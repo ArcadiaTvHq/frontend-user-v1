@@ -16,6 +16,7 @@
   --color-darkgray: #424242;
   --font-inter:inter;
   --font-mont:mont;
+  --font-martel:martel;
   --text-big: 64px;
   --text-medium:48px;
   --text-smedium:44px;
@@ -25,6 +26,7 @@
   --color-inputb: #5B5B5B;
   --color-minputb: #888888;
   --color-hover: #CE8F00;
+  --color-link: #FEFCE8;
 }
 
 @font-face {
@@ -38,4 +40,8 @@
 @font-face{
   font-family:mont;
   src: url(../font/mont.ttf)
+}
+@font-face {
+  font-family: martel;
+  src: url(../font/martel.ttf);
 }

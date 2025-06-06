@@ -231,6 +231,7 @@
 
   const handleClick =()=>{
     modal.value = !modal.value
+    console.log(modal)
   }
   const props = defineProps(['text', 'small'])
 

@@ -22,9 +22,13 @@
 
   @keyframes hover-state{
     to{
-      transform: scale(1.1);
+      transform: scale(1.05);
       background-color: var(--color-hover);
       
     }
   }
 </style>
+
+<script setup>
+  navigateTo('/waitlist')
+</script>

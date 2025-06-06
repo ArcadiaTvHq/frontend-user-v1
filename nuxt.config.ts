@@ -15,6 +15,12 @@ export default defineNuxtConfig({
     {src:'~/plugins/Lenis.client.js'}
   ],
 
+  app:{
+    head:{
+      title: 'Arcadia'
+    }
+  },
+
 
   modules: [
     '@nuxt/fonts',
