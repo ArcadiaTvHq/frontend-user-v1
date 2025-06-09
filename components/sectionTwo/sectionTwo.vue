@@ -1,168 +1,251 @@
 <template>
-  <section class="px-9 md:px-28 flex flex-col gap-7 mt-20 font-orbitron">
-    <div class="flex justify-center items-center gap-1 metaText">
-      <img class="size-[35px]" src="../../assets/flame.svg">
-      <h6 class="text-textprimary md:text-h6">Anticipate</h6>
-      <div class=" hidden border-grayish flex flex-1 h-0 w-[165.4px] shhrink border-[0.85px]"></div>
-      <p class=" hidden text-textprimary text-smallest  md:text-seemore">See More</p>
+  <section
+    class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 font-orbitron"
+  >
+    <div class="flex justify-between items-center gap-1 metaText">
+      <div class="flex items-center gap-2">
+        <img
+          class="w-[25px] h-[25px] md:size-[35px]"
+          :src="icon || flameIcon"
+          :alt="iconAlt || 'Section icon'"
+        />
+        <h6 class="text-textprimary text-base md:text-h6">
+          {{ title || "Anticipate" }}
+        </h6>
+      </div>
+      <div class="flex items-center gap-2" v-if="showSeeMore">
+        <div
+          class="border-grayish h-0 w-[100px] md:w-[165.4px] border-[0.85px] hidden md:block"
+        ></div>
+        <p
+          class="text-textprimary text-smallest md:text-seemore cursor-pointer hover:text-gold transition-colors"
+        >
+          See More
+        </p>
+      </div>
     </div>
-    <div class="grid grid-cols-2 gap-3 md:gap-7 md:grid-cols-3 lg:grid-cols-6 text-textprimary tileHolder">
-      <div class="miniplayer" @mouseenter="e => preview(e)" @mouseleave="e=>close(e)" v-for="i in 6" :key="i" :id="i">
-        <div class="mini-display" hidden="true" >
-          <img src="@/assets/hoverimage.jpg">
-          <div class="px-4 below">
-            <p class="font-semibold lg:text-seemore text-tiny ">The protectors of the galaxy and their goofy adventures</p>
+    <div
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-7 text-textprimary tileHolder"
+    >
+      <div
+        v-if="loading"
+        class="col-span-full flex justify-center items-center p-8"
+      >
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gold"
+        ></div>
+      </div>
+      <div v-else-if="error" class="col-span-full text-red-500 text-center p-4">
+        {{ error }}
+      </div>
+      <template v-else>
+        <div
+          class="miniplayer relative group aspect-[3/4] cursor-pointer"
+          @mouseenter="(e) => preview(e)"
+          @mouseleave="(e) => close(e)"
+          @click="navigateToContent(content.slug)"
+          v-for="content in displayContent"
+          :key="content.id"
+        >
+          <div
+            class="mini-display absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          >
+            <img
+              :src="
+                buildImageUrl(
+                  content.banner_image_id || content.thumbnail_image_id
+                )
+              "
+              class="w-full h-full object-cover rounded-lg"
+              :alt="content.title"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent rounded-lg flex flex-col justify-end p-3"
+            >
+              <h3 class="text-[14px] font-semibold mb-2 text-white">
+                {{ content.title }}
+              </h3>
+              <p
+                class="text-[12px] leading-[1.5] text-gray-200 line-clamp-3 mb-2"
+              >
+                {{ content.description }}
+              </p>
+              <div class="flex items-center gap-2 text-[11px] text-gray-300">
+                <span>{{ formatDate(content.release_date) }}</span>
+                <span
+                  v-if="content.duration_in_seconds"
+                  class="flex items-center"
+                >
+                  <span class="w-1 h-1 rounded-full bg-gray-300 mx-1"></span>
+                  {{ formatDuration(content.duration_in_seconds) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="h-full flex flex-col group-hover:opacity-0 transition-opacity duration-300"
+          >
+            <img
+              class="w-full flex-1 object-cover rounded-lg scale"
+              :src="
+                buildImageUrl(
+                  content.poster_image_id || content.thumbnail_image_id
+                )
+              "
+              :alt="content.title"
+            />
+            <div class="mt-2 space-y-1">
+              <p class="text-[13px] leading-[1.3] font-medium line-clamp-2">
+                {{ content.title }}
+              </p>
+              <div class="flex items-center gap-2 text-[11px] text-gray-400">
+                <span>{{ formatDate(content.release_date) }}</span>
+                <span
+                  v-if="content.duration_in_seconds"
+                  class="flex items-center"
+                >
+                  <span class="w-1 h-1 rounded-full bg-gray-400 mx-1"></span>
+                  {{ formatDuration(content.duration_in_seconds) }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <div>
-          <img class="grid grid-cols-3 scale" src="../../assets/movie.png">
-          <p class="font-semibold lg:text-seemore text-small new">Guardian of the galaxy</p>
-          <span class="font-inter text-tiny lg:text-small ">2020 <span>2hrs</span></span>
-        </div>
-      </div>
-
-      
+      </template>
     </div>
   </section>
 </template>
 
 <style scoped>
+.miniplayer {
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
 
-  @media screen and (max-width: 750px) {
-    .miniplayer:nth-child(1n):hover{
-    animation: move-center 0.5s forwards linear
-  }
-  .miniplayer:nth-child(2n):hover{
-    animation: move-centerl 0.5s forwards linear
-  }
-  }
+.miniplayer:hover {
+  transform: scale(1.05);
+  z-index: 20;
+  box-shadow: 0 4px 20px rgba(255, 208, 5, 0.2);
+}
 
-  .miniplayer:nth-child(1):hover{
-    animation: move-center 0.5s forwards linear
-  }
-  .miniplayer:last-child:hover{
-    animation: move-centerl 0.5s forwards linear
-  }
+.mini-display {
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  height: 100%;
+}
 
-  @keyframes move-centerl {
-    to{
-      transform: translateX(-50%);  
-    }
-  } 
+.scale {
+  transition: all 0.3s ease-in-out;
+}
 
-  @keyframes move-center {
-    to{
-      transform: translateX(50%);  
-    }
-  } 
-    
+.scale:hover {
+  transform: scale(1.02);
+}
 
-  .mini-display{
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 70%;
-    animation: fitsize 1s forwards linear;
-    color: white;
-    background-color: var(--color-gold);
-    
+@media screen and (max-width: 640px) {
+  .miniplayer:hover,
+  .scale:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 10px rgba(255, 208, 5, 0.15);
   }
-  .mini-display img{
-    height: 50%;
-    width: 100%;
-  }
-  @keyframes fitsize{
-    to{
-      transform: scale3d(2, 1.5, 0.5)
-    }
-  }
-
-  
-  .scale:hover{
-    animation: scale 0.3s linear forwards;
-    cursor: pointer;
-  }
-
-  @keyframes scale {
-    to{
-      transform: scale(1.3);
-    }
-    
-  }
+}
 </style>
 
 <script setup>
-import hoverimage from '@/assets/hoverimage.jpg'
-import gsap from 'gsap'
-import {ScrollTrigger} from 'gsap/ScrollTrigger'
-const display = ref(false)
-const preview = (e) =>{
-    const child = e.target.firstElementChild
-    const hide = e.target.lastElementChild
-    console.log(hide)
-    hide.hidden =true
-    child.hidden = false
+import { ref, onMounted, computed } from "vue";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ContentService } from "../../api/services/content.service";
+import { EContentType } from "../../src/types/content";
+import flameIcon from "~/assets/flame.svg";
+import { useRouter } from "vue-router";
+import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
+
+const props = defineProps({
+  title: {
+    type: String,
+    default: "Anticipate",
+  },
+  icon: {
+    type: String,
+    default: null,
+  },
+  iconAlt: {
+    type: String,
+    default: "Section icon",
+  },
+  showSeeMore: {
+    type: Boolean,
+    default: true,
+  },
+  content: {
+    type: Array,
+    default: () => [],
+  },
+  fetchContent: {
+    type: Boolean,
+    default: true,
+  },
+});
+
+const anticipatedContent = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+const displayContent = computed(() => {
+  return props.content.length > 0 ? props.content : anticipatedContent.value;
+});
+
+const preview = (e) => {
+  const miniDisplay = e.currentTarget.querySelector(".mini-display");
+  if (miniDisplay) {
+    miniDisplay.hidden = false;
   }
-  const close =(e) =>{
-    const child = e.target.firstElementChild
-    const hide = e.target.lastElementChild
-    hide.hidden = false
-    child.hidden = true
+};
+
+const close = (e) => {
+  const miniDisplay = e.currentTarget.querySelector(".mini-display");
+  if (miniDisplay) {
+    miniDisplay.hidden = true;
   }
-  onMounted(()=>{
-    const player = document.querySelectorAll('.miniplayer')
-    console.log(player)
+};
 
-    
+const fetchAnticipatedContent = async () => {
+  if (!props.fetchContent) {
+    loading.value = false;
+    return;
+  }
 
-    
-    gsap.registerPlugin(ScrollTrigger)
-    
-    const metaText = document.querySelector(".metaText")
-    const metaTile = document.querySelector('.tileHolder')
+  try {
+    loading.value = true;
+    const response = await ContentService.getContents({
+      types: [EContentType.MOVIE, EContentType.SERIES],
+      released_after: new Date().toISOString(),
+      limit: 6,
+      page: 1,
+    });
 
-    const tl = gsap.timeline({
-      scrollTrigger:{
-        trigger: metaText,
-        start:'top bottom',
-        end: 'bottom 90%',
-        scrub: true,
+    anticipatedContent.value = response.data;
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
+};
 
-        duration: 2
-      }
-    })
+const router = useRouter();
 
-    tl.fromTo(metaText,{
-      xPercent: -100,
-      opacity: 0
-    },
-  {
-    xPercent: 0,
-    opacity: 1
-  })
+const navigateToContent = (slug) => {
+  if (!slug) return;
+  router.push({
+    path: `/watch/${slug}`,
+  });
+};
 
-  const tlTile = gsap.timeline({
-    scrollTrigger:{
-      trigger: metaTile,
-      start:'top bottom',
-      end: 'bottom 90%',
-      scrub: false,
-      duration: 1
-    }
-    })
-
-    tlTile.fromTo(metaTile, {
-      yPercent: 50,
-      opacity:0
-    },
-  {
-    yPercent: 0,
-    opacity:1
-  })
-
-})
-
-
-
-
+onMounted(async () => {
+  gsap.registerPlugin(ScrollTrigger);
+  await fetchAnticipatedContent();
+});
 </script>

@@ -1,9 +1,11 @@
-@import 'tailwindcss';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme{
-  --color-cod: #0B0B0B;
-  --color-gold: #FFD005;
-  --color-darkgold: #7F6527;
+@theme {
+  --color-cod: #0b0b0b;
+  --color-gold: #ffd005;
+  --color-darkgold: #7f6527;
   --font-orbitron: orbitron;
   --text-smallest: 12px;
   --text-tiny: 10.21px;
@@ -11,37 +13,78 @@
   --text-normal: 24px;
   --text-small: 16px;
   --color-textprimary: #fff;
-  --color-grayish: #5E5E5E;
-  --color-cardgray: #3D3D3D;
+  --color-grayish: #5e5e5e;
+  --color-cardgray: #3d3d3d;
   --color-darkgray: #424242;
-  --font-inter:inter;
-  --font-mont:mont;
-  --font-martel:martel;
+  --font-inter: inter;
+  --font-mont: mont;
+  --font-martel: martel;
   --text-big: 64px;
-  --text-medium:48px;
-  --text-smedium:44px;
-  --color-body:#0B0B0B;
+  --text-medium: 48px;
+  --text-smedium: 44px;
+  --color-body: #0b0b0b;
   --text-h6: 31.64px;
   --text-seemore: 20px;
-  --color-inputb: #5B5B5B;
+  --color-inputb: #5b5b5b;
   --color-minputb: #888888;
-  --color-hover: #CE8F00;
-  --color-link: #FEFCE8;
+  --color-hover: #ce8f00;
+  --color-link: #fefce8;
 }
 
-@font-face {
-  font-family: orbitron;
-  src: url(../font/orbitron.ttf);
+@layer base {
+  :root {
+    --color-cod: #0b0b0b;
+    --color-gold: #ffd005;
+    --color-darkgold: #7f6527;
+    --color-textprimary: #fff;
+    --color-grayish: #5e5e5e;
+    --color-cardgray: #3d3d3d;
+    --color-darkgray: #424242;
+    --color-body: #0b0b0b;
+    --color-inputb: #5b5b5b;
+    --color-minputb: #888888;
+    --color-hover: #ce8f00;
+    --color-link: #fefce8;
+  }
+  @font-face {
+    font-family: orbitron;
+    src: url(../font/orbitron.ttf);
+  }
+  @font-face {
+    font-family: inter;
+    src: url(../font/inter.ttf);
+  }
+  @font-face {
+    font-family: mont;
+    src: url(../font/mont.ttf);
+  }
+  @font-face {
+    font-family: martel;
+    src: url(../font/martel.ttf);
+  }
 }
-@font-face{
-  font-family: inter;
-  src:url(../font/inter.ttf)
+
+@layer components {
+  .btn {
+    @apply bg-[#FFD005] transition-all duration-300 ease-in-out;
+  }
+
+  .btn:hover {
+    @apply bg-[#CE8F00] scale-105;
+  }
+
+  .btn:disabled {
+    @apply bg-[#FFF487] cursor-not-allowed scale-100;
+  }
 }
-@font-face{
-  font-family:mont;
-  src: url(../font/mont.ttf)
+
+/* Page Transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0s;
 }
-@font-face {
-  font-family: martel;
-  src: url(../font/martel.ttf);
+
+.page-enter,
+.page-leave-to {
+  opacity: 0;
 }

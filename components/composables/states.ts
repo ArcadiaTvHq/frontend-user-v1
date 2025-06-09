@@ -1,4 +1,7 @@
-export const toggleFaq = ()=>useState<boolean>('open', () => false)
-export const openModal =()=> useState<boolean>('modal', () => false)
-export const toggleFaq2 = ()=>useState<boolean>('open2', () => false)
-export const toggleFaq3 = ()=>useState<boolean>('open3', () => false)
+import { ref } from "@vue/runtime-core";
+import type { Ref } from "@vue/runtime-core";
+
+export const toggleFaq = (): Ref<boolean> => ref<boolean>(false);
+export const openModal = (): Ref<boolean> => ref<boolean>(false);
+export const toggleFaq2 = (): Ref<boolean> => ref<boolean>(false);
+export const toggleFaq3 = (): Ref<boolean> => ref<boolean>(false);
