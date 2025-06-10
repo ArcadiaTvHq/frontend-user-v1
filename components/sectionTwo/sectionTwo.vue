@@ -25,7 +25,7 @@
       </div>
     </div>
     <div
-      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5 md:gap-7 text-textprimary tileHolder"
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 sm:gap-5 md:gap-7 text-textprimary tileHolder"
     >
       <div
         v-if="loading"
@@ -84,7 +84,7 @@
 
           <!-- Main content (always visible) -->
           <div
-            class="h-full flex flex-col md:group-hover:opacity-0 transition-opacity duration-300"
+            class="h-full flex flex-col md:group-hover:opacity-0 transition-opacity duration-300 mb-2 md:mb-0"
           >
             <img
               class="w-full flex-1 object-cover rounded-lg scale"
@@ -95,7 +95,7 @@
               "
               :alt="content.title"
             />
-            <div class="mt-2 space-y-1">
+            <div class="mt-3 space-y-2">
               <p class="text-[13px] leading-[1.3] font-medium line-clamp-2">
                 {{ content.title }}
               </p>

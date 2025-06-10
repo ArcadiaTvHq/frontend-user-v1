@@ -7,7 +7,7 @@
         bannerImage
           ? `background-image: url(${buildImageUrl(
               bannerImage,
-              'size2'
+              'size3'
             )}); background-size: cover; background-position: center;`
           : ''
       "
