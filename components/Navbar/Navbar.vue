@@ -1,27 +1,38 @@
 <script setup>
-import { PUBLIC_ROUTES } from "~/constants/routes";
+import { useAuthStore } from "~/stores/auth";
+import { useContentType } from "~/composables/useContentType";
 
 const route = useRoute();
-const isPublicRoute = computed(() => {
-  return PUBLIC_ROUTES.some((routePattern) => {
-    // If the route pattern is a RegExp
-    if (routePattern instanceof RegExp) {
-      return routePattern.test(route.path);
-    }
-    // If it's a string (exact match)
-    return routePattern === route.path;
-  });
-});
+const authStore = useAuthStore();
+const { contentType } = useContentType();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
 
 const Links = [
   { name: "HOME", pathname: "/watch" },
-  { name: "TV SHOW", pathname: "/tv-show" },
-  { name: "MOVIES", pathname: "/movies" },
-  { name: "NEW", pathname: "/new" },
+  {
+    name: "TV SHOW",
+    pathname: "/tv-show",
+    matches: (path) =>
+      path.startsWith("/tv-show") ||
+      (path.startsWith("/watch/") && contentType.value === "series"),
+  },
+  {
+    name: "MOVIES",
+    pathname: "/movies",
+    matches: (path) =>
+      path.startsWith("/movies") ||
+      (path.startsWith("/watch/") && contentType.value === "movie"),
+  },
+  {
+    name: "NEW",
+    pathname: "/new",
+    matches: (path) => path.startsWith("/new"),
+  },
 ];
 
-const isActiveRoute = (pathname) => {
-  return route.path === pathname;
+const isActiveRoute = (link) => {
+  if (typeof link === "string") return route.path === link;
+  return link.matches ? link.matches(route.path) : route.path === link.pathname;
 };
 
 const mobileMenuOpen = ref(false);
@@ -42,7 +53,7 @@ const toggleMobileMenu = () => {
     </nuxt-link>
 
     <!-- Protected route content -->
-    <template v-if="!isPublicRoute">
+    <template v-if="isAuthenticated">
       <!-- Mobile menu button -->
       <button
         @click="toggleMobileMenu"
@@ -59,14 +70,14 @@ const toggleMobileMenu = () => {
         class="hidden md:flex items-center gap-4 lg:gap-8 flex-grow justify-center max-w-2xl"
       >
         <nuxt-link
-          v-for="(i, index) in Links"
+          v-for="(link, index) in Links"
           :key="index"
-          :to="i.pathname"
+          :to="link.pathname"
           class="text-sm lg:text-base font-bold text-white hover:text-[#FFD005] transition-colors px-2 relative"
         >
-          {{ i.name }}
+          {{ link.name }}
           <div
-            v-if="isActiveRoute(i.pathname)"
+            v-if="isActiveRoute(link)"
             class="absolute bottom-[-8px] left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#FFD005]"
           ></div>
         </nuxt-link>
@@ -115,14 +126,14 @@ const toggleMobileMenu = () => {
       >
         <div class="flex flex-col px-4 gap-6">
           <nuxt-link
-            v-for="(i, index) in Links"
+            v-for="(link, index) in Links"
             :key="index"
-            :to="i.pathname"
+            :to="link.pathname"
             class="text-sm font-bold text-white hover:text-[#FFD005] transition-colors relative"
           >
-            {{ i.name }}
+            {{ link.name }}
             <div
-              v-if="isActiveRoute(i.pathname)"
+              v-if="isActiveRoute(link)"
               class="absolute right-[-8px] top-1/2 transform -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#FFD005]"
             ></div>
           </nuxt-link>

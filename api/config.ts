@@ -1,7 +1,8 @@
+import { useRuntimeConfig } from "#app";
 import type { AxiosRequestConfig } from "axios";
 
 export const API_CONFIG: AxiosRequestConfig = {
-  baseURL: process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
+  baseURL: useRuntimeConfig().public.apiBaseUrl,
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",

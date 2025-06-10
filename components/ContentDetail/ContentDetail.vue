@@ -181,7 +181,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useAuthStore } from "~/stores/auth";
 import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
 import { useRouter } from "vue-router";
@@ -211,4 +211,10 @@ const navigateToTrailer = () => {
   if (!props.content?.slug) return;
   router.push(`/watch/${props.content.slug}/trailer`);
 };
+
+const emit = defineEmits(["mounted"]);
+
+onMounted(() => {
+  emit("mounted");
+});
 </script>

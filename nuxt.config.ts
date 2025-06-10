@@ -5,10 +5,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ["~/assets/css/main.css"],
 
-  plugins: [
-    { src: "~/plugins/Lenis.client.js" },
-    { src: "~/plugins/stream-client.client.ts" },
-  ],
+  plugins: [{ src: "~/plugins/Lenis.client.js" }],
 
   app: {
     head: {

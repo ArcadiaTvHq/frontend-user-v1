@@ -90,7 +90,6 @@ export const useAuthStore = defineStore(
       loading.value = true;
       try {
         const response = await AuthService.resendOTP();
-        console.log(response);
         return response;
       } catch (err: any) {
         throw err;

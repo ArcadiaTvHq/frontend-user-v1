@@ -35,16 +35,6 @@ export class AuthService {
     removeAuthToken();
   }
 
-  // static async refreshToken(): Promise<AuthResponse> {
-  //   const response = await apiClient.post<AuthResponse>(
-  //     ENDPOINTS.AUTH.REFRESH_TOKEN
-  //   );
-  //   if (response.data.token) {
-  //     setAuthToken(response.data.token);
-  //   }
-  //   return response;
-  // }
-
   static async verifyOTP(otp: string): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>(
       ENDPOINTS.AUTH.VERIFY_OTP,

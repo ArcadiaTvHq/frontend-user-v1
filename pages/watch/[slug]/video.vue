@@ -29,18 +29,29 @@
           <p class="mt-2 text-gray-300">{{ content.description }}</p>
         </div>
       </div>
+
+      <!-- Conditional Footer -->
+      <div class="mt-20 md:mt-32">
+        <HomeFoot v-if="isAuthenticated" />
+        <SectionLast v-else />
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
+import { useAuthStore } from "~/stores/auth";
 import { ContentService } from "~/api/services/content.service";
 import Navbar from "~/components/Navbar/Navbar.vue";
+import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
+import SectionLast from "~/components/SectionLast/SectionLast.vue";
 
 const route = useRoute();
 const content = ref(null);
+const authStore = useAuthStore();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
 
 onMounted(async () => {
   try {

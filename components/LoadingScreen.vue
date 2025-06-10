@@ -1,7 +1,7 @@
 <template>
   <Transition name="fade">
     <div
-      v-if="loading"
+      v-if="isLoading"
       class="fixed inset-0 bg-black z-50 flex items-center justify-center"
     >
       <img
@@ -14,8 +14,10 @@
 </template>
 
 <script setup>
-const { $loading } = useNuxtApp();
-const loading = computed(() => $loading.value);
+import { useLoadingStore } from "~/stores/loading";
+
+const loadingStore = useLoadingStore();
+const isLoading = computed(() => loadingStore.isLoading);
 </script>
 
 <style scoped>

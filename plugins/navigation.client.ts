@@ -1,18 +1,12 @@
 export default defineNuxtPlugin((nuxtApp) => {
-  const loading = ref(false);
-
-  // Provide loading state to components
-  nuxtApp.provide("loading", loading);
+  const loadingStore = useLoadingStore();
 
   // Add navigation hooks
   nuxtApp.hook("page:start", () => {
-    loading.value = true;
+    loadingStore.startLoading();
   });
 
   nuxtApp.hook("page:finish", () => {
-    loading.value = false;
+    loadingStore.stopLoading();
   });
-
-  // Add to vue app for global access
-  nuxtApp.vueApp.provide("loading", loading);
 });

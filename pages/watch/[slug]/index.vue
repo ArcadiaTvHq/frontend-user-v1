@@ -1,9 +1,9 @@
 <template>
   <div class="min-h-screen bg-black">
     <Navbar />
-    <main class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
+    <main v-if="content" class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
       <!-- Background Image with Gradient Overlay -->
-      <div v-if="content" class="relative h-[85vh] w-full">
+      <div class="relative h-[85vh] w-full">
         <img
           :src="buildImageUrl(content.banner_image_id, 'size2')"
           :alt="content.title"
@@ -16,7 +16,6 @@
 
         <!-- Content Detail Section -->
         <ContentDetail
-          v-if="content"
           :content="content"
           :showPosterOverlay="content.trailer_upload_status === 'ready'"
           class="absolute inset-0 flex items-center"
@@ -33,42 +32,77 @@
           :fetchContent="false"
         />
       </div>
+
+      <!-- Conditional Footer -->
+      <div class="mt-20 md:mt-32">
+        <HomeFoot v-if="isAuthenticated" />
+        <SectionLast v-else />
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
+import { useAuthStore } from "~/stores/auth";
+import { useLoadingStore } from "~/stores/loading";
+import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
 import Navbar from "~/components/Navbar/Navbar.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
+import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
+import SectionLast from "~/components/SectionLast/SectionLast.vue";
 import { buildImageUrl } from "~/src/utils/helpers";
 
 const route = useRoute();
+const authStore = useAuthStore();
+const loadingStore = useLoadingStore();
+const { setContentType } = useContentType();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+// State
 const content = ref(null);
 const relatedContent = ref([]);
 
-// Fetch content details when component mounts
-onMounted(async () => {
-  try {
-    console.log("Fetching content for slug:", route.params.slug);
-    const response = await ContentService.getContentBySlug(route.params.slug);
-    content.value = response.data;
+// Async setup
+const { data: contentData } = await useAsyncData(
+  `content-${route.params.slug}`,
+  () => ContentService.getContentBySlug(route.params.slug)
+);
 
-    // Fetch related content
-    const relatedResponse = await ContentService.getContents({
-      limit: 6,
-      page: 1,
-      // exclude_ids: [content.value.id], // We can exclude current content by ID
-    });
-    relatedContent.value = relatedResponse.data;
-  } catch (error) {
-    console.error("Error fetching content details:", error);
+const { data: relatedData } = await useAsyncData("related-content", () =>
+  ContentService.getContents({ limit: 6, page: 1 })
+);
+
+// Set content after data is loaded
+watchEffect(() => {
+  if (contentData.value?.data) {
+    content.value = contentData.value.data;
+    // Set the content type when content is loaded
+    setContentType(content.value.type);
+  }
+  if (relatedData.value?.data) {
+    relatedContent.value = relatedData.value.data;
   }
 });
 
+// Stop loading when content is ready
+watchEffect(() => {
+  if (content.value && relatedContent.value) {
+    // Small delay to ensure smooth transition
+    setTimeout(() => {
+      loadingStore.stopLoading();
+    }, 100);
+  }
+});
+
+onBeforeUnmount(() => {
+  loadingStore.stopLoading();
+  // Clear content type when leaving the page
+  setContentType(null);
+});
+
 definePageMeta({
-  middleware: ["auth"],
+  middleware: ["auth", "content-loading"],
 });
 </script>

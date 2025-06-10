@@ -1,86 +1,64 @@
-// Declare global loading type
-declare global {
-  interface Window {
-    __nuxt_loading: { value: boolean };
-  }
-}
-
 import { useAuthStore } from "~/stores/auth";
-import { defineNuxtRouteMiddleware, navigateTo, abortNavigation } from "#app";
 
-export default defineNuxtRouteMiddleware(async (to) => {
-  // Show loader at start of navigation
-  if (process.client && window.__nuxt_loading) {
-    window.__nuxt_loading.value = true;
-  }
-
+export default defineNuxtRouteMiddleware((to) => {
   // Ignore special routes and DevTools requests
   if (to.path.startsWith("/.well-known/") || to.path.startsWith("/__nuxt")) {
     return;
   }
 
-  console.log("🔒 Auth Middleware Running");
-
   const authStore = useAuthStore();
   const publicRoutes = ["/login", "/signup", "/otp"];
-  const protectedRoutes = ["/watch", "/watch/*/video"];
 
-  // Helper to check if a path matches any of the protected routes patterns
-  const isProtectedRoute = (path: string): boolean => {
-    return protectedRoutes.some((pattern) => {
-      // Convert route pattern to regex
-      const regexPattern = pattern
-        .replace(/\*/g, "[^/]+") // Replace * with non-slash characters
-        .replace(/\//g, "\\/"); // Escape forward slashes
-      const regex = new RegExp(`^${regexPattern}$`);
-      return regex.test(path);
-    });
+  // Check if the route matches any of the public patterns
+  const isPublicRoute = (path: string) => {
+    // Static public routes
+    if (publicRoutes.includes(path)) return true;
+
+    // Dynamic public routes
+    const watchDetailPattern = /^\/watch\/[^/]+$/;
+    const watchTrailerPattern = /^\/watch\/[^/]+\/trailer$/;
+
+    return watchDetailPattern.test(path) || watchTrailerPattern.test(path);
   };
 
-  console.log("Auth Status:", {
-    isAuthenticated: authStore.isAuthenticated,
-    isVerified: authStore.isVerified,
-    targetPath: to.path,
-    isPublicRoute: publicRoutes.includes(to.path),
-    isProtectedRoute: isProtectedRoute(to.path),
-  });
+  // Check if the route matches any of the protected patterns
+  const isProtectedRoute = (path: string) => {
+    // Static protected routes
+    if (path === "/watch") return true;
+
+    // Dynamic protected routes
+    const watchVideoPattern = /^\/watch\/[^/]+\/video$/;
+
+    return watchVideoPattern.test(path);
+  };
+
+  // If user is authenticated and on root path, redirect to /watch
+  if (authStore.isAuthenticated && authStore.isVerified && to.path === "/") {
+    return navigateTo("/watch");
+  }
 
   // If user is authenticated but not verified, redirect to OTP page
+  // except if they're already on the OTP page or on a public route
   if (
     authStore.isAuthenticated &&
     !authStore.isVerified &&
-    !publicRoutes.includes(to.path) &&
+    !isPublicRoute(to.path) &&
     to.path !== "/otp"
   ) {
-    console.log("🔄 Redirecting unverified user to OTP page");
-    return navigateTo("/otp", { replace: true });
+    return navigateTo("/otp");
   }
 
   // If trying to access a protected route and not authenticated
   if (isProtectedRoute(to.path) && !authStore.isAuthenticated) {
-    console.log("🔄 Redirecting unauthenticated user from protected route");
-    return navigateTo("/login", { replace: true });
+    return navigateTo("/login");
   }
 
-  // If authenticated and verified user tries to access auth pages or index
+  // If authenticated and verified user tries to access auth pages
   if (
     authStore.isAuthenticated &&
     authStore.isVerified &&
-    (to.path === "/" ||
-      to.path === "/login" ||
-      to.path === "/signup" ||
-      to.path === "/otp")
+    (to.path === "/login" || to.path === "/signup" || to.path === "/otp")
   ) {
-    console.log("🔄 Redirecting authenticated user to watch");
-    return navigateTo("/watch", { replace: true });
+    return navigateTo("/watch");
   }
-
-  // Hide loader after navigation is complete
-  if (process.client && window.__nuxt_loading) {
-    setTimeout(() => {
-      window.__nuxt_loading.value = false;
-    }, 0);
-  }
-
-  console.log("✅ Allowing navigation to:", to.path);
 });

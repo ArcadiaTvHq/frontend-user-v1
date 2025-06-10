@@ -2,9 +2,25 @@
   <div class="aspect-video w-full bg-gray-900 rounded-lg overflow-hidden">
     <div
       v-if="!streamUrl"
-      class="w-full h-full flex items-center justify-center text-white"
+      class="w-full h-full flex items-center justify-center text-white relative"
+      :style="
+        bannerImage
+          ? `background-image: url(${buildImageUrl(
+              bannerImage,
+              'size2'
+            )}); background-size: cover; background-position: center;`
+          : ''
+      "
     >
-      <div class="text-center">
+      <!-- Black overlay -->
+      <div class="absolute inset-0 bg-black/70"></div>
+
+      <div class="text-center relative z-10">
+        <img
+          class="w-[100px] h-[100px] object-contain animate-pulse mb-4"
+          src="@/assets/logo2.png"
+          alt="Loading"
+        />
         <p class="mb-2">{{ loadingMessage }}</p>
         <p v-if="retryCount > 0" class="text-sm text-gray-400">
           Retry attempt: {{ retryCount }}
@@ -41,9 +57,13 @@
       <!-- Buffering Loader -->
       <div
         v-if="isBuffering"
-        class="absolute inset-0 flex items-center justify-center bg-black/20 z-10"
+        class="absolute inset-0 flex items-center justify-center bg-black/60 z-10"
       >
-        <span class="text-white animate-spin text-xl">⏳</span>
+        <img
+          class="w-[100px] h-[100px] object-contain animate-pulse"
+          src="@/assets/logo2.png"
+          alt="Buffering"
+        />
       </div>
 
       <!-- Error Message -->
@@ -63,6 +83,7 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { ContentService } from "~/api/services/content.service";
+import { buildImageUrl } from "~/src/utils/helpers";
 
 const props = defineProps({
   contentId: {
@@ -73,6 +94,10 @@ const props = defineProps({
     type: String,
     required: true,
     validator: (value) => ["video", "trailer"].includes(value),
+  },
+  bannerImage: {
+    type: String,
+    default: null,
   },
   poster: String,
   autoplay: { type: Boolean, default: false },
@@ -107,27 +132,19 @@ const onCanPlay = () => {
 };
 
 const onError = (e) => {
-  console.error("Video error:", e);
   error.value = "This video cannot be played. Please try again later.";
 };
 
-const handlePlay = () => {
-  console.log("play");
-};
+const handlePlay = () => {};
 
-const handlePause = () => {
-  console.log("pause");
-};
+const handlePause = () => {};
 
-const handleEnded = () => {
-  console.log("ended");
-};
+const handleEnded = () => {};
 
 const handleTimeUpdate = (e) => {
   const current = e?.target?.currentTime;
   if (Math.floor(current) !== lastEmittedSecond.value) {
     lastEmittedSecond.value = Math.floor(current);
-    console.log("timeupdate", e);
   }
 };
 
@@ -202,7 +219,6 @@ const fetchStreamUrl = async (isRetry = false) => {
 
 // Initialize or handle prop changes
 const initializePlayer = () => {
-  console.log("Initializing player with contentId:", props.contentId);
   if (props.contentId) {
     resetState();
     fetchStreamUrl();
@@ -213,7 +229,6 @@ const initializePlayer = () => {
 watch(
   () => props.contentId,
   (newContentId, oldContentId) => {
-    console.log("ContentId changed:", { new: newContentId, old: oldContentId });
     if (newContentId !== oldContentId) {
       initializePlayer();
     }
@@ -225,7 +240,6 @@ watch(
 watch(
   () => props.playerType,
   (newType, oldType) => {
-    console.log("PlayerType changed:", { new: newType, old: oldType });
     if (newType !== oldType && props.contentId) {
       initializePlayer();
     }
@@ -234,7 +248,22 @@ watch(
 
 // Also initialize on mount to handle direct navigation
 onMounted(() => {
-  console.log("Component mounted with contentId:", props.contentId);
   initializePlayer();
 });
 </script>
+
+<style scoped>
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+</style>

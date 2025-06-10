@@ -244,8 +244,11 @@ const navigateToContent = (slug) => {
   });
 };
 
+const emit = defineEmits(["mounted"]);
+
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger);
   await fetchAnticipatedContent();
+  emit("mounted");
 });
 </script>
