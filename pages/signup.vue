@@ -89,15 +89,6 @@ async function handleSubmit() {
     showToast.value = true;
     error.value = e?.response?.data?.message;
   } finally {
-    // Clear form if needed
-    if (!error.value) {
-      formData.firstName = "";
-      formData.lastName = "";
-      formData.email = "";
-      formData.password = "";
-      formData.confirmPassword = "";
-      formData.keepSignedIn = false;
-    }
     // Reset toast after duration
     setTimeout(() => {
       showToast.value = false;

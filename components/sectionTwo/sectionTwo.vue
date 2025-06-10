@@ -25,7 +25,7 @@
       </div>
     </div>
     <div
-      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-7 text-textprimary tileHolder"
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5 md:gap-7 text-textprimary tileHolder"
     >
       <div
         v-if="loading"
@@ -41,14 +41,13 @@
       <template v-else>
         <div
           class="miniplayer relative group aspect-[3/4] cursor-pointer"
-          @mouseenter="(e) => preview(e)"
-          @mouseleave="(e) => close(e)"
           @click="navigateToContent(content.slug)"
           v-for="content in displayContent"
           :key="content.id"
         >
+          <!-- Preview overlay (desktop only) -->
           <div
-            class="mini-display absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            class="mini-display absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block"
           >
             <img
               :src="
@@ -82,8 +81,10 @@
               </div>
             </div>
           </div>
+
+          <!-- Main content (always visible) -->
           <div
-            class="h-full flex flex-col group-hover:opacity-0 transition-opacity duration-300"
+            class="h-full flex flex-col md:group-hover:opacity-0 transition-opacity duration-300"
           >
             <img
               class="w-full flex-1 object-cover rounded-lg scale"
@@ -121,6 +122,7 @@
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .miniplayer:hover {
@@ -134,6 +136,8 @@
   overflow: hidden;
   transition: all 0.3s ease-in-out;
   height: 100%;
+  position: absolute;
+  inset: 0;
 }
 
 .scale {
@@ -145,10 +149,23 @@
 }
 
 @media screen and (max-width: 640px) {
-  .miniplayer:hover,
+  .miniplayer {
+    position: relative;
+    z-index: 1;
+  }
+
+  .miniplayer:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
   .scale:hover {
-    transform: scale(1.02);
-    box-shadow: 0 2px 10px rgba(255, 208, 5, 0.15);
+    transform: none;
+  }
+
+  /* Disable hover preview on mobile */
+  .mini-display {
+    display: none;
   }
 }
 </style>

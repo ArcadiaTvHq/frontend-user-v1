@@ -12,16 +12,16 @@ const Links = [
   {
     name: "TV SHOW",
     pathname: "/tv-show",
-    matches: (path) =>
+    matches: (path, type) =>
       path.startsWith("/tv-show") ||
-      (path.startsWith("/watch/") && contentType.value === "series"),
+      (path.startsWith("/watch/") && type === "series"),
   },
   {
     name: "MOVIES",
     pathname: "/movies",
-    matches: (path) =>
+    matches: (path, type) =>
       path.startsWith("/movies") ||
-      (path.startsWith("/watch/") && contentType.value === "movie"),
+      (path.startsWith("/watch/") && type === "movie"),
   },
   {
     name: "NEW",
@@ -32,13 +32,20 @@ const Links = [
 
 const isActiveRoute = (link) => {
   if (typeof link === "string") return route.path === link;
-  return link.matches ? link.matches(route.path) : route.path === link.pathname;
+  return link.matches
+    ? link.matches(route.path, contentType.value)
+    : route.path === link.pathname;
 };
 
 const mobileMenuOpen = ref(false);
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value;
 };
+
+// Watch for route and content type changes to close mobile menu
+watch([() => route.path, contentType], () => {
+  mobileMenuOpen.value = false;
+});
 </script>
 <template>
   <nav
@@ -122,19 +129,20 @@ const toggleMobileMenu = () => {
       <!-- Mobile menu -->
       <div
         v-show="mobileMenuOpen"
-        class="absolute top-full left-0 right-0 bg-cod py-4 md:hidden"
+        class="absolute top-full left-0 right-0 bg-cod py-4 md:hidden border-b border-gold"
       >
         <div class="flex flex-col px-4 gap-6">
           <nuxt-link
             v-for="(link, index) in Links"
             :key="index"
             :to="link.pathname"
-            class="text-sm font-bold text-white hover:text-[#FFD005] transition-colors relative"
+            class="text-sm font-bold text-white hover:text-[#FFD005] transition-colors relative flex items-center justify-between"
+            :class="{ 'text-[#FFD005]': isActiveRoute(link) }"
           >
             {{ link.name }}
             <div
               v-if="isActiveRoute(link)"
-              class="absolute right-[-8px] top-1/2 transform -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#FFD005]"
+              class="w-1.5 h-1.5 rounded-full bg-[#FFD005]"
             ></div>
           </nuxt-link>
 

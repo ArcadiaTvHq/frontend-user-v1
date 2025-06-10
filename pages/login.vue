@@ -70,12 +70,6 @@ async function handleSubmit() {
     toastType.value = "error";
     showToast.value = true;
   } finally {
-    // Clear form if needed
-    if (!error.value) {
-      formData.email = "";
-      formData.password = "";
-      formData.keepSignedIn = false;
-    }
     // Reset toast after duration
     setTimeout(() => {
       showToast.value = false;
