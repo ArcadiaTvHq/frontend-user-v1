@@ -1,32 +1,71 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
-  compatibilityDate: '2024-11-01',
+  ssr: false,
+  compatibilityDate: "2024-11-01",
   devtools: { enabled: true },
-  css: ['~/assets/css/main.css'],
-  vite:{
-    plugins:[
-      tailwindcss()
-      
-    ],
+  css: ["~/assets/css/main.css"],
+
+  plugins: [{ src: "~/plugins/Lenis.client.js" }],
+
+  app: {
+    head: {
+      title: "Arcadia",
+      script: [
+        {
+          src: "https://embed.videodelivery.net/embed/sdk.latest.js",
+          defer: true,
+        },
+      ],
+    },
+    pageTransition: false,
+    layoutTransition: false,
   },
 
-  plugins:[
-    {src:'~/plugins/Lenis.client.js'}
-  ],
-
-  app:{
-    head:{
-      title: 'Arcadia'
-    }
+  runtimeConfig: {
+    public: {
+      apiBaseUrl:
+        process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api",
+    },
   },
-
 
   modules: [
-    '@nuxt/fonts',
-    '@nuxt/icon',
-    '@nuxt/image',
-    '@nuxt/scripts',
-    '@nuxt/test-utils'
-  ]
-})
+    "@nuxt/fonts",
+    "@nuxt/icon",
+    "@nuxt/image",
+    "@nuxt/scripts",
+    "@nuxt/test-utils",
+    "@pinia/nuxt",
+    "@pinia-plugin-persistedstate/nuxt",
+  ],
+
+  devServer: {
+    port: 5000,
+    host: "0.0.0.0",
+  },
+
+  nitro: {
+    devProxy: {
+      "/api": {
+        target:
+          process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api",
+        changeOrigin: true,
+      },
+    },
+  },
+
+  postcss: {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {},
+    },
+  },
+
+  imports: {
+    dirs: ["stores"],
+  },
+
+  piniaPersistedstate: {
+    storage: "localStorage",
+    debug: true,
+  },
+});

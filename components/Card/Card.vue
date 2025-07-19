@@ -1,35 +1,91 @@
 <template>
-  <div class="bg-cardgray px-5 md:px-8 py-6 text-white rounded-[5px] mt-9 scale flex flex-col flex-1 shrink-5 max-w-[417px]">
-    <div class="flex gap-2 mb-[6.77px]">
-      <Logo class="size-5 md:size-8" v-if=cross />
-      <img class="size-5 md:size-8" :src=logo v-else />
-      <p :class="typeclass" >{{ type }}</p>
+  <div
+    class="bg-cardgray p-4 md:px-6 md:py-4 text-white rounded-[5px] flex flex-col h-full w-full max-w-[280px] mx-auto"
+  >
+    <div class="flex items-center gap-2 mb-3">
+      <Logo class="w-5 h-5 md:w-6 md:h-6" v-if="cross" />
+      <img class="w-5 h-5 md:w-6 md:h-6" :src="logo" v-else />
+      <p :class="typeclass">{{ type }}</p>
     </div>
-    <h6 :class="priceStyling">{{price}}<span class="text-smallest">/month</span></h6>
-    <button :class="button" >Select this plan</button>
-    <List class="mb-[9px] md:mb-[16px]" :benefit=l1  :ischecked=checked />
-    <List class="mb-[9px] md:mb-[16px]" :benefit=l2  :ischecked=checked />
-    <List class="mb-[9px] md:mb-[16px]" :benefit=l3  :ischecked=cross />
-    <List class="mb-[9px] md:mb-[16px]" :benefit=l4  :ischecked=cross />
+    <h6 :class="priceStyling">
+      {{ price }}
+      <span class="text-xs md:text-smallest opacity-75">/month</span>
+    </h6>
+    <button
+      :class="[
+        button,
+        'transition-all duration-300 hover:bg-[#CE8F00] disabled:bg-[#FFF487]',
+      ]"
+    >
+      Select this plan
+    </button>
+    <div class="flex-1 flex flex-col gap-2">
+      <List
+        v-for="(benefit, index) in benefits"
+        :key="index"
+        class="mb-1 md:mb-2"
+        :benefit="benefit.text"
+        :ischecked="benefit.included"
+      />
+    </div>
   </div>
 </template>
 
-<style>
-  .scale:hover{
-    animation: scale 0.5s linear forwards
+<style scoped>
+.scale {
+  transition: transform 0.3s ease;
+}
+
+.scale:hover {
+  transform: scale(1.05);
+}
+
+@media (max-width: 1024px) {
+  .scale:hover {
+    transform: scale(1.02);
   }
-
-  @keyframes scale {
-    to{
-      transform: scale(1.1);
-    }
-    
-  }
-
-
+}
 </style>
 
-<script setup >
-  const props = defineProps(['type','price', 'logo', 'color', 'priceStyling', 'button', 'l1', 'l2', 'l3', 'l4', 'checked', 'cross', 'typeclass'])
+<script setup>
+const props = defineProps({
+  type: {
+    type: String,
+    required: true,
+  },
+  price: {
+    type: String,
+    required: true,
+  },
+  logo: {
+    type: [String, Object],
+    required: true,
+  },
+  color: String,
+  priceStyling: {
+    type: String,
+    required: true,
+  },
+  button: {
+    type: String,
+    required: true,
+  },
+  benefits: {
+    type: Array,
+    required: true,
+    default: () => [],
+    validator: (value) => {
+      return value.every(
+        (benefit) =>
+          typeof benefit === "object" &&
+          "text" in benefit &&
+          "included" in benefit
+      );
+    },
+  },
+  typeclass: {
+    type: String,
+    required: true,
+  },
+});
 </script>
-  

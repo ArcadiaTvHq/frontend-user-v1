@@ -1,56 +1,265 @@
 <template>
-  <section class=" bg-body bg-[url(../../assets/signup/bg.png)] bg-cover h-[100vh] w-[100vw] text-white flex md:items-center justify-center bg-blend-overlay items-end">
-      <form class="bg-body w-full md:w-1/2 h-fit md:h-7/10 flex flex-col gap-6 rounded-[18px] border-inputb border-1 px-10 md:px-26 pt-11 pb-7 justify-center items-center">
-        <img src="../assets/logo2.png" class="mb-[16px] ">
-        <h1 class="font-orbitron md:text-normal text-center">Verify your mail</h1>
-        <p class="font-inter text-type text-[#665E59]">Enter the code sent to your mail</p>
-    
-        <div class="flex gap-3">
-          <input class="w-[50px] h-[50px] rounded-[6px] hover:scale-[1.1] border-[1px] border-gold  text-black flex px-5" type="text" maxlength="1"/>
-          <input class="w-[50px] h-[50px] rounded-[6px] hover:scale-[1.1] border-[1px] border-gold text-black px-5" type="text" maxlength="1"/>
-          <input class="w-[50px] h-[50px] rounded-[6px] hover:scale-[1.1] border-[1px] border-gold text-black px-5" maxlength="1"/>
-          <input class="w-[50px] h-[50px] rounded-[6px] hover:scale-[1.1] border-[1px] border-gold text-black px-5" maxlength="1"/>
-          <input class="w-[50px] h-[50px] rounded-[6px] hover:scale-[1.1] border-[1px] border-gold text-black px-5" maxlength="1"/>
-        </div>
-        <div>
-          <a class="font-inter text-smallest text-[#4A4F4A] cursor-pointer">Didn't receive code?</a>
-          <p class="font-inter text-center text-smallest">Click to resend</p>
-        </div>
-          
-        <div class="flex md:flex-row md:justify-between w-full max-w-[520px] items-center flex-col-reverse">
-          <button class="flex justify-center items-center gap-1 mt-2 md:mt-0 cursor-pointer " type="button">
-            <img class="size-4 move-left" src="../assets/Icon.png" >
-            <p class="font-orbitron">Back</p>
-          </button>
-          <button class="h-13 w-52 max-w-50 bg-gold text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer">Continue</button>
-        </div>
-      </form>
-    </section> 
-  </template>
-  
-  <style scoped>
-   input{
-    background-color: #fff;
-   }
-  
-  </style>
+  <section
+    class="bg-body bg-[url(../../assets/signup/bg.png)] bg-cover min-h-[100vh] w-full text-white flex items-end md:items-center justify-center bg-blend-overlay"
+  >
+    <Toast
+      v-show="showToast"
+      :message="toastMessage"
+      :type="toastType"
+      :duration="3000"
+    />
+
+    <form
+      @submit.prevent="verifyOTP"
+      class="bg-body w-full max-w-[560px] flex flex-col gap-6 rounded-t-[18px] md:rounded-[18px] border border-minputb md:border-inputb px-6 md:px-10 py-8 justify-center items-center relative"
+    >
+      <!-- <button
+        @click="handleBack"
+        class="absolute top-4 right-4 text-white hover:text-red-500 transition-colors duration-300 focus:outline-none"
+        type="button"
+      >
+        <CloseIcon class="w-6 h-6" />
+      </button> -->
+
+      <div class="flex justify-center">
+        <img
+          class="w-[60px] h-[60px] object-contain"
+          src="@/assets/logo2.png"
+          alt="Logo"
+        />
+      </div>
+
+      <h1 class="font-orbitron text-2xl md:text-3xl text-center">
+        Verify your email
+      </h1>
+
+      <p class="font-inter text-type text-[#665E59] text-center">
+        Enter the code sent to your email
+      </p>
+
+      <div class="flex gap-3 justify-center" @paste="handlePaste">
+        <template v-for="(digit, index) in otpDigits" :key="index">
+          <input
+            :value="digit"
+            @input="handleInput(index, $event)"
+            @keydown="handleBackspace(index, $event)"
+            class="otp-input w-[50px] h-[50px] rounded-[8px] hover:scale-[1.1] border border-inputb bg-[#1e1e1e] text-white text-center transition-transform focus:outline-none focus:border-gold"
+            type="text"
+            maxlength="1"
+            inputmode="numeric"
+            pattern="\d*"
+          />
+        </template>
+      </div>
+
+      <div class="text-center">
+        <p class="font-inter text-center text-smallest text-[#4A4F4A]">
+          Didn't receive code?
+        </p>
+        <button
+          type="button"
+          @click="resendOTP"
+          class="font-inter text-smallest text-[#4A4F4A] hover:text-gold transition-colors cursor-pointer"
+        >
+          Resend code
+        </button>
+      </div>
+
+      <div
+        class="flex md:flex-row md:justify-between w-full max-w-[520px] items-center flex-col-reverse gap-4"
+      >
+        <button
+          type="button"
+          @click="handleBack"
+          class="flex justify-center items-center gap-1 cursor-pointer hover:text-gold transition-colors"
+        >
+          <img class="size-4 move-left" src="@/assets/Icon.png" alt="Back" />
+          <span class="font-orbitron">Back</span>
+        </button>
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="h-13 w-52 max-w-50 bg-gold text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ loading ? "Verifying..." : "Continue" }}
+        </button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<style scoped>
+.otp-input {
+  background-color: #1e1e1e;
+}
+
+.otp-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.otp-input::-webkit-inner-spin-button,
+.otp-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.otp-input[type="number"] {
+  -moz-appearance: textfield;
+}
+</style>
 
 <script setup>
-  import gsap from 'gsap'
+import { ref, onMounted } from "vue";
+import { useAuthStore } from "~/stores/auth";
+import Toast from "~/components/Toast/Toast.vue";
+import CloseIcon from "~/components/CloseIcon/CloseIcon.vue";
+import gsap from "gsap";
 
-  onMounted(()=>{
-    const moveLeft = document.querySelector('.move-left')
+definePageMeta({
+  middleware: ["auth"],
+});
 
-    const tl =gsap.timeline({
-      repeat: -1,
-      repeatDelay:1,
-      duration:0.5,
-    })
-    tl.fromTo(moveLeft, 
-    {
-      x: 0,
-    }, {
-      x: -10,
-    })
-  })
+const authStore = useAuthStore();
+const router = useRouter();
+
+// OTP state
+const otpDigits = ref(["", "", "", "", "", ""]);
+const otpInputs = ref([]);
+const loading = ref(false);
+const showToast = ref(false);
+const toastMessage = ref("");
+const toastType = ref("error");
+
+// Handle OTP input
+const handleInput = (index, event) => {
+  const value = event.target.value;
+  // Only allow numbers
+  if (!/^\d*$/.test(value)) {
+    event.target.value = "";
+    return;
+  }
+
+  otpDigits.value[index] = value;
+
+  // Move to next input if value is entered
+  if (value && index < otpInputs.value.length - 1) {
+    otpInputs.value[index + 1].focus();
+  }
+};
+
+// Handle backspace
+const handleBackspace = (index, event) => {
+  if (event.key === "Backspace" && !otpDigits.value[index] && index > 0) {
+    otpInputs.value[index - 1].focus();
+  }
+};
+
+// Handle paste
+const handlePaste = (event) => {
+  event.preventDefault();
+  const pastedData = event.clipboardData.getData("text");
+  const numbers = pastedData.match(/\d/g);
+
+  if (numbers) {
+    numbers.slice(0, 6).forEach((number, index) => {
+      if (index < otpDigits.value.length) {
+        otpDigits.value[index] = number;
+        otpInputs.value[index].value = number;
+      }
+    });
+    // Focus last input
+    otpInputs.value[
+      Math.min(numbers.length, otpDigits.value.length) - 1
+    ].focus();
+  }
+};
+
+// Verify OTP
+const verifyOTP = async () => {
+  const otp = otpDigits.value.join("");
+  if (otp.length !== 6) {
+    toastMessage.value = "Please enter all digits";
+    toastType.value = "error";
+    showToast.value = true;
+    setTimeout(() => {
+      showToast.value = false;
+    }, 3000);
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const response = await authStore.verifyOTP(otp);
+    toastMessage.value = response?.message || "OTP verified successfully!";
+    toastType.value = "success";
+    showToast.value = true;
+
+    // Navigate to watch after successful verification
+    setTimeout(() => {
+      navigateTo("/watch");
+    }, 1000);
+  } catch (error) {
+    toastMessage.value =
+      error?.response?.data?.message || "Invalid OTP. Please try again.";
+    toastType.value = "error";
+    showToast.value = true;
+  } finally {
+    loading.value = false;
+    setTimeout(() => {
+      showToast.value = false;
+    }, 3000);
+  }
+};
+
+// Resend OTP
+const resendOTP = async () => {
+  try {
+    const response = await authStore.resendOTP();
+    toastMessage.value = response?.message || "OTP resent successfully!";
+    toastType.value = "success";
+    showToast.value = true;
+
+    // Clear existing OTP
+    otpDigits.value = ["", "", "", "", "", ""];
+    otpInputs.value.forEach((input) => (input.value = ""));
+    otpInputs.value[0].focus();
+  } catch (error) {
+    toastMessage.value =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to resend OTP";
+    toastType.value = "error";
+    showToast.value = true;
+  } finally {
+    setTimeout(() => {
+      showToast.value = false;
+    }, 3000);
+  }
+};
+
+// Handle back navigation
+const handleBack = () => {
+  navigateTo("/signup");
+};
+
+// Initialize focus on first input
+onMounted(() => {
+  otpInputs.value = document.querySelectorAll(".otp-input");
+  otpInputs.value[0].focus();
+});
+
+// Animation
+onMounted(() => {
+  const moveLeft = document.querySelector(".move-left");
+  if (moveLeft) {
+    gsap
+      .timeline({
+        repeat: -1,
+        repeatDelay: 1,
+        duration: 0.5,
+      })
+      .fromTo(moveLeft, { x: 0 }, { x: -10 });
+  }
+});
 </script>
