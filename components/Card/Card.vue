@@ -1,6 +1,6 @@
 <template>
   <div
-    class="bg-cardgray p-4 md:px-6 md:py-4 text-white rounded-[5px] flex flex-col h-full w-full max-w-[280px] mx-auto"
+    class="bg-cardgray p-4 md:px-6 md:py-4 text-white rounded-[5px] flex flex-col h-full w-full max-w-[280px] "
   >
     <div class="flex items-center gap-2 mb-3">
       <Logo class="w-5 h-5 md:w-6 md:h-6" v-if="cross" />

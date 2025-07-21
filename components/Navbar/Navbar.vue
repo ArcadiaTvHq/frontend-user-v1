@@ -49,7 +49,7 @@ watch([() => route.path, contentType], () => {
 </script>
 <template>
   <nav
-    class="bg-cod border-b-[0.22px] h-[60px] sm:h-[75px] md:h-[92px] flex items-center border-gold px-4 sm:px-6 md:px-8 lg:px-14 font-orbitron justify-between fixed w-full top-0 z-50"
+    class="bg-cod border-b-[0.22px] h-[60px] sm:h-[75px] md:h-[92px] flex items-center border-gold px-4 sm:px-6 md:px-8 lg:px-14 font-orbitron justify-between sticky w-full top-0 z-50"
   >
     <nuxt-link to="/" class="flex items-center">
       <img

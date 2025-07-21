@@ -55,7 +55,6 @@ const fetchFeaturedContent = async () => {
     featuredLoading.value = true;
     const response = await ContentService.getContents({
       types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
       limit: 10,
     });
 
