@@ -2,7 +2,7 @@
   <Modal />
   <Navbar />
   <main
-    class="bg-body flex flex-col gap-8 md:gap-16 lg:gap-20 pt-[60px] sm:pt-[75px] md:pt-[92px]"
+    class="bg-body flex flex-col gap-8 md:gap-16 lg:gap-20 "
   >
     <SectionOne
       text="Be the First to Stream ARCADIA"
