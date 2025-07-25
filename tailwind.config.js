@@ -23,7 +23,7 @@ export default {
         minputb: "#888888",
         hover: "#CE8F00",
         link: "#FEFCE8",
-        borderinput: '#b0b0b0',
+        borderinput: '#B0B0B0',
         "btn-normal": "#FFD005",
         "btn-hover": "#CE8F00",
         "btn-disabled": "#FFF487",
@@ -46,17 +46,53 @@ export default {
         h6: "31.64px",
         seemore: "20px",
       },
-      
+      spacing: {
+        1: "4px",
+        2: "8px",
+        3: "12px",
+        4: "16px",
+        5: "20px",
+        6: "24px",
+        7: "28px",
+        8: "32px",
+        9: "36px",
+        10: "40px",
+        11: "44px",
+        12: "48px",
+        13: "52px",
+        14: "56px",
+        15: "60px",
+        16: "64px",
+        17: "68px",
+        18: "72px",
+        19: "76px",
+        20: "80px",
+        21: "84px",
+        22: "88px",
+        23: "92px",
+        24: "96px",
+        25: "100px",
+        26: "104px",
+        27: "108px",
+        28: "112px",
+        29: "116px",
+        30: "120px",
+      },
       maxWidth: {
         ...Object.fromEntries(
-          Array.from({ length: 30 }, (_, i) => [i + 1, `${(i + 1) * 4}px`])
+          Array.from({ length: 30 }, (_, i) => [`${i + 1}`, `${(i + 1) * 4}px`])
+        ),
+      },
+      width: {
+        ...Object.fromEntries(
+          Array.from({ length: 30 }, (_, i) => [`${i + 1}`, `${(i + 1) * 4}px`])
         ),
       },
       height: {
-        49: "196px",
-        50: "200px",
+        ...Object.fromEntries(
+          Array.from({ length: 30 }, (_, i) => [`${i + 1}`, `${(i + 1) * 4}px`])
+        ),
       },
-      // Removed custom maxWidth to use Tailwind's default spacing scale
     },
   },
   plugins: [],

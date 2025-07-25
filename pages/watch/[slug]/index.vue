@@ -3,7 +3,7 @@
     <Navbar />
     <main v-if="content" class="bg-black ">
       <!-- Background Image with Gradient Overlay -->
-      <div class="relative h-[85vh] w-full">
+      <div class="relative h-fit  w-full">
         <div v-if="content.trailer_upload_status === 'ready'">
           <VideoPlayer
             :key="content.id"

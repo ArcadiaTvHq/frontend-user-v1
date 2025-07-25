@@ -6,11 +6,13 @@
         <p>Comments</p>
       </div>
       <div class="flex gap-3">
-        <button class="bg-gold h-13 rounded-[20px] w-37 justify-center items-center flex px-5 text-black btn">
+        <button class="bg-gold h-13 rounded-[20px] w-37 justify-center items-center flex px-5 text-black btn gap-3 ">
         <p>Add Review</p>
+        <IconsAdd/>
       </button>
-      <button class="bg-[#1A1A1ACC] h-13 rounded-[20px] w-37 justify-center items-center flex px-5 btn">
+      <button class="bg-[#1A1A1ACC] h-13 rounded-[20px] w-37 justify-center items-center flex px-5 btn gap-3">
         <p>Latest</p>
+        <IconsDown color="#ffffff"/>
       </button>
       </div>
 
@@ -18,6 +20,6 @@
     <div class="grid grid-cols-2 gap-5 ">
       <CommentCard v-for="i in 4" :key="i" ratings="4"/>
     </div>
-    <button class="flex bg-gold text-black w-41 rounded-[10px] justify-center h-11 items-center px-5 btn">See More <IconsDown/></button>
+    <button class="flex bg-gold text-black w-41 rounded-[10px] justify-center h-11  items-center px-5 gap-3 btn "><p>See More </p><IconsDown/></button>
   </section>
 </template>

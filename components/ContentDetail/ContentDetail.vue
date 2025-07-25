@@ -2,7 +2,7 @@
   <div class="w-full">
     <div class="container mx-auto px-4 md:px-8 lg:px-12">
       <div class="relative p-6 md:p-8">
-        <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           <!-- Poster Image -->
           <div class="md:col-span-3 relative">
             <img
@@ -111,15 +111,7 @@
             </div>
 
             <!-- Rating Box -->
-            <div
-              class="inline-block bg-[#FFD005] text-black px-3 py-1 rounded mb-6 font-medium"
-            >
-              {{
-                content.interactions?.rating
-                  ? content.interactions.rating.average.toFixed(1)
-                  : "N/A"
-              }}
-            </div>
+           
 
             <!-- Description -->
             <p class="text-gray-300 text-lg mb-8">{{ content.description }}</p>
@@ -162,7 +154,8 @@
                   class="w-5 h-5"
                 />
               </NuxtLink>
-              <button
+              <button 
+                v-if="isAuthenticated"
                 class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 w-full sm:w-auto px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 group"
               >
                 <span>Add to List</span>

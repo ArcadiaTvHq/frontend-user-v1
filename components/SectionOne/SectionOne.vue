@@ -53,7 +53,7 @@
             <img
               :src="poster.image"
               :alt="poster.title"
-              class="w-full h-full object-cover rounded-[10px]"
+              class=" object-cover rounded-[10px] h-full w-full"
             />
             <div
               class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -126,6 +126,7 @@ html.lenis body {
   cursor: pointer;
 }
 
+
 .poster:hover {
   transform: scale(1.05);
   z-index: 20;
@@ -139,7 +140,7 @@ html.lenis body {
 .poster img {
   max-height: 100%;
   width: auto;
-  object-fit: contain;
+  object-fit: fill contain;
 }
 
 /* Large screens (1280px+) */
@@ -305,11 +306,13 @@ const navigateToContent = (contentId) => {
 
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
 const visiblePosters = computed(() => props.posters.slice(0, 5));
+console.log(visiblePosters);
 
 const centerBannerImage = computed(() => {
   const centerPoster = visiblePosters.value[2];
   return centerPoster ? centerPoster.image : null;
 });
+
 
 let intervalId = null;
 

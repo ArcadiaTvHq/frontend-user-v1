@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-black">
     <Navbar />
-    <main class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
+    <main class="bg-black ">
       <div v-if="content" class="container mx-auto px-4">
         <div class="flex justify-between items-center mb-6">
           <h1 class="text-2xl md:text-4xl text-white font-bold">
