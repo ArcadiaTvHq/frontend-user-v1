@@ -23,6 +23,7 @@ export default {
         minputb: "#888888",
         hover: "#CE8F00",
         link: "#FEFCE8",
+        borderinput: '#b0b0b0',
         "btn-normal": "#FFD005",
         "btn-hover": "#CE8F00",
         "btn-disabled": "#FFF487",
@@ -45,24 +46,17 @@ export default {
         h6: "31.64px",
         seemore: "20px",
       },
-      spacing: {
-        15: "60px",
-        23: "92px",
-        38: "152px",
-        13: "52px",
-        49: "196px",
-      },
-      width: {
-        "9/10": "90%",
-        49: "196px",
+      
+      maxWidth: {
+        ...Object.fromEntries(
+          Array.from({ length: 30 }, (_, i) => [i + 1, `${(i + 1) * 4}px`])
+        ),
       },
       height: {
         49: "196px",
         50: "200px",
       },
-      maxWidth: {
-        72: "288px",
-      },
+      // Removed custom maxWidth to use Tailwind's default spacing scale
     },
   },
   plugins: [],

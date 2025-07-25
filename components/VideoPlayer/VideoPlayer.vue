@@ -13,7 +13,7 @@
       "
     >
       <!-- Black overlay -->
-      <div class="absolute inset-0 bg-black/70"></div>
+      <!-- <div class="absolute inset-0 bg-black/70"></div> -->
 
       <div class="text-center relative z-10">
         <img
@@ -55,7 +55,7 @@
         allowfullscreen
       />
       <!-- Buffering Loader -->
-      <div
+      <!-- <div
         v-if="isBuffering"
         class="absolute inset-0 flex items-center justify-center bg-black/60 z-10"
       >
@@ -64,7 +64,7 @@
           src="@/assets/logo2.png"
           alt="Buffering"
         />
-      </div>
+      </div> -->
 
       <!-- Error Message -->
       <div
@@ -85,6 +85,7 @@ import { ref, onMounted, watch } from "vue";
 import { ContentService } from "~/api/services/content.service";
 import { buildImageUrl } from "~/src/utils/helpers";
 
+
 const props = defineProps({
   contentId: {
     type: String,
@@ -100,7 +101,6 @@ const props = defineProps({
     default: null,
   },
   poster: String,
-  autoplay: { type: Boolean, default: false },
   muted: { type: Boolean, default: true },
   controls: { type: Boolean, default: true },
   preload: { type: String, default: "auto" },
@@ -129,6 +129,7 @@ const onPlaying = () => {
 
 const onCanPlay = () => {
   isBuffering.value = false;
+
 };
 
 const onError = (e) => {
