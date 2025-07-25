@@ -100,7 +100,7 @@ const props = defineProps({
     default: null,
   },
   poster: String,
-  autoplay: { type: Boolean, default: false },
+  autoplay: { type: Boolean, default: true },
   muted: { type: Boolean, default: true },
   controls: { type: Boolean, default: true },
   preload: { type: String, default: "auto" },

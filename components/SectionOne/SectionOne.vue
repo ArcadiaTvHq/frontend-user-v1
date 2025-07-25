@@ -1,6 +1,9 @@
 <template>
   <section
-    class="bg-[url(../../assets/effect.png)] bg-cover bg-center bg-no-repeat text-textprimary font-orbitron flex flex-col items-center pt-8 pb-2 md:pt-12 md:pb-4 px-4 md:px-0"
+    class="bg-cover bg-center bg-no-repeat text-textprimary font-orbitron flex flex-col items-center pt-8 pb-2 md:pt-12 md:pb-4 px-4 md:px-0"
+    :style="
+      centerBannerImage ? `background-image: url('${centerBannerImage}');` : ''
+    "
   >
     <div class="flex flex-col items-center gap-2 lg:gap-4">
       <h1
@@ -50,7 +53,7 @@
             <img
               :src="poster.image"
               :alt="poster.title"
-              class="w-full h-full object-contain rounded-[10px]"
+              class="w-full h-full object-cover rounded-[10px]"
             />
             <div
               class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -303,6 +306,11 @@ const navigateToContent = (contentId) => {
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
 const visiblePosters = computed(() => props.posters.slice(0, 5));
 
+const centerBannerImage = computed(() => {
+  const centerPoster = visiblePosters.value[2];
+  return centerPoster ? centerPoster.image : null;
+});
+
 let intervalId = null;
 
 const isRotationPaused = ref(false);
@@ -312,7 +320,7 @@ const startRotation = () => {
   stopRotation();
   intervalId = setInterval(() => {
     rotateForward();
-  }, 3000);
+  }, 6000); // was 3000
 };
 
 const pauseRotation = () => {
