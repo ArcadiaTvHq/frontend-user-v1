@@ -226,7 +226,7 @@ async function handleSubmit() {
         <button
           type="submit"
           :disabled="loading"
-          class="h-13 w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
+          class="h-[52px] w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
         >
           {{ loading ? "Loading..." : "Continue" }}
         </button>

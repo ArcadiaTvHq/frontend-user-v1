@@ -1,14 +1,24 @@
 <template>
   <div class="min-h-screen bg-black">
     <Navbar />
-    <main v-if="content" class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
+    <main v-if="content" class="bg-black ">
       <!-- Background Image with Gradient Overlay -->
       <div class="relative h-[85vh] w-full">
+        <div v-if="content.trailer_upload_status === 'ready'">
+          <VideoPlayer
+            :key="content.id"
+            :contentId="content.id"
+            player-type="trailer"
+            :bannerImage="content.banner_image_id"
+          />
+        </div>
         <img
+          v-else
           :src="buildImageUrl(content.banner_image_id, 'size2')"
           :alt="content.title"
           class="w-full h-full object-cover"
         />
+        
         <!-- Enhanced gradient overlay -->
         <div  
           class="absolute inset-0 bg-gradient-to-t from-black via-black/85 to-black/50"
@@ -78,6 +88,30 @@ const { data: contentData } = await useAsyncData(
 const { data: relatedData } = await useAsyncData("related-content", () =>
   ContentService.getContents({ limit: 6, page: 1 })
 );
+
+onMounted(async () => {
+  try {
+    const response = await ContentService.getContentBySlug(route.params.slug);
+    content.value = response.data;
+
+    // Set the content type based on the content's type (movie or series)
+    if (content.value.movie) {
+      setContentType("movie");
+    } else if (content.value.series) {
+      setContentType("series");
+    }
+
+    // Fetch related content
+    const relatedResponse = await ContentService.getContents({
+      limit: 6,
+      page: 1,
+      // exclude_ids: [content.value.id], // We can exclude current content by ID
+    });
+    relatedContent.value = relatedResponse.data;
+  } catch (error) {
+    console.error("Error fetching content details:", error);
+  }
+});
 
 // Set content after data is loaded
 watchEffect(() => {

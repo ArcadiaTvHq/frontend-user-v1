@@ -152,13 +152,13 @@ async function handleSubmit() {
         <button
           type="submit"
           :disabled="loading"
-          class="h-13 w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
+          class="h-[52px] w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
         >
           {{ loading ? "Loading..." : "Login" }}
         </button>
-        <a
+        <nuxt-link to="/forgot"
           class="text-sm font-orbitron cursor-pointer text-white hover:text-[#CE8F00] transition-colors"
-          >Forgot Password?</a
+          >Forgot Password?</nuxt-link
         >
       </div>
 
