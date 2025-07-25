@@ -2,7 +2,7 @@
   <!-- <Loading/> -->
   <Modal />
   <Navbar />
-  <main class="bg-body ">
+  <main class="bg-body">
     <SectionOne
       text="Stream the Best Movies & Series Anytime, Anywhere"
       small="Enjoy unlimited movies, series, and exclusive content in stunning quality. Stream anytime, anywhere, on any device—no interruptions, just pure entertainment"
@@ -89,6 +89,7 @@ const fetchFeaturedContent = async () => {
       image: buildImageUrl(
         content.poster_image_id || content.thumbnail_image_id
       ),
+      banner: buildImageUrl(content.banner_image_id),
       title: content.title,
       description: content.description,
     }));

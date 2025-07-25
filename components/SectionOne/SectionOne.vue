@@ -136,12 +136,6 @@ html.lenis body {
   opacity: 1;
 }
 
-.poster img {
-  max-height: 100%;
-  width: auto;
-  object-fit: contain;
-}
-
 /* Large screens (1280px+) */
 @media screen and (min-width: 1280px) {
   .pos-1,
@@ -308,7 +302,7 @@ const visiblePosters = computed(() => props.posters.slice(0, 5));
 
 const centerBannerImage = computed(() => {
   const centerPoster = visiblePosters.value[2];
-  return centerPoster ? centerPoster.image : null;
+  return centerPoster ? centerPoster.banner : null;
 });
 
 let intervalId = null;
