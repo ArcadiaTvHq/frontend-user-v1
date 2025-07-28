@@ -43,9 +43,13 @@ const toggleMobileMenu = () => {
 };
 
 // Watch for route and content type changes to close mobile menu
-watch([() => route.path, contentType], () => {
-  mobileMenuOpen.value = false;
-});
+watch(
+  [() => route.path, contentType],
+  () => {
+    mobileMenuOpen.value = false;
+  },
+  { flush: "post", immediate: false }
+);
 </script>
 <template>
   <nav
@@ -58,6 +62,57 @@ watch([() => route.path, contentType], () => {
         alt="Arcadia Logo"
       />
     </nuxt-link>
+
+    <!-- Unauthenticated user content -->
+    <template v-if="!isAuthenticated">
+      <!-- Mobile menu button -->
+      <button
+        @click="toggleMobileMenu"
+        class="md:hidden text-white p-2 hover:bg-[rgba(255,255,255,0.1)] rounded-lg transition-colors"
+        aria-label="Toggle menu"
+      >
+        <span class="block w-5 sm:w-6 h-0.5 bg-[#FFD005] mb-1.5"></span>
+        <span class="block w-5 sm:w-6 h-0.5 bg-[#FFD005] mb-1.5"></span>
+        <span class="block w-5 sm:w-6 h-0.5 bg-[#FFD005]"></span>
+      </button>
+
+      <!-- Desktop CTA buttons -->
+      <div class="hidden md:flex items-center gap-4">
+        <nuxt-link
+          to="/signup"
+          class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-10 px-6 rounded-2xl flex items-center justify-center font-medium transition-all duration-300"
+        >
+          Sign Up
+        </nuxt-link>
+        <nuxt-link
+          to="/login"
+          class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-10 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center"
+        >
+          Log In
+        </nuxt-link>
+      </div>
+
+      <!-- Mobile menu -->
+      <div
+        v-show="mobileMenuOpen"
+        class="absolute top-full left-0 right-0 bg-cod py-4 md:hidden border-b border-gold"
+      >
+        <div class="flex flex-col px-4 gap-4">
+          <nuxt-link
+            to="/signup"
+            class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-6 rounded-2xl flex items-center justify-center font-medium transition-all duration-300"
+          >
+            Sign Up
+          </nuxt-link>
+          <nuxt-link
+            to="/login"
+            class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center"
+          >
+            Log In
+          </nuxt-link>
+        </div>
+      </div>
+    </template>
 
     <!-- Protected route content -->
     <template v-if="isAuthenticated">

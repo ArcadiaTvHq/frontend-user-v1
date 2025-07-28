@@ -1,5 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: "2024-11-01",
@@ -32,15 +31,7 @@ export default defineNuxtConfig({
     },
   },
 
-  modules: [
-    "@nuxt/fonts",
-    "@nuxt/icon",
-    "@nuxt/image",
-    "@nuxt/scripts",
-    "@nuxt/test-utils",
-    "@pinia/nuxt",
-    "@pinia-plugin-persistedstate/nuxt",
-  ],
+  modules: ["@pinia/nuxt", "@pinia-plugin-persistedstate/nuxt"],
 
   devServer: {
     port: 5000,

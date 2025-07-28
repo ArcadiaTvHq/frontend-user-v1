@@ -19,19 +19,17 @@
 </template>
 
 <script setup>
-const isLoading = ref(true);
+import { useLoadingStore } from "~/stores/loading";
+
+const loadingStore = useLoadingStore();
+const isLoading = computed(() => loadingStore.isLoading);
 
 // Hide loader after initial mount
 onMounted(() => {
   setTimeout(() => {
-    isLoading.value = false;
-  }, 0);
+    loadingStore.stopLoading();
+  }, 1000); // Give it a bit more time to load
 });
-
-// Expose isLoading to window for middleware access
-if (process.client) {
-  window.__nuxt_loading = isLoading;
-}
 </script>
 
 <style>
@@ -42,7 +40,6 @@ body {
 }
 
 #__nuxt {
-  background-color: black;
   min-height: 100vh;
 }
 

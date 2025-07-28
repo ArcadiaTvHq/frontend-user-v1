@@ -1,7 +1,12 @@
 <template>
   <Navbar />
-  <main class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
-    <HeroHome />
+  <main class="bg-black pt-0">
+    <HeroHome
+      :autoPlay="true"
+      :autoPlayInterval="10000"
+      @watch="handleWatchContent"
+      @addToList="handleAddToList"
+    />
     <SectionTwo
       title="Anticipate"
       iconAlt="Flame icon"
@@ -36,7 +41,7 @@ const IMAGE_DELIVERY_BASE_URL =
 
 const buildImageUrl = (imageId) => {
   if (!imageId) return "/images/default-poster.jpg";
-  return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/size1`;
+  return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/public`;
 };
 
 // Featured content state
@@ -87,6 +92,8 @@ const fetchFeaturedContent = async () => {
   }
 };
 
+const { preloadContentImages } = useBlobImages();
+
 // Fetch anticipated content
 const fetchAnticipatedContent = async () => {
   try {
@@ -99,6 +106,13 @@ const fetchAnticipatedContent = async () => {
     });
 
     anticipatedContent.value = response.data;
+
+    // Preload all images for anticipated content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some anticipated images:", error);
+    }
   } catch (err) {
     anticipatedError.value = err.message;
   } finally {
@@ -113,6 +127,17 @@ const handleLogout = async () => {
   } catch (error) {
     console.error("Logout failed:", error);
   }
+};
+
+// HeroHome event handlers
+const handleWatchContent = (content) => {
+  console.log("Watching content:", content.title);
+  // Additional logic can be added here (analytics, etc.)
+};
+
+const handleAddToList = (content) => {
+  console.log("Added to list:", content.title);
+  // You can add toast notification or update user's watchlist here
 };
 
 // Fetch data when component mounts

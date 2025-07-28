@@ -2,7 +2,9 @@
   <div class="w-full">
     <div class="container mx-auto px-4 md:px-8 lg:px-12">
       <div class="relative p-6 md:p-8">
-        <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div
+          class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center"
+        >
           <!-- Poster Image -->
           <div class="md:col-span-3 relative">
             <img
@@ -44,11 +46,11 @@
             >
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 class="text-4xl md:text-5xl font-bold">
+                  <h1 class="text-4xl md:text-5xl font-bold flex items-center">
                     {{ content.title }}
                   </h1>
                   <span
-                    class="text-gray-300 text-xl md:text-2xl self-end mb-1.5"
+                    class="text-gray-300 text-xl md:text-2xl self-end mb-1.5 flex items-center"
                     >{{ formatDate(content.release_date) }}</span
                   >
                 </div>
@@ -102,16 +104,13 @@
             </div>
 
             <!-- Creator -->
-            <div
-              v-if="content[content.type]?.creator"
-              class="text-gray-300 mb-3"
-            >
+            <div class="text-gray-300 mb-3">
               <span class="text-white font-semibold">Created by: </span>
-              {{ content[content.type].creator }}
+              {{ content[content.type].creator || "N/A" }}
             </div>
 
             <!-- Rating Box -->
-            <div
+            <!-- <div
               class="inline-block bg-[#FFD005] text-black px-3 py-1 rounded mb-6 font-medium"
             >
               {{
@@ -119,7 +118,7 @@
                   ? content.interactions.rating.average.toFixed(1)
                   : "N/A"
               }}
-            </div>
+            </div> -->
 
             <!-- Description -->
             <p class="text-gray-300 text-lg mb-8">{{ content.description }}</p>
@@ -209,10 +208,10 @@ const isContentReleased = computed(() => {
 
 const navigateToTrailer = () => {
   if (!props.content?.slug) return;
-  router.push(`/watch/${props.content.slug}/trailer`);
+  emit("trailer-click");
 };
 
-const emit = defineEmits(["mounted"]);
+const emit = defineEmits(["mounted", "trailer-click"]);
 
 onMounted(() => {
   emit("mounted");

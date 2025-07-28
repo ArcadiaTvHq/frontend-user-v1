@@ -134,7 +134,7 @@ async function handleSubmit() {
           <label class="block text-sm">First Name</label>
           <input
             v-model="formData.firstName"
-            class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+            class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
             :class="{ 'border-red-500': v$.firstName.$error }"
             placeholder="John"
             type="text"
@@ -147,7 +147,7 @@ async function handleSubmit() {
           <label class="block text-sm">Last Name</label>
           <input
             v-model="formData.lastName"
-            class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+            class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
             :class="{ 'border-red-500': v$.lastName.$error }"
             placeholder="Doe"
             type="text"
@@ -162,7 +162,7 @@ async function handleSubmit() {
         <label class="block text-sm">Email</label>
         <input
           v-model="formData.email"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.email.$error }"
           placeholder="john.doe@gmail.com"
           type="email"
@@ -176,7 +176,7 @@ async function handleSubmit() {
         <label class="block text-sm">Create Password</label>
         <input
           v-model="formData.password"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.password.$error }"
           type="password"
           placeholder="........"
@@ -190,7 +190,7 @@ async function handleSubmit() {
         <label class="block text-sm">Confirm Password</label>
         <input
           v-model="formData.confirmPassword"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.confirmPassword.$error }"
           type="password"
           placeholder="........"
@@ -215,7 +215,7 @@ async function handleSubmit() {
         <p class="font-inter text-type text-sm">Keep me signed in</p>
       </div> -->
 
-      <p class="text-type font-inter text-sm text-white/80">
+      <p class="text-type font-orbitron text-sm text-white/80">
         By clicking "Continue," you acknowledge that you have read and accept
         our Privacy Policy & Subscriber Agreement.
       </p>
@@ -230,7 +230,7 @@ async function handleSubmit() {
         >
           {{ loading ? "Loading..." : "Continue" }}
         </button>
-        <span class="font-inter text-sm">
+        <span class="font-orbitron text-sm">
           Already have an account?
           <nuxt-link
             to="/login"

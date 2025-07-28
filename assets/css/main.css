@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
-
 @theme {
   --color-cod: #0b0b0b;
   --color-gold: #ffd005;
@@ -31,7 +29,7 @@
   --color-minputb: #888888;
   --color-hover: #ce8f00;
   --color-link: #fefce8;
-  --color-comment: #1A1A1A;
+  --color-comment: #1a1a1a;
 }
 
 @layer base {
@@ -51,19 +49,23 @@
   }
   @font-face {
     font-family: orbitron;
-    src: url(../font/verdana.ttf);
+    src: url(../font/verdana.ttf) format("truetype");
+    font-display: swap;
   }
   @font-face {
     font-family: inter;
-    src: url(../font/inter.ttf);
+    src: url(../font/inter.ttf) format("truetype");
+    font-display: swap;
   }
   @font-face {
     font-family: mont;
-    src: url(../font/mont.ttf);
+    src: url(../font/mont.ttf) format("truetype");
+    font-display: swap;
   }
   @font-face {
     font-family: martel;
-    src: url(../font/martel.ttf);
+    src: url(../font/martel.ttf) format("truetype");
+    font-display: swap;
   }
 }
 
