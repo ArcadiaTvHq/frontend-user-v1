@@ -125,6 +125,9 @@ const { data: contentData } = await useAsyncData(
   () => ContentService.getContentBySlug(route.params.slug)
 );
 
+// Blob images composable
+const { preloadContentImages } = useBlobImages();
+
 const { data: relatedData } = await useAsyncData("related-content", () =>
   ContentService.getContents({ limit: 6, page: 1 })
 );

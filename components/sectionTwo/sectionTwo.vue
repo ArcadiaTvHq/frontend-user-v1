@@ -2,7 +2,7 @@
   <section
     class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 mb-20 font-orbitron"
   >
-    <div class="flex items-center gap-2 metaText">
+    <div class="flex items-center gap-2 metaText w-full">
       <div class="flex items-center gap-2">
         <img
           class="w-[25px] h-[25px] md:size-[35px]"
