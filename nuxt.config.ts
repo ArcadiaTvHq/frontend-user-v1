@@ -17,7 +17,6 @@ export default defineNuxtConfig({
         output: {
           manualChunks: {
             vendor: ["vue", "vue-router"],
-            ui: ["@nuxt/ui"],
             video: ["hls.js"],
           },
         },
