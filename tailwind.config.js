@@ -8,6 +8,14 @@ export default {
     "./app.vue",
     "./error.vue",
   ],
+  safelist: [
+    'min-h-fit',
+    'min-h-full',
+    'min-h-screen',
+    'h-fit',
+    'h-full',
+    'h-screen',
+  ],
   theme: {
     extend: {
       colors: {
@@ -89,6 +97,11 @@ export default {
         ),
       },
       height: {
+        ...Object.fromEntries(
+          Array.from({ length: 30 }, (_, i) => [`${i + 1}`, `${(i + 1) * 4}px`])
+        ),
+      },
+      minHeight: {
         ...Object.fromEntries(
           Array.from({ length: 30 }, (_, i) => [`${i + 1}`, `${(i + 1) * 4}px`])
         ),
