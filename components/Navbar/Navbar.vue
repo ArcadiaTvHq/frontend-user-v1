@@ -1,27 +1,33 @@
 <script setup>
 import { useAuthStore } from "~/stores/auth";
 import { useContentType } from "~/composables/useContentType";
+import { useSearchStore } from "~/stores/search";
 
 const route = useRoute();
 const authStore = useAuthStore();
+const searchStore = useSearchStore();
 const { contentType } = useContentType();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
 const Links = [
-  { name: "HOME", pathname: "/watch" },
+  {
+    name: "HOME",
+    pathname: "/watch",
+    matches: (path) => path === "/watch" || path.startsWith("/watch/"),
+  },
   {
     name: "TV SHOW",
-    pathname: "/tv-show",
+    pathname: "/tv-shows",
     matches: (path, type) =>
-      path.startsWith("/tv-show") ||
-      (path.startsWith("/watch/") && type === "series"),
+      path.startsWith("/tv-shows") ||
+      (path.startsWith("/watch") && type === "series" && !path.includes("/")),
   },
   {
     name: "MOVIES",
     pathname: "/movies",
     matches: (path, type) =>
       path.startsWith("/movies") ||
-      (path.startsWith("/watch/") && type === "movie"),
+      (path.startsWith("/watch") && type === "movie" && !path.includes("/")),
   },
   {
     name: "NEW",
@@ -41,6 +47,55 @@ const mobileMenuOpen = ref(false);
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value;
 };
+
+// Search functionality
+const searchTimeout = ref(null);
+const searchInput = ref(""); // Add ref for search input
+
+const handleSearch = async (event) => {
+  const query = event.target.value;
+  searchStore.searchQuery = query;
+  searchInput.value = query; // Update local ref
+
+  // Clear previous timeout
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value);
+  }
+
+  // Debounce search
+  searchTimeout.value = setTimeout(async () => {
+    if (query.trim()) {
+      await searchStore.performSearch(query);
+
+      // If we're on a content detail page (/watch/slug), redirect to /watch with search
+      if (route.path.startsWith("/watch/") && route.path !== "/watch") {
+        await navigateTo(`/watch?search=${encodeURIComponent(query)}`);
+      } else {
+        // Update URL with search parameters
+        searchStore.updateURL();
+      }
+    } else {
+      searchStore.clearSearch();
+
+      // If we're on a content detail page, redirect to /watch
+      if (route.path.startsWith("/watch/") && route.path !== "/watch") {
+        await navigateTo("/watch");
+      } else {
+        // Update URL to remove search parameters
+        searchStore.updateURL();
+      }
+    }
+  }, 300); // 300ms delay
+};
+
+// Sync search input with store state when navigating
+watch(
+  () => searchStore.searchQuery,
+  (newQuery) => {
+    searchInput.value = newQuery || "";
+  },
+  { immediate: true }
+);
 
 // Watch for route and content type changes to close mobile menu
 watch(
@@ -154,11 +209,20 @@ watch(
             <input
               placeholder="Search"
               class="text-white w-full bg-transparent outline-none text-sm placeholder-white/50"
+              @input="handleSearch"
+              :value="searchInput"
             />
+            <div v-if="searchStore.isSearching" class="flex-shrink-0">
+              <div
+                class="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#FFD005]"
+              ></div>
+            </div>
             <img
-              src="../../assets/icons/search.svg"
+              v-else
+              src="@/assets/icons/search.svg"
               alt="Search"
-              class="w-5 h-5 flex-shrink-0 group-hover:opacity-70"
+              class="w-5 h-5 flex-shrink-0 group-hover:opacity-70 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
+              @error="console.log('Search icon failed to load')"
             />
           </div>
         </div>
@@ -168,7 +232,7 @@ watch(
             <img
               src="../../assets/icons/notification.svg"
               alt="Notifications"
-              class="w-6 h-6"
+              class="w-6 h-6 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
             />
           </button>
           <button class="hover:opacity-80 transition-opacity">
@@ -208,11 +272,19 @@ watch(
               <input
                 placeholder="Search"
                 class="text-white w-full bg-transparent outline-none text-sm placeholder-white/50"
+                @input="handleSearch"
+                :value="searchInput"
               />
+              <div v-if="searchStore.isSearching" class="flex-shrink-0">
+                <div
+                  class="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#FFD005]"
+                ></div>
+              </div>
               <img
-                src="../../assets/icons/search.svg"
+                v-else
+                src="@/assets/icons/search.svg"
                 alt="Search"
-                class="w-5 h-5 flex-shrink-0 group-hover:opacity-70"
+                class="w-5 h-5 flex-shrink-0 group-hover:opacity-70 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
               />
             </div>
           </div>

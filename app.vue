@@ -1,16 +1,23 @@
 <template>
   <div class="min-h-screen">
-    <!-- Loading screen with v-show -->
+    <!-- HTML-level loading screen (shows immediately) -->
     <div
-      v-show="isLoading"
-      class="fixed inset-0 z-50 flex items-center justify-center"
+      id="html-loading"
+      class="fixed inset-0 bg-black z-[99999] flex items-center justify-center"
+      style="display: flex !important"
     >
-      <img
-        class="w-[100px] h-[100px] object-contain animate-pulse"
-        src="@/assets/logo2.png"
-        alt="Logo"
-      />
+      <div class="text-center">
+        <img
+          class="w-[100px] h-[100px] object-contain animate-pulse mb-4"
+          src="@/assets/logo2.png"
+          alt="Logo"
+        />
+        <p class="text-white text-lg font-medium">Welcome to Arcadia</p>
+      </div>
     </div>
+
+    <!-- Vue-level loading screen -->
+    <LoadingScreen />
 
     <NuxtLayout>
       <NuxtPage />
@@ -22,14 +29,54 @@
 import { useLoadingStore } from "~/stores/loading";
 
 const loadingStore = useLoadingStore();
-const isLoading = computed(() => loadingStore.isLoading);
+const route = useRoute();
 
-// Hide loader after initial mount
+// Hide HTML loading screen when Vue app is ready
 onMounted(() => {
+  // Hide the HTML loading screen
+  const htmlLoading = document.getElementById("html-loading");
+  if (htmlLoading) {
+    setTimeout(() => {
+      htmlLoading.style.opacity = "0";
+      htmlLoading.style.transition = "opacity 0.5s ease";
+      setTimeout(() => {
+        if (htmlLoading.parentNode) {
+          htmlLoading.parentNode.removeChild(htmlLoading);
+        }
+      }, 500);
+    }, 1000);
+  }
+
+  // Give components time to load
   setTimeout(() => {
     loadingStore.stopLoading();
-  }, 1000); // Give it a bit more time to load
+  }, 1500);
 });
+
+// Handle route changes
+watch(
+  () => route.path,
+  (newPath, oldPath) => {
+    if (newPath !== oldPath && oldPath) {
+      // Start route loading
+      loadingStore.startRouteLoading();
+
+      // Stop route loading after a short delay
+      // In practice, components will call stopRouteLoading when ready
+      setTimeout(() => {
+        loadingStore.stopRouteLoading();
+      }, 2000);
+    }
+  }
+);
+
+// Clear loading components on route change
+watch(
+  () => route.path,
+  () => {
+    loadingStore.clearLoadingComponents();
+  }
+);
 </script>
 
 <style>
@@ -43,7 +90,11 @@ body {
   min-height: 100vh;
 }
 
-.animate-pulse {
+#html-loading {
+  transition: opacity 0.5s ease;
+}
+
+#html-loading img {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 

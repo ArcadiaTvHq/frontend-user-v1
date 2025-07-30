@@ -2,7 +2,7 @@
   <section
     class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 mb-20 font-orbitron"
   >
-    <div class="flex items-center gap-2 metaText w-full">
+    <div v-if="!hideHeader" class="flex items-center gap-2 metaText w-full">
       <div class="flex items-center gap-2">
         <img
           class="w-[25px] h-[25px] md:size-[35px]"
@@ -28,7 +28,7 @@
       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 sm:gap-7 md:gap-10 text-textprimary tileHolder"
     >
       <div
-        v-if="loading"
+        v-if="loading || !imagesLoaded"
         class="col-span-full flex justify-center items-center p-8"
       >
         <div
@@ -177,7 +177,7 @@
 </style>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ContentService } from "../../api/services/content.service";
@@ -212,27 +212,46 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  hideHeader: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const anticipatedContent = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const imagesLoaded = ref(false);
 
 const { getPrimaryImageUrl, getHoverImageUrl, preloadContentImages } =
   useBlobImages();
 
 const displayContent = computed(() => {
-  return props.content.length > 0 ? props.content : anticipatedContent.value;
+  const content =
+    props.content.length > 0 ? props.content : anticipatedContent.value;
+  console.log("SectionTwo displayContent:", content.length, "items");
+  if (content.length > 0) {
+    console.log("First content item:", content[3]);
+    console.log("First item poster ID:", content[3]?.poster_image_id);
+    console.log("First item banner ID:", content[3]?.banner_image_id);
+    console.log("First item thumbnail ID:", content[3]?.thumbnail_image_id);
+    console.log("First item poster:", getPrimaryImageUrl(content[3]));
+    console.log("First item banner:", getHoverImageUrl(content[3]));
+  }
+  return content;
 });
 
 const fetchAnticipatedContent = async () => {
   if (!props.fetchContent) {
     loading.value = false;
+    imagesLoaded.value = true;
     return;
   }
 
   try {
     loading.value = true;
+    imagesLoaded.value = false;
+
     const response = await ContentService.getContents({
       types: [EContentType.MOVIE, EContentType.SERIES],
       // released_after: new Date().toISOString(),
@@ -242,16 +261,22 @@ const fetchAnticipatedContent = async () => {
 
     anticipatedContent.value = response.data;
 
-    // Preload all images (poster, banner, thumbnail) in background
+    // Preload all images (poster, banner, thumbnail) and wait for them
     if (response.data && response.data.length > 0) {
       try {
         await preloadContentImages(response.data, "public");
+        console.log("SectionTwo: Images preloaded successfully");
+        imagesLoaded.value = true;
       } catch (error) {
-        console.warn("Failed to preload some images:", error);
+        console.warn("SectionTwo: Failed to preload some images:", error);
+        imagesLoaded.value = true; // Show content even if some images fail
       }
+    } else {
+      imagesLoaded.value = true;
     }
   } catch (err) {
     error.value = err.message;
+    imagesLoaded.value = true; // Show content even if there's an error
   } finally {
     loading.value = false;
   }
@@ -260,6 +285,29 @@ const fetchAnticipatedContent = async () => {
 const router = useRouter();
 
 const emit = defineEmits(["mounted"]);
+
+// Watch for props.content changes and preload images
+watch(
+  () => props.content,
+  async (newContent) => {
+    if (newContent && newContent.length > 0) {
+      console.log("SectionTwo: Props content changed, preloading images...");
+      imagesLoaded.value = false;
+
+      try {
+        await preloadContentImages(newContent, "public");
+        console.log("SectionTwo: Props images preloaded successfully");
+        imagesLoaded.value = true;
+      } catch (error) {
+        console.warn("SectionTwo: Failed to preload props images:", error);
+        imagesLoaded.value = true; // Show content even if some images fail
+      }
+    } else {
+      imagesLoaded.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger);

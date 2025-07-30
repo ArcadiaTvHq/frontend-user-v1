@@ -71,7 +71,7 @@
       </div>
     </template>
 
-    <!-- Show normal watch content when no search -->
+    <!-- Show normal movies content when no search -->
     <template v-else>
       <HeroHome
         :autoPlay="true"
@@ -80,9 +80,9 @@
         @addToList="handleAddToList"
       />
       <SectionTwo
-        title="Anticipate"
-        iconAlt="Flame icon"
-        :content="anticipatedContent"
+        title="Movies"
+        iconAlt="Movies icon"
+        :content="moviesContent"
         :showSeeMore="true"
         :fetchContent="false"
       />
@@ -104,43 +104,56 @@ import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 
-const route = useRoute();
-const router = useRouter();
-
 definePageMeta({
   middleware: ["auth"],
 });
+
+const route = useRoute();
+const router = useRouter();
 
 const authStore = useAuthStore();
 const searchStore = useSearchStore();
 const userFullName = computed(() => authStore.userFullName);
 
-// Get URL parameters
-const contentType = computed(() => route.query.type || null);
-const searchQuery = computed(() => route.query.search || null);
-
 // Make reactive computed properties for search
-const hasSearchQuery = computed(() => {
-  return searchStore.hasSearchQuery;
-});
+const hasSearchQuery = computed(() => searchStore.hasSearchQuery);
+const searchQuery = computed(() => searchStore.searchQuery);
+const searchResults = computed(() => searchStore.searchResults);
 
-const searchQueryValue = computed(() => {
-  return searchStore.searchQuery;
-});
+// Override the search store's performSearch to filter by movies only
+const originalPerformSearch = searchStore.performSearch;
+searchStore.performSearch = async (query) => {
+  if (!query.trim()) {
+    searchStore.searchResults = [];
+    return;
+  }
 
-const searchResults = computed(() => {
-  return searchStore.searchResults;
-});
+  try {
+    searchStore.isSearching = true;
+    searchStore.searchError = null;
+
+    const response = await ContentService.getContents({
+      search: query.trim(),
+      types: [EContentType.MOVIE], // Only search within movies
+      limit: 20,
+      page: 1,
+    });
+
+    searchStore.searchResults = response.data || [];
+  } catch (error) {
+    console.error("Movies search error:", error);
+    searchStore.searchError = error.message || "Search failed";
+    searchStore.searchResults = [];
+  } finally {
+    searchStore.isSearching = false;
+  }
+};
 
 // Handle URL parameters on mount
 onMounted(() => {
-  // If there's a search query in URL, set it in the store
-  if (searchQuery.value) {
-    searchStore.searchQuery = searchQuery.value;
-    searchStore.performSearch(searchQuery.value);
-  }
-  // If there's already a search query in the store, sync URL
-  else if (searchStore.searchQuery && searchStore.searchQuery.trim()) {
+  // If there's already a search query in the store, perform the search and sync URL
+  if (searchStore.searchQuery && searchStore.searchQuery.trim()) {
+    searchStore.performSearch(searchStore.searchQuery);
     searchStore.syncURLWithSearch(); // Sync URL with search state
   }
 });
@@ -171,79 +184,35 @@ const buildImageUrl = (imageId) => {
   return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/public`;
 };
 
-// Featured content state
-const featuredPosters = ref([]);
-const featuredLoading = ref(true);
-const featuredError = ref(null);
-
-// Anticipated content state
-const anticipatedContent = ref([]);
-const anticipatedLoading = ref(true);
-const anticipatedError = ref(null);
-
-// Update featured posters (called from SectionOne component)
-const updateFeaturedPosters = (newPosters) => {
-  featuredPosters.value = newPosters;
-};
-
-// Fetch featured content
-const fetchFeaturedContent = async () => {
-  try {
-    featuredLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 10,
-    });
-
-    featuredPosters.value = response.data.map((content) => ({
-      id: content.id,
-      image: buildImageUrl(
-        content.poster_image_id || content.thumbnail_image_id
-      ),
-      title: content.title,
-      description: content.description,
-    }));
-  } catch (err) {
-    featuredError.value = err.message;
-    // Fallback to default images if API fails
-    featuredPosters.value = [
-      { id: 1, image: "/images/default-poster-1.jpg" },
-      { id: 2, image: "/images/default-poster-2.jpg" },
-      { id: 3, image: "/images/default-poster-3.jpg" },
-      { id: 4, image: "/images/default-poster-4.jpg" },
-      { id: 5, image: "/images/default-poster-5.jpg" },
-    ];
-  } finally {
-    featuredLoading.value = false;
-  }
-};
+// Movies content state
+const moviesContent = ref([]);
+const moviesLoading = ref(true);
+const moviesError = ref(null);
 
 const { preloadContentImages } = useBlobImages();
 
-// Fetch anticipated content
-const fetchAnticipatedContent = async () => {
+// Fetch movies content (movies only)
+const fetchMoviesContent = async () => {
   try {
-    anticipatedLoading.value = true;
+    moviesLoading.value = true;
     const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      // released_after: new Date().toISOString(),
+      types: [EContentType.MOVIE], // Only movies
       limit: 6,
       page: 1,
     });
 
-    anticipatedContent.value = response.data;
+    moviesContent.value = response.data;
 
-    // Preload all images for anticipated content
+    // Preload all images for movies content
     try {
       await preloadContentImages(response.data, "public");
     } catch (error) {
-      console.warn("Failed to preload some anticipated images:", error);
+      console.warn("Failed to preload some movies images:", error);
     }
   } catch (err) {
-    anticipatedError.value = err.message;
+    moviesError.value = err.message;
   } finally {
-    anticipatedLoading.value = false;
+    moviesLoading.value = false;
   }
 };
 
@@ -258,17 +227,17 @@ const handleLogout = async () => {
 
 // HeroHome event handlers
 const handleWatchContent = (content) => {
-  console.log("Watching content:", content.title);
+  console.log("Watching movie:", content.title);
   // Additional logic can be added here (analytics, etc.)
 };
 
 const handleAddToList = (content) => {
-  console.log("Added to list:", content.title);
+  console.log("Added movie to list:", content.title);
   // You can add toast notification or update user's watchlist here
 };
 
 // Fetch data when component mounts
 onMounted(async () => {
-  await Promise.all([fetchFeaturedContent(), fetchAnticipatedContent()]);
+  await fetchMoviesContent();
 });
 </script>

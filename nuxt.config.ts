@@ -2,13 +2,33 @@
 export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: "2024-11-01",
-  devtools: { enabled: true },
+  devtools: { enabled: false }, // Disable in production
   css: ["~/assets/css/main.css"],
-  // vite:{
-  //   plugins: [tailwindcss()]
-  // },
 
-  plugins: [{ src: "~/plugins/Lenis.client.js" }],
+  // Optimize build
+  build: {
+    transpile: ["pinia-plugin-persistedstate"],
+  },
+
+  // Optimize Vite
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ["vue", "vue-router"],
+            ui: ["@nuxt/ui"],
+            video: ["hls.js"],
+          },
+        },
+      },
+    },
+    optimizeDeps: {
+      include: ["vue", "vue-router", "pinia"],
+    },
+  },
+
+  plugins: [{ src: "~/plugins/Lenis.client.js", mode: "client" }],
 
   app: {
     head: {
@@ -17,6 +37,7 @@ export default defineNuxtConfig({
         {
           src: "https://embed.videodelivery.net/embed/sdk.latest.js",
           defer: true,
+          async: true, // Load asynchronously
         },
       ],
     },
@@ -61,6 +82,6 @@ export default defineNuxtConfig({
 
   piniaPersistedstate: {
     storage: "localStorage",
-    debug: true,
+    debug: false, // Disable debug in production
   },
 });
