@@ -9,7 +9,8 @@ export const CACHE_KEYS = {
 } as const;
 
 // Cache duration in milliseconds (24 hours)
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
+// const CACHE_DURATION = 24 * 60 * 60 * 1000;
+const CACHE_DURATION = 30 * 1000;
 
 interface CacheItem<T> {
   data: T;

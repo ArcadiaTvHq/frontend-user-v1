@@ -114,7 +114,7 @@ async function handleSubmit() {
         <label class="block text-sm">Email</label>
         <input
           v-model="formData.email"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.email.$error }"
           placeholder="john.doe@gmail.com"
           type="email"
@@ -128,7 +128,7 @@ async function handleSubmit() {
         <label class="block text-sm">Password</label>
         <input
           v-model="formData.password"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.password.$error }"
           type="password"
           placeholder="........"
@@ -143,7 +143,7 @@ async function handleSubmit() {
           class="w-4 h-4 bg-[#1E1E1E] border border-inputb accent-gold"
           type="checkbox"
         />
-        <p class="font-inter text-type text-sm">Keep me signed in</p>
+        <p class="font-orbitron text-type text-sm">Keep me signed in</p>
       </div>
 
       <div
@@ -156,7 +156,8 @@ async function handleSubmit() {
         >
           {{ loading ? "Loading..." : "Login" }}
         </button>
-        <nuxt-link to="/forgot"
+        <nuxt-link
+          to="/forgot"
           class="text-sm font-orbitron cursor-pointer text-white hover:text-[#CE8F00] transition-colors"
           >Forgot Password?</nuxt-link
         >
@@ -164,7 +165,7 @@ async function handleSubmit() {
 
       <span v-if="error" class="text-red-500 text-sm">{{ error }}</span>
 
-      <span class="font-inter text-sm">
+      <span class="font-orbitron text-sm">
         Don't have an account?
         <nuxt-link
           to="/signup"

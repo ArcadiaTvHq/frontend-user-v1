@@ -16,12 +16,23 @@
         </div>
 
         <div class="aspect-video w-full bg-gray-900 rounded-lg">
-          <!-- Video player will go here -->
-          <div
-            class="w-full h-full flex items-center justify-center text-white"
-          >
-            <p>Video Player for: {{ content.title }}</p>
-          </div>
+          <!-- Custom Video Player -->
+          <CustomVideoPlayer
+            v-if="content"
+            :key="content.id"
+            :contentId="content.id"
+            player-type="video"
+            :bannerImage="content.banner_image_id"
+            :autoplay="false"
+            :muted="false"
+            :controls="true"
+            :loop="false"
+            @video-started="handleVideoStarted"
+            @video-paused="handleVideoPaused"
+            @video-ended="handleVideoEnded"
+            @error="handleVideoError"
+            @ready="handleVideoReady"
+          />
         </div>
 
         <!-- Content information -->
@@ -45,6 +56,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { ContentService } from "~/api/services/content.service";
 import Navbar from "~/components/Navbar/Navbar.vue";
+import CustomVideoPlayer from "~/components/VideoPlayer/CustomVideoPlayer.vue";
 import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
 import SectionLast from "~/components/SectionLast/SectionLast.vue";
 
@@ -61,6 +73,27 @@ onMounted(async () => {
     console.error("Error fetching content details:", error);
   }
 });
+
+// Video event handlers
+const handleVideoStarted = () => {
+  console.log("Main video started");
+};
+
+const handleVideoPaused = () => {
+  console.log("Main video paused");
+};
+
+const handleVideoEnded = () => {
+  console.log("Main video ended");
+};
+
+const handleVideoError = (error) => {
+  console.error("Main video error:", error);
+};
+
+const handleVideoReady = () => {
+  console.log("Main video ready");
+};
 
 definePageMeta({
   middleware: ["auth"],

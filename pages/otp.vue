@@ -33,7 +33,7 @@
         Verify your email
       </h1>
 
-      <p class="font-inter text-type text-[#665E59] text-center">
+      <p class="font-orbitron text-type text-[#665E59] text-center">
         Enter the code sent to your email
       </p>
 
@@ -53,13 +53,13 @@
       </div>
 
       <div class="text-center">
-        <p class="font-inter text-center text-smallest text-[#4A4F4A]">
+        <p class="font-orbitron text-center text-smallest text-[#4A4F4A]">
           Didn't receive code?
         </p>
         <button
           type="button"
           @click="resendOTP"
-          class="font-inter text-smallest text-[#4A4F4A] hover:text-gold transition-colors cursor-pointer"
+          class="font-orbitron text-smallest text-[#4A4F4A] hover:text-gold transition-colors cursor-pointer"
         >
           Resend code
         </button>

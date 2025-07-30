@@ -1,5 +1,5 @@
 <template>
-  <div class="aspect-video w-full bg-gray-900 rounded-lg overflow-hidden">
+  <div class="w-full h-full bg-gray-900 overflow-hidden">
     <div
       v-if="!streamUrl"
       class="w-full h-full flex items-center justify-center text-white relative"
@@ -50,7 +50,8 @@
         @pause="() => handlePause()"
         @ended="() => handleEnded()"
         @timeupdate="handleTimeUpdate"
-        class="w-full h-full absolute inset-0 border-0"
+        @click="handleVideoClick"
+        class="w-full h-full absolute inset-0 border-0 transition-all duration-300 ease-in-out cursor-pointer"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen
       />
@@ -83,8 +84,7 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { ContentService } from "~/api/services/content.service";
-import { buildImageUrl } from "~/src/utils/helpers";
-
+import { buildImageUrl, preloadImage } from "~/src/utils/helpers";
 
 const props = defineProps({
   contentId: {
@@ -111,6 +111,8 @@ const props = defineProps({
   letterboxColor: { type: String, default: "#000000" },
 });
 
+const emit = defineEmits(["videoStarted"]);
+
 const streamUrl = ref(null);
 const retryCount = ref(0);
 const isLoading = ref(true);
@@ -130,14 +132,34 @@ const onPlaying = () => {
 
 const onCanPlay = () => {
   isBuffering.value = false;
-
 };
 
 const onError = (e) => {
   error.value = "This video cannot be played. Please try again later.";
 };
 
-const handlePlay = () => {};
+const handlePlay = () => {
+  // Emit event when video starts playing
+  emit("videoStarted");
+};
+
+const handleVideoClick = () => {
+  // Try to unmute when video is clicked
+  const iframe = document.querySelector("iframe");
+  if (iframe && iframe.contentWindow) {
+    try {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          method: "setMuted",
+          value: false,
+        }),
+        "*"
+      );
+    } catch (error) {
+      console.log("Could not unmute on click:", error);
+    }
+  }
+};
 
 const handlePause = () => {};
 
@@ -184,7 +206,28 @@ const fetchStreamUrl = async (isRetry = false) => {
         : await ContentService.getVideoSignedUrl(props.contentId);
 
     if (response?.data?.url) {
-      streamUrl.value = response.data.url;
+      // Add autoplay parameters to the URL
+      let url = response.data.url;
+      const params = [];
+
+      if (props.autoplay) {
+        params.push("autoplay=1");
+        // Include muted for autoplay to work in most browsers
+        if (props.muted) {
+          params.push("muted=1");
+        }
+      }
+
+      if (props.loop) {
+        params.push("loop=1");
+      }
+
+      if (params.length > 0) {
+        const separator = url.includes("?") ? "&" : "?";
+        url += `${separator}${params.join("&")}`;
+      }
+
+      streamUrl.value = url;
       isLoading.value = false;
       retryCount.value = 0;
 
@@ -238,12 +281,61 @@ watch(
   { immediate: true }
 );
 
+// Preload banner image when it changes
+watch(
+  () => props.bannerImage,
+  async (newBannerImage) => {
+    if (newBannerImage) {
+      try {
+        await preloadImage(newBannerImage, "size3");
+      } catch (err) {
+        console.warn("Failed to preload banner image:", err);
+      }
+    }
+  },
+  { immediate: true }
+);
+
 // Watch for changes to playerType
 watch(
   () => props.playerType,
   (newType, oldType) => {
     if (newType !== oldType && props.contentId) {
       initializePlayer();
+    }
+  }
+);
+
+// Watch for changes to muted prop
+watch(
+  () => props.muted,
+  (newMuted) => {
+    if (!newMuted) {
+      // Try to unmute without refreshing the video
+      setTimeout(() => {
+        const iframe = document.querySelector("iframe");
+        if (iframe && iframe.contentWindow) {
+          try {
+            // Try postMessage to unmute
+            iframe.contentWindow.postMessage(
+              JSON.stringify({
+                method: "setMuted",
+                value: false,
+              }),
+              "*"
+            );
+
+            iframe.contentWindow.postMessage(
+              JSON.stringify({
+                method: "unmute",
+              }),
+              "*"
+            );
+          } catch (error) {
+            console.log("Could not unmute video:", error);
+          }
+        }
+      }, 300);
     }
   }
 );
