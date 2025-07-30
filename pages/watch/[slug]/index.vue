@@ -227,20 +227,20 @@ const { data: relatedData, pending: relatedPending } = await useAsyncData(
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
 
+// Watch for window resize and refresh if mobile/desktop changes
+const handleResize = () => {
+  const newIsMobile = window.innerWidth < 768;
+  if (newIsMobile !== isMobile.value) {
+    console.log("Screen size changed, refreshing page...");
+    window.location.reload();
+  }
+};
+
 onMounted(async () => {
   startLoading(); // Start component loading
 
   // Detect mobile
   isMobile.value = window.innerWidth < 768;
-
-  // Watch for window resize and refresh if mobile/desktop changes
-  const handleResize = () => {
-    const newIsMobile = window.innerWidth < 768;
-    if (newIsMobile !== isMobile.value) {
-      console.log("Screen size changed, refreshing page...");
-      window.location.reload();
-    }
-  };
 
   window.addEventListener("resize", handleResize);
 

@@ -43,6 +43,24 @@ const isActiveRoute = (link) => {
     : route.path === link.pathname;
 };
 
+const handleNavClick = (link) => {
+  // If we're on a detail page and clicking HOME, ensure proper navigation
+  if (
+    link.pathname === "/watch" &&
+    route.path.startsWith("/watch/") &&
+    route.path !== "/watch"
+  ) {
+    // Stop any existing loading states
+    loadingStore.stopRouteLoading();
+    loadingStore.stopLoading();
+
+    // Use router.push for more reliable navigation
+    const router = useRouter();
+    router.push("/watch");
+    return;
+  }
+};
+
 const mobileMenuOpen = ref(false);
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value;
@@ -191,6 +209,7 @@ watch(
           :key="index"
           :to="link.pathname"
           class="text-sm lg:text-base font-bold text-white hover:text-[#FFD005] transition-colors px-2 relative"
+          @click="handleNavClick(link)"
         >
           {{ link.name }}
           <div
@@ -257,6 +276,7 @@ watch(
             :to="link.pathname"
             class="text-sm font-bold text-white hover:text-[#FFD005] transition-colors relative flex items-center justify-between"
             :class="{ 'text-[#FFD005]': isActiveRoute(link) }"
+            @click="handleNavClick(link)"
           >
             {{ link.name }}
             <div

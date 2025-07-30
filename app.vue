@@ -58,7 +58,13 @@ watch(
   () => route.path,
   (newPath, oldPath) => {
     if (newPath !== oldPath && oldPath) {
-      // Start route loading
+      // Don't start route loading for navigation between watch pages
+      if (newPath === "/watch" && oldPath.startsWith("/watch/")) {
+        // For navigation from detail to main watch page, don't start loading
+        return;
+      }
+
+      // Start route loading for other navigation
       loadingStore.startRouteLoading();
 
       // Stop route loading after a short delay
