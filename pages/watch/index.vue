@@ -228,7 +228,7 @@ const fetchAnticipatedContent = async () => {
     const response = await ContentService.getContents({
       types: [EContentType.MOVIE, EContentType.SERIES],
       // released_after: new Date().toISOString(),
-      limit: 6,
+      limit: 12,
       page: 1,
     });
 

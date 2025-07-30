@@ -10,8 +10,11 @@
           src="@/assets/logo2.png"
           alt="Logo"
         />
-        <p v-if="routeLoading" class="text-white text-lg font-medium">
-          Loading...
+        <p
+          v-if="routeLoading && shouldShowRouteLoading"
+          class="text-white text-lg font-medium"
+        >
+          Loading content...
         </p>
         <p
           v-else-if="hasLoadingComponents"
@@ -32,6 +35,9 @@ const loadingStore = useLoadingStore();
 const shouldShowLoader = computed(() => loadingStore.shouldShowLoader);
 const routeLoading = computed(() => loadingStore.routeLoading);
 const hasLoadingComponents = computed(() => loadingStore.hasLoadingComponents);
+const shouldShowRouteLoading = computed(
+  () => loadingStore.shouldShowRouteLoading
+);
 
 // Don't show Vue loading screen during initial load
 const isInitialLoading = ref(true);

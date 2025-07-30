@@ -9,10 +9,17 @@ interface BlobMetadata {
   priority: number; // Higher number = higher priority
 }
 
+interface RetryState {
+  attempts: number;
+  lastAttempt: number;
+  nextRetryTime: number;
+}
+
 interface BlobStoreState {
   blobs: Record<string, BlobMetadata>; // imageId -> blob metadata
   loading: Record<string, boolean>; // imageId -> loading state
   errors: Record<string, string>; // imageId -> error message
+  retryStates: Record<string, RetryState>; // imageId -> retry state
 }
 
 export const useBlobStore = defineStore("blobStore", () => {
@@ -20,10 +27,16 @@ export const useBlobStore = defineStore("blobStore", () => {
   const blobs = reactive<Record<string, BlobMetadata>>({});
   const loading = reactive<Record<string, boolean>>({});
   const errors = reactive<Record<string, string>>({});
+  const retryStates = reactive<Record<string, RetryState>>({});
 
   // Configuration
   const IMAGE_DELIVERY_BASE_URL =
     "https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg";
+
+  // Retry configuration
+  const MAX_RETRY_ATTEMPTS = 3;
+  const BASE_RETRY_DELAY = 1000; // 1 second
+  const MAX_RETRY_DELAY = 10000; // 10 seconds
 
   // Adaptive limits based on available memory
   const getMemoryLimits = () => {
@@ -67,6 +80,55 @@ export const useBlobStore = defineStore("blobStore", () => {
   };
 
   /**
+   * Calculate exponential backoff delay
+   */
+  const getRetryDelay = (attempt: number): number => {
+    const delay = Math.min(
+      BASE_RETRY_DELAY * Math.pow(2, attempt - 1),
+      MAX_RETRY_DELAY
+    );
+    // Add jitter to prevent thundering herd
+    return delay + Math.random() * 1000;
+  };
+
+  /**
+   * Check if retry should be attempted
+   */
+  const shouldRetry = (imageId: string): boolean => {
+    const retryState = retryStates[imageId];
+    if (!retryState) return true;
+
+    const now = Date.now();
+    return (
+      retryState.attempts < MAX_RETRY_ATTEMPTS &&
+      now >= retryState.nextRetryTime
+    );
+  };
+
+  /**
+   * Update retry state
+   */
+  const updateRetryState = (imageId: string, success: boolean): void => {
+    if (success) {
+      delete retryStates[imageId];
+      delete errors[imageId];
+    } else {
+      const currentState = retryStates[imageId] || {
+        attempts: 0,
+        lastAttempt: 0,
+        nextRetryTime: 0,
+      };
+
+      currentState.attempts++;
+      currentState.lastAttempt = Date.now();
+      currentState.nextRetryTime =
+        Date.now() + getRetryDelay(currentState.attempts);
+
+      retryStates[imageId] = currentState;
+    }
+  };
+
+  /**
    * Get blob URL for an image ID (without updating access tracking)
    */
   const getBlob = (imageId: string): string | null => {
@@ -104,68 +166,67 @@ export const useBlobStore = defineStore("blobStore", () => {
   };
 
   /**
-   * Get error for an image ID
+   * Get error message for an image ID
    */
   const getError = (imageId: string): string | null => {
     return errors[imageId] || null;
   };
 
   /**
-   * Calculate total memory usage of cached blobs
+   * Get retry state for an image ID
+   */
+  const getRetryState = (imageId: string): RetryState | null => {
+    return retryStates[imageId] || null;
+  };
+
+  /**
+   * Calculate total memory usage of all blobs
    */
   const getTotalMemoryUsage = (): number => {
     return Object.values(blobs).reduce((total, blob) => total + blob.size, 0);
   };
 
   /**
-   * Smart cleanup using LRU (Least Recently Used) with priority consideration
+   * Smart cleanup based on memory limits and access patterns
    */
   const smartCleanup = (): void => {
-    const limits = getMemoryLimits();
-    const blobKeys = Object.keys(blobs);
+    const { maxBlobs, cleanupThreshold } = getMemoryLimits();
+    const blobCount = Object.keys(blobs).length;
 
-    if (blobKeys.length >= limits.maxBlobs) {
-      // Sort by priority and access pattern
-      const sortedKeys = blobKeys.sort((a, b) => {
-        const blobA = blobs[a];
-        const blobB = blobs[b];
+    if (blobCount <= maxBlobs) return;
 
-        // Calculate score based on access frequency, recency, and priority
-        const timeA = Date.now() - blobA.lastAccessed;
-        const timeB = Date.now() - blobB.lastAccessed;
+    // Convert to array and sort by priority and access patterns
+    const blobEntries = Object.entries(blobs).map(([id, blob]) => ({
+      id,
+      ...blob,
+    }));
 
-        // Higher score = more likely to be kept
-        const scoreA =
-          blobA.accessCount * 10 + blobA.priority * 5 - timeA / 1000;
-        const scoreB =
-          blobB.accessCount * 10 + blobB.priority * 5 - timeB / 1000;
+    // Sort by: 1) Priority (desc), 2) Last accessed (asc), 3) Access count (asc)
+    blobEntries.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority; // Higher priority first
+      }
+      if (a.lastAccessed !== b.lastAccessed) {
+        return a.lastAccessed - b.lastAccessed; // Older first
+      }
+      return a.accessCount - b.accessCount; // Less accessed first
+    });
 
-        return scoreA - scoreB; // Keep higher scores
-      });
+    // Remove least important blobs
+    const toRemove = blobEntries.slice(cleanupThreshold);
+    toRemove.forEach(({ id }) => {
+      removeBlob(id);
+    });
 
-      // Remove the lowest scoring entries
-      const keysToRemove = sortedKeys.slice(0, limits.cleanupThreshold);
-
-      keysToRemove.forEach((key) => {
-        const blob = blobs[key];
-        if (blob && blob.url.startsWith("blob:")) {
-          URL.revokeObjectURL(blob.url);
-        }
-        delete blobs[key];
-        delete loading[key];
-        delete errors[key];
-      });
-
-      console.log(
-        `Cleaned up ${keysToRemove.length} blobs. Remaining: ${
-          Object.keys(blobs).length
-        }`
-      );
-    }
+    console.log(
+      `Smart cleanup: Removed ${toRemove.length} blobs, kept ${
+        blobCount - toRemove.length
+      }`
+    );
   };
 
   /**
-   * Fetch image and store as blob with enhanced metadata
+   * Fetch image and store as blob with enhanced metadata and retry logic
    */
   const fetchAndStoreBlob = async (
     imageId: string,
@@ -200,6 +261,17 @@ export const useBlobStore = defineStore("blobStore", () => {
       });
     }
 
+    // Check if we should retry
+    if (!shouldRetry(imageId)) {
+      const retryState = retryStates[imageId];
+      const timeUntilRetry = retryState.nextRetryTime - Date.now();
+      throw new Error(
+        `Retry not available yet. Next retry in ${Math.ceil(
+          timeUntilRetry / 1000
+        )}s`
+      );
+    }
+
     // Start loading
     loading[imageId] = true;
     delete errors[imageId];
@@ -230,11 +302,18 @@ export const useBlobStore = defineStore("blobStore", () => {
         priority,
       };
 
+      // Mark as successful
+      updateRetryState(imageId, true);
+
       return blobUrl;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       errors[imageId] = errorMessage;
+
+      // Update retry state
+      updateRetryState(imageId, false);
+
       console.warn(`Failed to fetch blob for image ${imageId}:`, errorMessage);
       throw error;
     } finally {
@@ -243,7 +322,35 @@ export const useBlobStore = defineStore("blobStore", () => {
   };
 
   /**
-   * Preload multiple images in background with priority
+   * Fetch image with retry logic
+   */
+  const fetchWithRetry = async (
+    imageId: string,
+    size: string = "public"
+  ): Promise<string> => {
+    let lastError: Error;
+
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await fetchAndStoreBlob(imageId, size);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          const delay = getRetryDelay(attempt);
+          console.log(
+            `Retrying image ${imageId} in ${delay}ms (attempt ${attempt}/${MAX_RETRY_ATTEMPTS})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw lastError!;
+  };
+
+  /**
+   * Preload multiple images in background with priority and retry
    */
   const preloadImages = async (
     imageIds: string[],
@@ -260,9 +367,12 @@ export const useBlobStore = defineStore("blobStore", () => {
 
     const promises = sortedImageIds.map(async (imageId) => {
       try {
-        await fetchAndStoreBlob(imageId, size);
+        await fetchWithRetry(imageId, size);
       } catch (error) {
-        console.warn(`Failed to preload image ${imageId}:`, error);
+        console.warn(
+          `Failed to preload image ${imageId} after retries:`,
+          error
+        );
       }
     });
 
@@ -274,105 +384,104 @@ export const useBlobStore = defineStore("blobStore", () => {
    */
   const removeBlob = (imageId: string): void => {
     const blob = blobs[imageId];
-    if (blob && blob.url.startsWith("blob:")) {
+    if (blob) {
       URL.revokeObjectURL(blob.url);
+      delete blobs[imageId];
+      delete loading[imageId];
+      delete errors[imageId];
+      delete retryStates[imageId];
     }
-    delete blobs[imageId];
-    delete loading[imageId];
-    delete errors[imageId];
   };
 
   /**
-   * Clear all blobs
+   * Clear all blobs and reset state
    */
   const clearAll = (): void => {
-    Object.keys(blobs).forEach((key) => {
-      const blob = blobs[key];
-      if (blob && blob.url.startsWith("blob:")) {
-        URL.revokeObjectURL(blob.url);
-      }
+    // Revoke all blob URLs to prevent memory leaks
+    Object.values(blobs).forEach((blob) => {
+      URL.revokeObjectURL(blob.url);
     });
 
+    // Clear all state
     Object.keys(blobs).forEach((key) => delete blobs[key]);
     Object.keys(loading).forEach((key) => delete loading[key]);
     Object.keys(errors).forEach((key) => delete errors[key]);
+    Object.keys(retryStates).forEach((key) => delete retryStates[key]);
   };
 
   /**
-   * Get detailed store statistics
+   * Get statistics about the blob store
    */
   const getStats = () => {
-    // Use toRaw to avoid reactive dependencies in computed properties
-    const rawBlobs = toRaw(blobs);
-    const rawLoading = toRaw(loading);
-    const rawErrors = toRaw(errors);
+    const totalBlobs = Object.keys(blobs).length;
+    const totalLoading = Object.keys(loading).length;
+    const totalErrors = Object.keys(errors).length;
+    const totalRetries = Object.keys(retryStates).length;
+    const totalMemory = getTotalMemoryUsage();
 
-    const blobEntries = Object.values(rawBlobs);
-    const totalSize = blobEntries.reduce((sum, blob) => sum + blob.size, 0);
-    const avgAccessCount =
-      blobEntries.length > 0
-        ? blobEntries.reduce((sum, blob) => sum + blob.accessCount, 0) /
-          blobEntries.length
-        : 0;
+    const retryStats = Object.values(retryStates).reduce(
+      (acc, state) => {
+        acc.totalAttempts += state.attempts;
+        acc.maxAttempts = Math.max(acc.maxAttempts, state.attempts);
+        return acc;
+      },
+      { totalAttempts: 0, maxAttempts: 0 }
+    );
 
     return {
-      totalBlobs: Object.keys(rawBlobs).length,
-      loadingCount: Object.keys(rawLoading).filter((key) => rawLoading[key])
-        .length,
-      errorCount: Object.keys(rawErrors).length,
-      totalMemoryUsage: totalSize,
-      averageAccessCount: Math.round(avgAccessCount * 100) / 100,
+      totalBlobs,
+      totalLoading,
+      totalErrors,
+      totalRetries,
+      totalMemory,
+      retryStats,
       memoryLimits: getMemoryLimits(),
     };
   };
 
   /**
-   * Get least used blobs (for debugging/monitoring)
+   * Get least used blobs (for debugging)
    */
   const getLeastUsedBlobs = (count: number = 10) => {
     return Object.entries(blobs)
-      .sort(([, a], [, b]) => a.accessCount - b.accessCount)
-      .slice(0, count)
-      .map(([id, blob]) => ({
-        id,
-        accessCount: blob.accessCount,
-        size: blob.size,
-      }));
+      .map(([id, blob]) => ({ id, ...blob }))
+      .sort((a, b) => a.accessCount - b.accessCount)
+      .slice(0, count);
   };
 
   /**
-   * Get most used blobs (for debugging/monitoring)
+   * Get most used blobs (for debugging)
    */
   const getMostUsedBlobs = (count: number = 10) => {
     return Object.entries(blobs)
-      .sort(([, a], [, b]) => b.accessCount - a.accessCount)
-      .slice(0, count)
-      .map(([id, blob]) => ({
-        id,
-        accessCount: blob.accessCount,
-        size: blob.size,
-      }));
+      .map(([id, blob]) => ({ id, ...blob }))
+      .sort((a, b) => b.accessCount - a.accessCount)
+      .slice(0, count);
   };
 
   return {
-    // State
-    blobs,
-    loading,
-    errors,
-
-    // Methods
+    // Core methods
     getBlob,
     getBlobAndTrack,
     hasBlob,
     isLoading,
     getError,
+    getRetryState,
     fetchAndStoreBlob,
+    fetchWithRetry,
     preloadImages,
     removeBlob,
     clearAll,
+
+    // Statistics and debugging
     getStats,
     getLeastUsedBlobs,
     getMostUsedBlobs,
     getTotalMemoryUsage,
+    smartCleanup,
+
+    // Configuration
+    getMemoryLimits,
+    getImagePriority,
   };
 });

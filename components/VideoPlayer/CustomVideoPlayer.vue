@@ -44,7 +44,6 @@
             : ''
         "
       >
-        {{ bufferedPercent }} {{ canPlay }} {{ streamUrl }}
         <div v-if="showLoading" class="text-center relative z-10">
           <img
             class="w-[100px] h-[100px] object-contain animate-pulse mb-4"

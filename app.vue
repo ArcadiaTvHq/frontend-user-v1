@@ -53,18 +53,22 @@ onMounted(() => {
   }, 1500);
 });
 
-// Handle route changes
+// Handle route changes - only show loading for pages that need it
 watch(
   () => route.path,
   (newPath, oldPath) => {
     if (newPath !== oldPath && oldPath) {
-      // Don't start route loading for navigation between watch pages
-      if (newPath === "/watch" && oldPath.startsWith("/watch/")) {
-        // For navigation from detail to main watch page, don't start loading
+      // Don't start loading for pages that don't need API calls
+      if (loadingStore.pagesWithoutLoading.includes(newPath)) {
         return;
       }
 
-      // Start route loading for other navigation
+      // Don't start route loading for navigation between watch pages
+      if (newPath === "/watch" && oldPath.startsWith("/watch/")) {
+        return;
+      }
+
+      // Start route loading for pages that need API calls
       loadingStore.startRouteLoading();
 
       // Stop route loading after a short delay

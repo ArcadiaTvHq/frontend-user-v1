@@ -80,7 +80,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="h-13 w-52 max-w-50 bg-gold text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          class="h-13 w-full md:w-52 bg-gold text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3"
         >
           {{ loading ? "Verifying..." : "Continue" }}
         </button>
