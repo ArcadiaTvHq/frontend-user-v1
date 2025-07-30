@@ -70,7 +70,7 @@
           <!-- <div
             class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           >
-<<<<<<< HEAD
+
             <img
               :src="poster.image"
               :alt="poster.title"
@@ -88,7 +88,7 @@
             </div>
           </div>
         </div>
-=======
+
             <h3 class="text-white text-sm font-bold mb-1">
               {{ poster.title }}
             </h3>
@@ -97,7 +97,6 @@
             </p>
           </div> -->
         </NuxtLink>
->>>>>>> 058a6352a2fea94f0532e3d9a9cb44305106d73b
       </div>
     </div>
   </section>
@@ -139,7 +138,6 @@
   box-shadow: 0 4px 20px rgba(255, 208, 5, 0.2);
 }
 
-<<<<<<< HEAD
 .poster:hover .poster-info {
   opacity: 1;
 }
@@ -150,8 +148,6 @@
   object-fit: fill contain;
 }
 
-=======
->>>>>>> 058a6352a2fea94f0532e3d9a9cb44305106d73b
 /* Large screens (1280px+) */
 @media screen and (min-width: 1280px) {
   .pos-1,
@@ -288,15 +284,13 @@ const handleClick = () => {
 };
 
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
-<<<<<<< HEAD
-const visiblePosters = computed(() => props.posters.slice(0, 5));
+
+let visiblePosters = computed(() => props.posters.slice(0, 5));
 console.log(visiblePosters);
-=======
 // Use reactive currentIndex for visiblePosters to enable rotation
 const currentIndex = ref(0);
->>>>>>> 058a6352a2fea94f0532e3d9a9cb44305106d73b
 
-const visiblePosters = computed(() => {
+ visiblePosters = computed(() => {
   const posters = props.posters;
   if (!posters || posters.length === 0) return [];
 
@@ -312,15 +306,13 @@ const visiblePosters = computed(() => {
   return result;
 });
 
-<<<<<<< HEAD
 
-let intervalId = null;
-=======
+//  let intervalId = null;
+
 // Compute the actual poster index that should be in the center
 const centerPosterIndex = computed(() => {
   const posters = props.posters;
   if (!posters || posters.length === 0) return 0;
->>>>>>> 058a6352a2fea94f0532e3d9a9cb44305106d73b
 
   // The center poster is at currentIndex + 2 (since we show 5 posters, center is at index 2)
   return (currentIndex.value + 2) % posters.length;

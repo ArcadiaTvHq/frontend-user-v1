@@ -16,7 +16,7 @@
       <div
         class="border-grayish h-0 flex-1 border-[0.85px] hidden md:block"
       ></div>
-      <div class="flex items-center gap-2" v-if="showSeeMore">
+      <div  class="flex items-center gap-2" v-if="showSeeMore">
         <p
           class="text-textprimary text-smallest md:text-seemore cursor-pointer hover:text-gold transition-colors"
         >

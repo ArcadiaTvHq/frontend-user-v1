@@ -178,6 +178,7 @@
                 />
               </NuxtLink>
               <button
+                v-if="isAuthenticated"
                 class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 group text-sm sm:text-base"
               >
                 <span>Add to List</span>

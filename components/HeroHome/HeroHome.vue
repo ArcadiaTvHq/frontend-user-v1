@@ -198,6 +198,7 @@
             <img src="../../assets/icons/play.svg" alt="Play" class="w-5 h-5" />
           </button>
           <button
+            v-if="isAuthenticated"
             @click="addToList"
             class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-10 rounded-2xl font-medium btn-animate animate-scale-in delay-300 flex items-center justify-center gap-3 group"
           >
