@@ -18,7 +18,7 @@
         :logo="free"
         price="₦0"
         priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium"
-        button="border-[0.85px] border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer transition-all duration-300"
+        button="border-[0.85px] border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8px] mb-[18px] cursor-pointer transition-all duration-300 px-6 py-3 font-extrabold"
         class="slide-left w-full"
         :benefits="freeBenefits"
         typeclass="text-type font-medium md:text-[21px]"
@@ -28,7 +28,7 @@
         :logo="free"
         price="₦500"
         priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium"
-        button="border-[0.85px] text-gold border-[#FFD005]  hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer transition-all duration-300"
+        button="border-[0.85px] text-gold border-[#FFD005]  hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8px] mb-[18px] cursor-pointer transition-all duration-300 px-6 py-3 font-extrabold"
         class="w-full"
         :benefits="standardBenefits"
         typeclass="text-type font-medium md:text-[21px] text-white"
@@ -38,7 +38,7 @@
         :logo="premium"
         price="₦1,000"
         priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium text-gold"
-        button="h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer bg-[#FFD005] text-black hover:bg-[#CE8F00] transition-all duration-300"
+        button="h-13 w-full md:h-17 rounded-[8px] mb-[18px] cursor-pointer bg-[#FFD005] text-black hover:bg-[#CE8F00] transition-all duration-300 px-6 py-3 font-extrabold"
         class="slide-right w-full premium-card"
         :benefits="premiumBenefits"
         typeclass="text-type font-medium md:text-[21px] text-gold"
@@ -52,7 +52,7 @@
       with no charges.
     </p> -->
     <p
-      class="text-center text-smallest md:text-small mb-10 md:mb-15 lg:mb-50 font-orbitron max-w-[800px] lg:mt-10 mt-5"
+      class="text-center text-smallest md:text-small mt-16 md:mt-20 lg:mt-24 mb-10 md:mb-15 lg:mb-50 font-orbitron max-w-[800px] lg:mt-10 mt-5"
     >
       Get ready for an incredible movie streaming journey with Arcadia.
       <NuxtLink

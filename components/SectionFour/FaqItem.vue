@@ -5,13 +5,13 @@
     <button
       type="button"
       @click="handleToggle"
-      class="bg-[#FFD005] w-full h-13 flex items-center justify-between rounded-[8px] px-5 md:px-10 cursor-pointer md:h-fit md:py-3 hover:bg-[#CE8F00] text-black transition-all duration-300"
+      class="bg-[#FFD005] w-full h-16 md:h-20 flex items-center justify-between rounded-[8px] px-5 md:px-10 cursor-pointer hover:bg-[#CE8F00] text-black transition-all duration-300 font-orbitron"
     >
-      <p class="text-left text-smallest md:text-normal">
+      <p class="text-left text-small md:text-base font-bold">
         {{ props.question }}
       </p>
       <img
-        class="w-3 h-2 transition-transform duration-300"
+        class="w-3 h-2 transition-transform duration-300 brightness-0"
         :style="{ transform: props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }"
         src="../../assets/chevron.png"
         alt="Toggle FAQ"
@@ -21,7 +21,9 @@
       v-show="props.isOpen"
       class="px-5 py-3 md:px-10 md:py-6 transition-all duration-300"
     >
-      <p class="text-smallest md:text-normal">{{ props.answer }}</p>
+      <p class="text-smallest md:text-normal font-orbitron">
+        {{ props.answer }}
+      </p>
     </div>
   </div>
 </template>

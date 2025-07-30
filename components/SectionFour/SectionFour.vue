@@ -23,7 +23,7 @@
     </div>
 
     <div
-      class="flex flex-col gap-4 w-full lg:w-1/2 max-w-[624px] mx-auto lg:mx-0"
+      class="flex flex-col gap-2 w-full lg:w-1/2 max-w-[624px] mx-auto lg:mx-0 px-2 sm:px-0 faq-container"
     >
       <FaqItem
         v-for="(faq, index) in faqItems"
@@ -32,6 +32,7 @@
         :question="faq.question"
         :answer="faq.answer"
         @update:isOpen="handleToggle(index, $event)"
+        class="faq-item"
       />
     </div>
   </section>
@@ -85,6 +86,17 @@ const faqItems = [
 @media (max-width: 1024px) {
   .hover\:scale-125:hover {
     transform: scale(1.05);
+  }
+}
+
+/* Mobile-specific FAQ improvements */
+@media (max-width: 768px) {
+  .faq-container {
+    padding: 0 1rem;
+  }
+
+  .faq-item {
+    margin-bottom: 0.75rem;
   }
 }
 </style>

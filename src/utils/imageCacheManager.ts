@@ -65,7 +65,9 @@ export class ImageCacheManager {
 
     const stats = store.getStats();
     const memoryUsageMB =
-      Math.round((stats.totalMemoryUsage / (1024 * 1024)) * 100) / 100;
+      stats.totalMemory > 0
+        ? Math.round((stats.totalMemory / (1024 * 1024)) * 100) / 100
+        : 0;
 
     console.log("📊 Image Cache Stats:", {
       totalImages: stats.totalBlobs,
@@ -160,7 +162,9 @@ export class ImageCacheManager {
 
     const stats = store.getStats();
     const memoryUsageMB =
-      Math.round((stats.totalMemoryUsage / (1024 * 1024)) * 100) / 100;
+      stats.totalMemory > 0
+        ? Math.round((stats.totalMemory / (1024 * 1024)) * 100) / 100
+        : 0;
 
     let memoryPressure: "low" | "medium" | "high" = "low";
     if (typeof performance !== "undefined" && (performance as any).memory) {
@@ -200,7 +204,9 @@ export class ImageCacheManager {
     const stats = store.getStats();
     let removedCount = 0;
 
-    Object.keys(store.blobs).forEach((id: string) => {
+    // Get all blob IDs and filter by pattern
+    const blobIds = store.getMostUsedBlobs(1000).map((blob) => blob.id);
+    blobIds.forEach((id: string) => {
       if (pattern.test(id)) {
         store.removeBlob(id);
         removedCount++;
@@ -223,9 +229,11 @@ export class ImageCacheManager {
     const now = Date.now();
     let removedCount = 0;
 
-    Object.entries(store.blobs).forEach(([id, blob]: [string, any]) => {
+    // Get all blobs with their metadata
+    const allBlobs = store.getMostUsedBlobs(1000);
+    allBlobs.forEach((blob: any) => {
       if (now - blob.lastAccessed > maxAgeMs) {
-        store.removeBlob(id);
+        store.removeBlob(blob.id);
         removedCount++;
       }
     });

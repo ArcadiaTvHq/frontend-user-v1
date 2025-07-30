@@ -52,6 +52,7 @@ import SectionLast from "~/components/SectionLast/SectionLast.vue";
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
+import { useApiLoading } from "~/composables/useApiLoading";
 
 definePageMeta({
   middleware: ["auth"],
@@ -70,6 +71,9 @@ const anticipatedError = ref(null);
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
 
+// API loading composable
+const { withApiLoading } = useApiLoading();
+
 // Update featured posters (called from SectionOne component)
 const updateFeaturedPosters = (newPosters) => {
   featuredPosters.value = newPosters;
@@ -77,54 +81,58 @@ const updateFeaturedPosters = (newPosters) => {
 
 // Fetch featured content
 const fetchFeaturedContent = async () => {
-  featuredLoading.value = true;
-  const response = await ContentService.getContents({
-    types: [EContentType.MOVIE, EContentType.SERIES],
-    is_featured: true,
-    limit: 10,
+  return withApiLoading(async () => {
+    featuredLoading.value = true;
+    const response = await ContentService.getContents({
+      types: [EContentType.MOVIE, EContentType.SERIES],
+      is_featured: true,
+      limit: 10,
+    });
+
+    featuredPosters.value = response.data.map((content) => ({
+      id: content.id,
+      slug: content.slug,
+      image: content.poster_image_id || content.thumbnail_image_id,
+      banner: content.banner_image_id,
+      title: content.title,
+      description: content.description,
+    }));
+
+    // Preload all images for featured content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some featured images:", error);
+    }
   });
-
-  featuredPosters.value = response.data.map((content) => ({
-    id: content.id,
-    slug: content.slug,
-    image: content.poster_image_id || content.thumbnail_image_id,
-    banner: content.banner_image_id,
-    title: content.title,
-    description: content.description,
-  }));
-
-  // Preload all images for featured content
-  try {
-    await preloadContentImages(response.data, "public");
-  } catch (error) {
-    console.warn("Failed to preload some featured images:", error);
-  }
 };
 
 // Fetch anticipated content
 const fetchAnticipatedContent = async () => {
-  try {
-    anticipatedLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      // released_after: new Date().toISOString(),
-      limit: 12,
-      page: 1,
-    });
-
-    anticipatedContent.value = response.data;
-
-    // Preload all images for anticipated content
+  return withApiLoading(async () => {
     try {
-      await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some anticipated images:", error);
+      anticipatedLoading.value = true;
+      const response = await ContentService.getContents({
+        types: [EContentType.MOVIE, EContentType.SERIES],
+        // released_after: new Date().toISOString(),
+        limit: 12,
+        page: 1,
+      });
+
+      anticipatedContent.value = response.data;
+
+      // Preload all images for anticipated content
+      try {
+        await preloadContentImages(response.data, "public");
+      } catch (error) {
+        console.warn("Failed to preload some anticipated images:", error);
+      }
+    } catch (err) {
+      anticipatedError.value = err.message;
+    } finally {
+      anticipatedLoading.value = false;
     }
-  } catch (err) {
-    anticipatedError.value = err.message;
-  } finally {
-    anticipatedLoading.value = false;
-  }
+  });
 };
 
 // HeroHome event handlers

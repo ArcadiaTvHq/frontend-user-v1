@@ -13,10 +13,8 @@
           {{ title || "Anticipate" }}
         </h6>
       </div>
-      <div
-        class="border-grayish h-0 flex-1 border-[0.85px] hidden md:block"
-      ></div>
-      <div  class="flex items-center gap-2" v-if="showSeeMore">
+      <div class="border-grayish h-0 flex-1 border-[0.85px] block"></div>
+      <div class="flex items-center gap-2" v-if="showSeeMore">
         <p
           class="text-textprimary text-smallest md:text-seemore cursor-pointer hover:text-gold transition-colors"
         >
@@ -77,7 +75,7 @@
             </div>
 
             <!-- Title and date/duration info beneath the image -->
-            <div class="flex flex-col justify-between p-2">
+            <div class="flex flex-col justify-between p-2 mt-3">
               <p
                 class="text-[13px] leading-[1.3] font-medium line-clamp-2 font-orbitron"
               >

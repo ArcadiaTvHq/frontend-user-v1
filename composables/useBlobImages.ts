@@ -71,7 +71,52 @@ export const useBlobImages = () => {
   };
 
   /**
-   * Preload images for content array
+   * Get retry state for an image
+   */
+  const getImageRetryState = (imageId: string | null | undefined) => {
+    if (!imageId) return null;
+    return blobStore.getRetryState(imageId);
+  };
+
+  /**
+   * Check if image can be retried
+   */
+  const canRetryImage = (imageId: string | null | undefined): boolean => {
+    if (!imageId) return false;
+    const retryState = blobStore.getRetryState(imageId);
+    if (!retryState) return true; // No retry state means it can be retried
+
+    const now = Date.now();
+    return retryState.attempts < 3 && now >= retryState.nextRetryTime;
+  };
+
+  /**
+   * Force retry for a failed image
+   */
+  const retryImage = async (
+    imageId: string | null | undefined,
+    size: string = "public"
+  ): Promise<string | null> => {
+    if (!imageId) return null;
+
+    try {
+      // Clear any existing error state
+      const retryState = blobStore.getRetryState(imageId);
+      if (retryState) {
+        // Reset retry state to allow immediate retry
+        retryState.attempts = 0;
+        retryState.nextRetryTime = Date.now();
+      }
+
+      return await blobStore.fetchWithRetry(imageId, size);
+    } catch (error) {
+      console.warn(`Failed to retry image ${imageId}:`, error);
+      return null;
+    }
+  };
+
+  /**
+   * Preload images for content array with retry logic
    */
   const preloadContentImages = async (
     contentArray: any[],
@@ -115,6 +160,27 @@ export const useBlobImages = () => {
     return computed(() => getHoverImageUrl(content, fallbackUrl));
   };
 
+  /**
+   * Get computed loading state for an image
+   */
+  const useComputedImageLoading = (imageId: string | null | undefined) => {
+    return computed(() => isImageLoading(imageId));
+  };
+
+  /**
+   * Get computed error state for an image
+   */
+  const useComputedImageError = (imageId: string | null | undefined) => {
+    return computed(() => getImageError(imageId));
+  };
+
+  /**
+   * Get computed retry state for an image
+   */
+  const useComputedImageRetryState = (imageId: string | null | undefined) => {
+    return computed(() => getImageRetryState(imageId));
+  };
+
   return {
     // Direct methods
     getImageUrl,
@@ -123,12 +189,18 @@ export const useBlobImages = () => {
     getHoverImageUrl,
     isImageLoading,
     getImageError,
+    getImageRetryState,
+    canRetryImage,
+    retryImage,
     preloadContentImages,
 
     // Computed methods
     useComputedImageUrl,
     useComputedPrimaryImageUrl,
     useComputedHoverImageUrl,
+    useComputedImageLoading,
+    useComputedImageError,
+    useComputedImageRetryState,
 
     // Store access
     blobStore,

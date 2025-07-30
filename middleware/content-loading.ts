@@ -3,6 +3,11 @@ import { useLoadingStore } from "~/stores/loading";
 export default defineNuxtRouteMiddleware((to, from) => {
   const loadingStore = useLoadingStore();
 
+  // Don't start loading for pages that don't need API calls
+  if (loadingStore.pagesWithoutLoading.includes(to.path)) {
+    return;
+  }
+
   // Start route loading for content pages only when navigating from another page
   if (
     to.path.startsWith("/watch/") &&
