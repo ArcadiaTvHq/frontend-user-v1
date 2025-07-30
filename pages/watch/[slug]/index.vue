@@ -2,21 +2,21 @@
   <div class="min-h-screen bg-black">
     <Navbar />
     <main v-if="content" class="bg-black">
-      <!-- Mobile Layout -->
-      <div class="block md:hidden">
-        <!-- Background Image for Mobile -->
-        <div class="relative w-full h-screen">
+      <!-- Mobile Template -->
+      <template v-if="isMobile">
+        <!-- Background Image and Content (hidden when watching trailer) -->
+        <div v-show="!watchingTrailer" class="relative w-full min-h-screen">
           <img
             :src="buildImageUrl(content.banner_image_id, 'public')"
             :alt="content.title"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover absolute inset-0"
           />
 
           <!-- Gradient overlay -->
           <div class="absolute inset-0 bg-black/60"></div>
 
           <!-- Content Detail Section (mobile) -->
-          <div class="absolute inset-0 flex items-center z-20">
+          <div class="relative z-20 py-20">
             <ContentDetail
               :content="content"
               :showPosterOverlay="content.trailer_upload_status === 'ready'"
@@ -25,9 +25,9 @@
           </div>
         </div>
 
-        <!-- Mobile Video Player (hidden by default, shows in landscape when trailer clicked) -->
+        <!-- Mobile Video Player (always present, shows when trailer is clicked) -->
         <div
-          v-if="watchingTrailer && content.trailer_upload_status === 'ready'"
+          v-if="content.trailer_upload_status === 'ready'"
           class="mobile-video-container"
           :class="watchingTrailer ? 'block' : 'hidden'"
         >
@@ -56,9 +56,9 @@
             :contentId="content.id"
             player-type="trailer"
             :bannerImage="content.banner_image_id"
-            :autoplay="true"
-            :muted="false"
-            :controls="true"
+            :autoplay="watchingTrailer"
+            :muted="!watchingTrailer"
+            :controls="watchingTrailer"
             :loop="false"
             @video-started="handleVideoStarted"
             @video-paused="handleVideoPaused"
@@ -67,25 +67,10 @@
             @ready="handleVideoReady"
           />
         </div>
+      </template>
 
-        <!-- Hidden video for background loading -->
-        <div class="hidden">
-          <CustomVideoPlayer
-            :key="`mobile-bg-${content.id}`"
-            :contentId="content.id"
-            player-type="trailer"
-            :bannerImage="content.banner_image_id"
-            :autoplay="false"
-            :muted="true"
-            :controls="false"
-            :loop="false"
-            :preload="'metadata'"
-          />
-        </div>
-      </div>
-
-      <!-- Desktop Layout -->
-      <div class="hidden md:block">
+      <!-- Desktop Template -->
+      <template v-else>
         <!-- Background Image with Gradient Overlay -->
         <div class="relative w-full">
           <!-- Background Image (always shown behind video) -->
@@ -102,7 +87,7 @@
             class="relative w-full h-full"
           >
             <CustomVideoPlayer
-              :key="content.id"
+              :key="`desktop-${content.id}`"
               :contentId="content.id"
               player-type="trailer"
               :bannerImage="content.banner_image_id"
@@ -159,7 +144,7 @@
             @trailer-click="handleTrailerClick"
           />
         </div>
-      </div>
+      </template>
 
       <comment />
 
@@ -217,6 +202,7 @@ const content = ref(null);
 const relatedContent = ref([]);
 const videoStarted = ref(false);
 const watchingTrailer = ref(false);
+const isMobile = ref(false);
 
 // Single async data call for content
 const { data: contentData, pending: contentPending } = await useAsyncData(
@@ -243,6 +229,20 @@ const { preloadContentImages } = useBlobImages();
 
 onMounted(async () => {
   startLoading(); // Start component loading
+
+  // Detect mobile
+  isMobile.value = window.innerWidth < 768;
+
+  // Watch for window resize and refresh if mobile/desktop changes
+  const handleResize = () => {
+    const newIsMobile = window.innerWidth < 768;
+    if (newIsMobile !== isMobile.value) {
+      console.log("Screen size changed, refreshing page...");
+      window.location.reload();
+    }
+  };
+
+  window.addEventListener("resize", handleResize);
 
   try {
     // Use the data from useAsyncData instead of making duplicate calls
@@ -342,6 +342,17 @@ onBeforeUnmount(() => {
   loadingStore.stopRouteLoading(); // Ensure route loading is stopped when leaving
   // Clear content type when leaving the page
   setContentType(null);
+
+  // Remove resize listener
+  window.removeEventListener("resize", handleResize);
+
+  // Stop all videos to prevent background playback
+  const videos = document.querySelectorAll("video");
+  videos.forEach((video) => {
+    if (!video.paused) {
+      video.pause();
+    }
+  });
 });
 
 const handleVideoStarted = () => {
@@ -393,6 +404,28 @@ const handleMobileTrailerClick = () => {
   // Prevent body scroll when trailer is open
   document.body.style.overflow = "hidden";
   document.body.classList.add("video-open");
+
+  // Start the video after a short delay to ensure the video player is ready
+  setTimeout(() => {
+    const videoPlayer = document.querySelector("video");
+    if (videoPlayer) {
+      try {
+        // Unmute and start playing
+        videoPlayer.muted = false;
+        videoPlayer.volume = 0.8;
+        videoPlayer
+          .play()
+          .then(() => {
+            console.log("Mobile video started successfully");
+          })
+          .catch((error) => {
+            console.log("Mobile video autoplay failed:", error);
+          });
+      } catch (error) {
+        console.log("Could not start mobile video:", error);
+      }
+    }
+  }, 200); // Slightly longer delay for mobile
 };
 
 // Mobile trailer close handler

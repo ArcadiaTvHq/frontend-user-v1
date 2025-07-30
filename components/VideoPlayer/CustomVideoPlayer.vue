@@ -44,6 +44,7 @@
             : ''
         "
       >
+        {{ bufferedPercent }} {{ canPlay }} {{ streamUrl }}
         <div v-if="showLoading" class="text-center relative z-10">
           <img
             class="w-[100px] h-[100px] object-contain animate-pulse mb-4"
@@ -132,15 +133,11 @@ const formatTime = (seconds) => {
 
 // Helper function to calculate buffered percentage
 const calculateBufferedPercent = () => {
-  if (!videoPlayer.value || !videoPlayer.value.buffered) return 0;
-  const buffered = videoPlayer.value.buffered;
-  if (buffered.length === 0) return 0;
-
-  const duration = videoPlayer.value.duration;
-  if (!duration) return 0;
-
-  const bufferedEnd = buffered.end(buffered.length - 1);
-  return (bufferedEnd / duration) * 100;
+  // Simple approach: show 0% when loading, 100% when ready
+  if (!videoPlayer.value || videoPlayer.value.readyState < 4) {
+    return 0;
+  }
+  return 100;
 };
 
 // Helper function to get loading message
@@ -162,6 +159,10 @@ const onCanPlay = () => {
   console.log("✅ Video can play");
   canPlay.value = true;
   isLoading.value = false;
+
+  // Force a buffering check when video can play
+  bufferedPercent.value = calculateBufferedPercent();
+
   emit("ready");
 };
 
@@ -265,6 +266,14 @@ const handleTimeUpdate = (e) => {
       percentage: progressPercent.value,
     });
   }
+};
+
+const onLoadedMetadata = () => {
+  console.log("📋 Video metadata loaded");
+  duration.value = videoPlayer.value.duration;
+
+  // Check buffering when metadata is loaded
+  bufferedPercent.value = calculateBufferedPercent();
 };
 
 const handleVideoClick = () => {
