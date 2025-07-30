@@ -52,7 +52,7 @@
       with no charges.
     </p> -->
     <p
-      class="text-center text-smallest md:text-small mt-16 md:mt-20 lg:mt-24 mb-10 md:mb-15 lg:mb-50 font-orbitron max-w-[800px] lg:mt-10 mt-5"
+      class="text-center text-smallest md:text-small mt-16 md:mt-20 lg:mt-24 mb-10 md:mb-15 lg:mb-50 font-orbitron max-w-[800px]"
     >
       Get ready for an incredible movie streaming journey with Arcadia.
       <NuxtLink
