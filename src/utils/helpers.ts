@@ -48,9 +48,10 @@ export const buildImageUrl = (
   if (typeof window !== "undefined") {
     const blobStore = useBlobStore();
 
-    // Try to get from blob store first
-    if (blobStore.blobs[imageId]) {
-      return blobStore.blobs[imageId].url;
+    // Try to get from blob store first using the proper method
+    const existingBlob = blobStore.getBlob(imageId);
+    if (existingBlob) {
+      return existingBlob;
     }
 
     // Build the URL

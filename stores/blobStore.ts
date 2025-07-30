@@ -419,6 +419,14 @@ export const useBlobStore = defineStore("blobStore", () => {
     const totalRetries = Object.keys(retryStates).length;
     const totalMemory = getTotalMemoryUsage();
 
+    // Calculate average access count
+    const totalAccessCount = Object.values(blobs).reduce(
+      (sum, blob) => sum + blob.accessCount,
+      0
+    );
+    const averageAccessCount =
+      totalBlobs > 0 ? totalAccessCount / totalBlobs : 0;
+
     const retryStats = Object.values(retryStates).reduce(
       (acc, state) => {
         acc.totalAttempts += state.attempts;
@@ -434,6 +442,9 @@ export const useBlobStore = defineStore("blobStore", () => {
       totalErrors,
       totalRetries,
       totalMemory,
+      averageAccessCount,
+      loadingCount: totalLoading,
+      errorCount: totalErrors,
       retryStats,
       memoryLimits: getMemoryLimits(),
     };
