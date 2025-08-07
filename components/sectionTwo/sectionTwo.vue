@@ -1,8 +1,8 @@
 <template>
   <section
-    class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 font-orbitron"
+    class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 mb-20 font-orbitron"
   >
-    <div class="flex justify-between items-center gap-1 metaText">
+    <div v-if="!hideHeader" class="flex items-center gap-2 metaText w-full">
       <div class="flex items-center gap-2">
         <img
           class="w-[25px] h-[25px] md:size-[35px]"
@@ -13,10 +13,8 @@
           {{ title || "Anticipate" }}
         </h6>
       </div>
+      <div class="border-grayish h-0 flex-1 border-[0.85px] block"></div>
       <div class="flex items-center gap-2" v-if="showSeeMore">
-        <div
-          class="border-grayish h-0 w-[100px] md:w-[165.4px] border-[0.85px] hidden md:block"
-        ></div>
         <p
           class="text-textprimary text-smallest md:text-seemore cursor-pointer hover:text-gold transition-colors"
         >
@@ -25,10 +23,10 @@
       </div>
     </div>
     <div
-      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 sm:gap-5 md:gap-7 text-textprimary tileHolder"
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 sm:gap-7 md:gap-10 text-textprimary tileHolder"
     >
       <div
-        v-if="loading"
+        v-if="loading || !imagesLoaded"
         class="col-span-full flex justify-center items-center p-8"
       >
         <div
@@ -39,67 +37,53 @@
         {{ error }}
       </div>
       <template v-else>
-        <div
-          class="miniplayer relative group aspect-[3/4] cursor-pointer"
-          @click="navigateToContent(content.slug)"
+        <NuxtLink
+          :to="`/watch/${content.slug}`"
+          class="miniplayer relative group cursor-pointer"
           v-for="content in displayContent"
           :key="content.id"
         >
-          <!-- Preview overlay (desktop only) -->
-          <div
-            class="mini-display absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block"
-          >
-            <img
-              :src="
-                buildImageUrl(
-                  content.banner_image_id || content.thumbnail_image_id
-                )
-              "
-              class="w-full h-full object-cover rounded-lg"
-              :alt="content.title"
-            />
+          <!-- Two-image overlay container with CSS hover effect -->
+          <div class="flex flex-col">
             <div
-              class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent rounded-lg flex flex-col justify-end p-3"
+              class="img-stack relative w-full aspect-[3/4] rounded-lg overflow-hidden max-h-[480px] md:max-h-[560px] lg:max-h-[640px] xl:max-h-[720px] 2xl:max-h-[800px]"
             >
-              <h3 class="text-[14px] font-semibold mb-2 text-white">
-                {{ content.title }}
-              </h3>
-              <p
-                class="text-[12px] leading-[1.5] text-gray-200 line-clamp-3 mb-2"
+              <!-- Base image (poster) -->
+              <img
+                class="base-img w-full h-full object-cover transition-all duration-300"
+                :src="getPrimaryImageUrl(content)"
+                :alt="content.title"
+              />
+
+              <!-- Hover image (banner) - only show if banner exists -->
+              <img
+                v-if="content.banner_image_id"
+                class="hover-img w-full h-full object-cover transition-all duration-300"
+                :src="getHoverImageUrl(content)"
+                :alt="content.title"
+              />
+              <!-- Hover overlay covering only the image -->
+              <div
+                class="hover-overlay absolute inset-0 bg-black/60 flex flex-col justify-end p-2 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none"
               >
-                {{ content.description }}
-              </p>
-              <div class="flex items-center gap-2 text-[11px] text-gray-300">
-                <span>{{ formatDate(content.release_date) }}</span>
-                <span
-                  v-if="content.duration_in_seconds"
-                  class="flex items-center"
+                <p
+                  class="text-white text-sm line-clamp-5 max-h-[50%] overflow-hidden"
                 >
-                  <span class="w-1 h-1 rounded-full bg-gray-300 mx-1"></span>
-                  {{ formatDuration(content.duration_in_seconds) }}
-                </span>
+                  {{ content.description }}
+                </p>
               </div>
             </div>
-          </div>
 
-          <!-- Main content (always visible) -->
-          <div
-            class="h-full flex flex-col md:group-hover:opacity-0 transition-opacity duration-300 mb-2 md:mb-0"
-          >
-            <img
-              class="w-full flex-1 object-cover rounded-lg scale"
-              :src="
-                buildImageUrl(
-                  content.poster_image_id || content.thumbnail_image_id
-                )
-              "
-              :alt="content.title"
-            />
-            <div class="mt-3 space-y-2">
-              <p class="text-[13px] leading-[1.3] font-medium line-clamp-2">
+            <!-- Title and date/duration info beneath the image -->
+            <div class="flex flex-col justify-between p-2 mt-3">
+              <p
+                class="text-[13px] leading-[1.3] font-medium line-clamp-2 font-orbitron"
+              >
                 {{ content.title }}
               </p>
-              <div class="flex items-center gap-2 text-[11px] text-gray-400">
+              <div
+                class="flex items-center gap-2 text-[11px] text-gray-400 mt-2"
+              >
                 <span>{{ formatDate(content.release_date) }}</span>
                 <span
                   v-if="content.duration_in_seconds"
@@ -111,7 +95,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </NuxtLink>
       </template>
     </div>
   </section>
@@ -131,21 +115,46 @@
   box-shadow: 0 4px 20px rgba(255, 208, 5, 0.2);
 }
 
-.mini-display {
-  border-radius: 10px;
+/* Two-image overlay styles */
+.img-stack {
+  position: relative;
   overflow: hidden;
-  transition: all 0.3s ease-in-out;
-  height: 100%;
+}
+
+.base-img {
+  position: relative;
+  z-index: 1;
+}
+
+.hover-img {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  z-index: 2;
+  transition: opacity 0.3s ease-in-out;
 }
 
-.scale {
-  transition: all 0.3s ease-in-out;
+/* Hover effect - show banner image */
+.miniplayer:hover .hover-img {
+  opacity: 1;
 }
 
-.scale:hover {
+/* Scale effect on hover */
+.miniplayer:hover .base-img,
+.miniplayer:hover .hover-img {
   transform: scale(1.02);
+}
+
+/* Hover overlay effect */
+.hover-overlay {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  z-index: 3;
+}
+
+.miniplayer:hover .hover-overlay {
+  opacity: 1;
 }
 
 @media screen and (max-width: 640px) {
@@ -162,23 +171,19 @@
   .scale:hover {
     transform: none;
   }
-
-  /* Disable hover preview on mobile */
-  .mini-display {
-    display: none;
-  }
 }
 </style>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ContentService } from "../../api/services/content.service";
 import { EContentType } from "../../src/types/content";
 import flameIcon from "~/assets/flame.svg";
 import { useRouter } from "vue-router";
-import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
+import { formatDate, formatDuration } from "~/src/utils/helpers";
+import { useBlobImages } from "~/composables/useBlobImages";
 
 const props = defineProps({
   title: {
@@ -205,38 +210,46 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  hideHeader: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const anticipatedContent = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const imagesLoaded = ref(false);
+
+const { getPrimaryImageUrl, getHoverImageUrl, preloadContentImages } =
+  useBlobImages();
 
 const displayContent = computed(() => {
-  return props.content.length > 0 ? props.content : anticipatedContent.value;
+  const content =
+    props.content.length > 0 ? props.content : anticipatedContent.value;
+  console.log("SectionTwo displayContent:", content.length, "items");
+  if (content.length > 0) {
+    console.log("First content item:", content[3]);
+    console.log("First item poster ID:", content[3]?.poster_image_id);
+    console.log("First item banner ID:", content[3]?.banner_image_id);
+    console.log("First item thumbnail ID:", content[3]?.thumbnail_image_id);
+    console.log("First item poster:", getPrimaryImageUrl(content[3]));
+    console.log("First item banner:", getHoverImageUrl(content[3]));
+  }
+  return content;
 });
-
-const preview = (e) => {
-  const miniDisplay = e.currentTarget.querySelector(".mini-display");
-  if (miniDisplay) {
-    miniDisplay.hidden = false;
-  }
-};
-
-const close = (e) => {
-  const miniDisplay = e.currentTarget.querySelector(".mini-display");
-  if (miniDisplay) {
-    miniDisplay.hidden = true;
-  }
-};
 
 const fetchAnticipatedContent = async () => {
   if (!props.fetchContent) {
     loading.value = false;
+    imagesLoaded.value = true;
     return;
   }
 
   try {
     loading.value = true;
+    imagesLoaded.value = false;
+
     const response = await ContentService.getContents({
       types: [EContentType.MOVIE, EContentType.SERIES],
       // released_after: new Date().toISOString(),
@@ -245,8 +258,23 @@ const fetchAnticipatedContent = async () => {
     });
 
     anticipatedContent.value = response.data;
+
+    // Preload all images (poster, banner, thumbnail) and wait for them
+    if (response.data && response.data.length > 0) {
+      try {
+        await preloadContentImages(response.data, "public");
+        console.log("SectionTwo: Images preloaded successfully");
+        imagesLoaded.value = true;
+      } catch (error) {
+        console.warn("SectionTwo: Failed to preload some images:", error);
+        imagesLoaded.value = true; // Show content even if some images fail
+      }
+    } else {
+      imagesLoaded.value = true;
+    }
   } catch (err) {
     error.value = err.message;
+    imagesLoaded.value = true; // Show content even if there's an error
   } finally {
     loading.value = false;
   }
@@ -254,14 +282,30 @@ const fetchAnticipatedContent = async () => {
 
 const router = useRouter();
 
-const navigateToContent = (slug) => {
-  if (!slug) return;
-  router.push({
-    path: `/watch/${slug}`,
-  });
-};
-
 const emit = defineEmits(["mounted"]);
+
+// Watch for props.content changes and preload images
+watch(
+  () => props.content,
+  async (newContent) => {
+    if (newContent && newContent.length > 0) {
+      console.log("SectionTwo: Props content changed, preloading images...");
+      imagesLoaded.value = false;
+
+      try {
+        await preloadContentImages(newContent, "public");
+        console.log("SectionTwo: Props images preloaded successfully");
+        imagesLoaded.value = true;
+      } catch (error) {
+        console.warn("SectionTwo: Failed to preload props images:", error);
+        imagesLoaded.value = true; // Show content even if some images fail
+      }
+    } else {
+      imagesLoaded.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger);

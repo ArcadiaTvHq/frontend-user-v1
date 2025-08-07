@@ -114,7 +114,7 @@ async function handleSubmit() {
         <label class="block text-sm">Email</label>
         <input
           v-model="formData.email"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.email.$error }"
           placeholder="john.doe@gmail.com"
           type="email"
@@ -128,7 +128,7 @@ async function handleSubmit() {
         <label class="block text-sm">Password</label>
         <input
           v-model="formData.password"
-          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-inter bg-[#1e1e1e] text-white"
+          class="w-full h-13 border border-inputb rounded-[8px] p-4 font-orbitron bg-[#1e1e1e] text-white"
           :class="{ 'border-red-500': v$.password.$error }"
           type="password"
           placeholder="........"
@@ -143,7 +143,7 @@ async function handleSubmit() {
           class="w-4 h-4 bg-[#1E1E1E] border border-inputb accent-gold"
           type="checkbox"
         />
-        <p class="font-inter text-type text-sm">Keep me signed in</p>
+        <p class="font-orbitron text-type text-sm">Keep me signed in</p>
       </div>
 
       <div
@@ -152,19 +152,20 @@ async function handleSubmit() {
         <button
           type="submit"
           :disabled="loading"
-          class="h-13 w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
+          class="h-[52px] w-full max-w-[280px] bg-[#FFD005] text-black font-orbitron rounded-[8px] font-extrabold cursor-pointer hover:bg-[#CE8F00] disabled:bg-[#FFF487] transition-all duration-300"
         >
           {{ loading ? "Loading..." : "Login" }}
         </button>
-        <a
+        <nuxt-link
+          to="/forgot"
           class="text-sm font-orbitron cursor-pointer text-white hover:text-[#CE8F00] transition-colors"
-          >Forgot Password?</a
+          >Forgot Password?</nuxt-link
         >
       </div>
 
       <span v-if="error" class="text-red-500 text-sm">{{ error }}</span>
 
-      <span class="font-inter text-sm">
+      <span class="font-orbitron text-sm">
         Don't have an account?
         <nuxt-link
           to="/signup"

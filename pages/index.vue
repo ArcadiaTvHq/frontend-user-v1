@@ -2,18 +2,15 @@
   <!-- <Loading/> -->
   <Modal />
   <Navbar />
-  <main class="bg-body pt-[60px] sm:pt-[75px] md:pt-[92px]">
+  <main class="bg-body">
     <SectionOne
       text="Stream the Best Movies & Series Anytime, Anywhere"
       small="Enjoy unlimited movies, series, and exclusive content in stunning quality. Stream anytime, anywhere, on any device—no interruptions, just pure entertainment"
       button="Get Started"
       :posters="featuredPosters"
-      :loading="featuredLoading"
-      :error="featuredError"
-      @update:posters="updateFeaturedPosters"
     />
 
-    <Divider />
+    <!-- <Divider /> -->
     <SectionTwo
       title="Anticipate"
       iconAlt="Flame icon"
@@ -44,15 +41,18 @@
 <script setup>
 import Modal from "~/components/Modal/Modal.vue";
 import Navbar from "~/components/Navbar/Navbar.vue";
+import HeroHome from "~/components/HeroHome/HeroHome.vue";
 import SectionOne from "~/components/SectionOne/SectionOne.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import SectionThree from "~/components/SectionThree/SectionThree.vue";
 import SectionFour from "~/components/SectionFour/SectionFour.vue";
 import SectionLast from "~/components/SectionLast/SectionLast.vue";
-import Divider from "~/components/Divider/Divider.vue";
+// import Divider from "~/components/Divider/Divider.vue";
+
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
-import { buildImageUrl } from "~/src/utils/helpers";
+import { useBlobImages } from "~/composables/useBlobImages";
+import { useApiLoading } from "~/composables/useApiLoading";
 
 definePageMeta({
   middleware: ["auth"],
@@ -68,6 +68,12 @@ const anticipatedContent = ref([]);
 const anticipatedLoading = ref(true);
 const anticipatedError = ref(null);
 
+// Blob images composable
+const { preloadContentImages } = useBlobImages();
+
+// API loading composable
+const { withApiLoading } = useApiLoading();
+
 // Update featured posters (called from SectionOne component)
 const updateFeaturedPosters = (newPosters) => {
   featuredPosters.value = newPosters;
@@ -75,7 +81,7 @@ const updateFeaturedPosters = (newPosters) => {
 
 // Fetch featured content
 const fetchFeaturedContent = async () => {
-  try {
+  return withApiLoading(async () => {
     featuredLoading.value = true;
     const response = await ContentService.getContents({
       types: [EContentType.MOVIE, EContentType.SERIES],
@@ -86,44 +92,58 @@ const fetchFeaturedContent = async () => {
     featuredPosters.value = response.data.map((content) => ({
       id: content.id,
       slug: content.slug,
-      image: buildImageUrl(
-        content.poster_image_id || content.thumbnail_image_id
-      ),
+      image: content.poster_image_id || content.thumbnail_image_id,
+      banner: content.banner_image_id,
       title: content.title,
       description: content.description,
     }));
-  } catch (err) {
-    featuredError.value = err.message;
-    // Fallback to default images if API fails
-    featuredPosters.value = [
-      { id: 1, image: "/images/default-poster-1.jpg" },
-      { id: 2, image: "/images/default-poster-2.jpg" },
-      { id: 3, image: "/images/default-poster-3.jpg" },
-      { id: 4, image: "/images/default-poster-4.jpg" },
-      { id: 5, image: "/images/default-poster-5.jpg" },
-    ];
-  } finally {
-    featuredLoading.value = false;
-  }
+
+    // Preload all images for featured content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some featured images:", error);
+    }
+  });
 };
 
 // Fetch anticipated content
 const fetchAnticipatedContent = async () => {
-  try {
-    anticipatedLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      // released_after: new Date().toISOString(),
-      limit: 6,
-      page: 1,
-    });
+  return withApiLoading(async () => {
+    try {
+      anticipatedLoading.value = true;
+      const response = await ContentService.getContents({
+        types: [EContentType.MOVIE, EContentType.SERIES],
+        // released_after: new Date().toISOString(),
+        limit: 12,
+        page: 1,
+      });
 
-    anticipatedContent.value = response.data;
-  } catch (err) {
-    anticipatedError.value = err.message;
-  } finally {
-    anticipatedLoading.value = false;
-  }
+      anticipatedContent.value = response.data;
+
+      // Preload all images for anticipated content
+      try {
+        await preloadContentImages(response.data, "public");
+      } catch (error) {
+        console.warn("Failed to preload some anticipated images:", error);
+      }
+    } catch (err) {
+      anticipatedError.value = err.message;
+    } finally {
+      anticipatedLoading.value = false;
+    }
+  });
+};
+
+// HeroHome event handlers
+const handleWatchContent = (content) => {
+  console.log("Watching content:", content.title);
+  // Additional logic can be added here (analytics, etc.)
+};
+
+const handleAddToList = (content) => {
+  console.log("Added to list:", content.title);
+  // You can add toast notification or update user's watchlist here
 };
 
 // Fetch data when component mounts

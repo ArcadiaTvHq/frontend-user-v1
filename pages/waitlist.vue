@@ -1,9 +1,7 @@
 <template>
   <Modal />
   <Navbar />
-  <main
-    class="bg-body flex flex-col gap-8 md:gap-16 lg:gap-20 pt-[60px] sm:pt-[75px] md:pt-[92px]"
-  >
+  <main class="bg-body flex flex-col gap-8 md:gap-16 lg:gap-20">
     <SectionOne
       text="Be the First to Stream ARCADIA"
       small="Join the waitlist and get exclusive early access to the next generation of streaming. Premium entertainment, zero interruptions"
@@ -36,7 +34,7 @@ const IMAGE_DELIVERY_BASE_URL =
 
 const buildImageUrl = (imageId) => {
   if (!imageId) return "/images/default-poster.jpg";
-  return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/size1`;
+  return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/public`;
 };
 
 // Featured content state

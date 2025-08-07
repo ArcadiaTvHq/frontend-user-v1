@@ -1,100 +1,89 @@
 <template>
   <section
-    class="bg-[url(../../assets/effect.png)] bg-cover bg-center bg-no-repeat text-textprimary font-orbitron flex flex-col items-center pt-8 pb-2 md:pt-12 md:pb-4 px-4 md:px-0"
+    class="relative overflow-hidden bg-black text-white font-orbitron flex flex-col items-center pt-8 pb-2 md:pt-12 md:pb-4 px-4 md:px-0"
   >
-    <div class="flex flex-col items-center gap-2 lg:gap-4">
+    <!-- Background images -->
+    <img
+      v-for="(poster, index) in props.posters"
+      :key="`bg-${poster.id}`"
+      :src="getImageUrl(poster.banner)"
+      :alt="`Background for ${poster.title}`"
+      class="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-2000"
+      :class="{ 'opacity-100': index === centerPosterIndex }"
+    />
+
+    <!-- Overlay -->
+    <div
+      class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/30"
+    ></div>
+
+    <!-- Content -->
+    <div class="relative z-10 flex flex-col items-center gap-2 lg:gap-4">
       <h1
-        class="font-bold text-[20px] md:text-[24px] lg:text-big text-center text-white px-4 md:px-13 lg:px-36 w-full max-w-[1200px]"
+        class="font-orbitron font-bold text-[20px] md:text-[24px] lg:text-big text-center px-4 md:px-13 lg:px-36 w-full max-w-[1200px]"
       >
         {{ text }}
       </h1>
-
       <p
-        class="text-[12px] md:text-small lg:text-base text-white text-center px-4 md:px-28 lg:px-36 max-w-[1000px]"
+        class="font-orbitron text-[12px] md:text-small lg:text-base text-center px-4 md:px-28 lg:px-36 max-w-[1000px]"
       >
         {{ small }}
       </p>
       <button
         @click="handleClick"
-        class="cursor-pointer text-cod w-fit px-4 py-2 md:p-4 flex items-center justify-center md:w-49 md:h-[45px] rounded-[6.53px] h-[32.6px] font-extrabold btn text-center text-sm md:text-base"
+        class="font-orbitron cursor-pointer text-cod w-fit px-4 py-2 md:p-4 flex items-center justify-center md:w-49 md:h-[45px] rounded-[6.53px] h-[32.6px] font-extrabold btn text-center text-sm md:text-base"
       >
         {{ button }}
       </button>
     </div>
-    <div class="w-full flex items-center justify-center py-4">
-      <div class="w-full h-full flex items-center justify-center">
-        <div v-if="loading" class="flex items-center justify-center p-8">
-          <div
-            class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gold"
-          ></div>
-        </div>
-        <div v-else-if="error" class="text-red-500 text-center p-4">
-          {{ error }}
-        </div>
+
+    <!-- Carousel -->
+    <div class="relative z-10 w-full flex items-center justify-center py-4">
+      <!-- <div v-if="loading" class="flex items-center justify-center p-8">
         <div
-          v-else
-          class="carousel"
+          class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gold"
+        ></div>
+      </div>
+      <div v-else-if="error" class="text-red-500 text-center p-4">
+        {{ error }}
+      </div> -->
+      <div
+        class="carousel"
+        @mouseenter="pauseRotation"
+        @mouseleave="startRotation"
+        @touchstart="onTouchStart"
+        @touchend="onTouchEnd"
+      >
+        <NuxtLink
+          v-for="(poster, index) in visiblePosters"
+          :key="poster.id"
+          :to="`/watch/${poster.slug}`"
+          :class="['poster', positionClasses[index]]"
           @mouseenter="pauseRotation"
-          @mouseleave="startRotation"
-          @touchstart="onTouchStart"
-          @touchend="onTouchEnd"
+          @mouseleave="resumeRotation"
         >
-          <div
-            v-for="(poster, index) in visiblePosters"
-            :key="poster.id"
-            :class="['poster', positionClasses[index]]"
-            @click="navigateToContent(poster.id)"
-            @mouseenter="pauseRotation"
-            @mouseleave="resumeRotation"
+          <img
+            :src="getImageUrl(poster.image)"
+            :alt="poster.title"
+            class="w-full h-full object-cover rounded-[10px]"
+          />
+          <!-- <div
+            class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           >
-            <img
-              :src="poster.image"
-              :alt="poster.title"
-              class="w-full h-full object-contain rounded-[10px]"
-            />
-            <div
-              class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            >
-              <h3 class="text-white text-sm font-bold mb-1">
-                {{ poster.title }}
-              </h3>
-              <p class="text-white/80 text-xs line-clamp-2">
-                {{ poster.description }}
-              </p>
-            </div>
-          </div>
-        </div>
+            <h3 class="text-white text-sm font-bold mb-1">
+              {{ poster.title }}
+            </h3>
+            <p class="text-white/80 text-xs line-clamp-2">
+              {{ poster.description }}
+            </p>
+          </div> -->
+        </NuxtLink>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-/* for lenis */
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-
-.lenis:not(.lenis-autoToggle).lenis-stopped {
-  overflow: clip;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-smooth iframe {
-  pointer-events: none;
-}
-
-.lenis.lenis-autoToggle {
-  transition-property: overflow;
-  transition-duration: 1ms;
-  transition-behavior: allow-discrete;
-}
-/* lenis */
-
 .carousel {
   position: relative;
   display: flex;
@@ -127,16 +116,6 @@ html.lenis body {
   transform: scale(1.05);
   z-index: 20;
   box-shadow: 0 4px 20px rgba(255, 208, 5, 0.2);
-}
-
-.poster:hover .poster-info {
-  opacity: 1;
-}
-
-.poster img {
-  max-height: 100%;
-  width: auto;
-  object-fit: contain;
 }
 
 /* Large screens (1280px+) */
@@ -253,36 +232,18 @@ html.lenis body {
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { openModal } from "../composables/states";
 import { useRouter } from "vue-router";
+import { useBlobImages } from "~/composables/useBlobImages";
 
 const props = defineProps({
-  text: {
-    type: String,
-    required: true,
-  },
-  small: {
-    type: String,
-    required: true,
-  },
-  button: {
-    type: String,
-    required: true,
-  },
-  posters: {
-    type: Array,
-    required: true,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  error: {
-    type: String,
-    default: null,
-  },
+  text: { type: String, required: true },
+  small: { type: String, required: true },
+  button: { type: String, required: true },
+  posters: { type: Array, required: true },
 });
 
 const router = useRouter();
 const modal = openModal();
+const { getImageUrl } = useBlobImages();
 
 const handleClick = () => {
   if (props.button === "Join the waitlist") {
@@ -292,27 +253,45 @@ const handleClick = () => {
   }
 };
 
-const navigateToContent = (contentId) => {
-  const poster = props.posters.find((p) => p.id === contentId);
-  if (!poster?.slug) return;
-  router.push({
-    path: `/watch/${poster.slug}`,
-  });
-};
-
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
-const visiblePosters = computed(() => props.posters.slice(0, 5));
+// Use reactive currentIndex for visiblePosters to enable rotation
+const currentIndex = ref(0);
 
+const visiblePosters = computed(() => {
+  const posters = props.posters;
+  if (!posters || posters.length === 0) return [];
+
+  // Create a window of 5 posters centered around currentIndex
+  const startIndex = currentIndex.value;
+  const result = [];
+
+  for (let i = 0; i < 5; i++) {
+    const index = (startIndex + i) % posters.length;
+    result.push(posters[index]);
+  }
+
+  return result;
+});
+
+// Compute the actual poster index that should be in the center
+const centerPosterIndex = computed(() => {
+  const posters = props.posters;
+  if (!posters || posters.length === 0) return 0;
+
+  // The center poster is at currentIndex + 2 (since we show 5 posters, center is at index 2)
+  return (currentIndex.value + 2) % posters.length;
+});
+
+// Simple carousel rotation with internal state
 let intervalId = null;
-
 const isRotationPaused = ref(false);
 
 const startRotation = () => {
   if (isRotationPaused.value) return;
   stopRotation();
   intervalId = setInterval(() => {
-    rotateForward();
-  }, 3000);
+    currentIndex.value = (currentIndex.value + 1) % props.posters.length;
+  }, 6000);
 };
 
 const pauseRotation = () => {
@@ -333,15 +312,12 @@ const stopRotation = () => {
 };
 
 const rotateForward = () => {
-  const newPosters = [...props.posters];
-  newPosters.push(newPosters.shift());
-  emit("update:posters", newPosters);
+  currentIndex.value = (currentIndex.value + 1) % props.posters.length;
 };
 
 const rotateBackward = () => {
-  const newPosters = [...props.posters];
-  newPosters.unshift(newPosters.pop());
-  emit("update:posters", newPosters);
+  currentIndex.value =
+    (currentIndex.value - 1 + props.posters.length) % props.posters.length;
 };
 
 // Touch support
@@ -365,6 +341,4 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopRotation();
 });
-
-const emit = defineEmits(["update:posters"]);
 </script>

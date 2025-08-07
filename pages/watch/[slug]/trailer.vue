@@ -5,11 +5,20 @@
       <div v-if="content" class="container mx-auto px-4">
         <!-- Video Player -->
         <div v-if="content.trailer_upload_status === 'ready'">
-          <VideoPlayer
+          <CustomVideoPlayer
             :key="content.id"
             :contentId="content.id"
             player-type="trailer"
             :bannerImage="content.banner_image_id"
+            :autoplay="true"
+            :muted="false"
+            :controls="true"
+            :loop="false"
+            @video-started="handleVideoStarted"
+            @video-paused="handleVideoPaused"
+            @video-ended="handleVideoEnded"
+            @error="handleVideoError"
+            @ready="handleVideoReady"
           />
         </div>
         <div v-else class="w-full bg-gray-900 rounded-lg p-8 text-center mb-8">
@@ -56,7 +65,7 @@ import { useAuthStore } from "~/stores/auth";
 import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
 import Navbar from "~/components/Navbar/Navbar.vue";
-import VideoPlayer from "~/components/VideoPlayer/VideoPlayer.vue";
+import CustomVideoPlayer from "~/components/VideoPlayer/CustomVideoPlayer.vue";
 import ContentDetail from "~/components/ContentDetail/ContentDetail.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
@@ -93,6 +102,27 @@ onMounted(async () => {
     console.error("Error fetching content details:", error);
   }
 });
+
+// Video event handlers
+const handleVideoStarted = () => {
+  console.log("Trailer video started");
+};
+
+const handleVideoPaused = () => {
+  console.log("Trailer video paused");
+};
+
+const handleVideoEnded = () => {
+  console.log("Trailer video ended");
+};
+
+const handleVideoError = (error) => {
+  console.error("Trailer video error:", error);
+};
+
+const handleVideoReady = () => {
+  console.log("Trailer video ready");
+};
 
 definePageMeta({
   middleware: ["auth"],

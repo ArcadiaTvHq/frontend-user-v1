@@ -1,6 +1,6 @@
 <template>
   <div
-    class="bg-cardgray p-4 md:px-6 md:py-4 text-white rounded-[5px] flex flex-col h-full w-full max-w-[280px] "
+    class="bg-cardgray p-4 md:px-6 md:py-4 text-white rounded-[5px] flex flex-col h-full w-full max-w-[280px]"
   >
     <div class="flex items-center gap-2 mb-3">
       <Logo class="w-5 h-5 md:w-6 md:h-6" v-if="cross" />
@@ -14,7 +14,7 @@
     <button
       :class="[
         button,
-        'transition-all duration-300 hover:bg-[#CE8F00] disabled:bg-[#FFF487]',
+        'transition-all duration-300 hover:bg-[#CE8F00] disabled:bg-[#FFF487] font-orbitron font-extrabold px-6 py-3',
       ]"
     >
       Select this plan
