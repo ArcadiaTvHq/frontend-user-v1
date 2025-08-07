@@ -11,6 +11,7 @@
             <button
               class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
             >
+              <genre/>
               <span>Genre</span>
               <img
                 src="@/assets/icons/chevron.svg"
@@ -23,6 +24,7 @@
             <button
               class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
             >
+              <releaseYear/>
               <span>Release Year</span>
               <img
                 src="@/assets/icons/chevron.svg"
@@ -35,6 +37,7 @@
             <button
               class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
             >
+              <img src="../assets/icons/clip.png"/>
               <span>Content Type</span>
               <img
                 src="@/assets/icons/chevron.svg"
@@ -47,6 +50,7 @@
             <button
               class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
             >
+              <img src="@/assets/icons/sort.svg"/>
               <span>Sort</span>
               <img
                 src="@/assets/icons/chevron.svg"
@@ -103,6 +107,10 @@ import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
+import ContentTypeicon from "~/components/icons/contentTypeicon.vue";
+import sort from "~/components/icons/sort.vue";
+import releaseYear from "~/components/icons/releaseYear.vue";
+import genre from "~/components/icons/genre.vue";
 
 definePageMeta({
   middleware: ["auth"],

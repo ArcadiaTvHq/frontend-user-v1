@@ -234,7 +234,10 @@
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
+import { useAuthStore } from "~/stores/auth";
 
+const authStore = useAuthStore();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
 // Props
 const props = defineProps({
   autoPlay: {

@@ -1,27 +1,24 @@
 <template>
   <div
-    class="bg-darkgray rounded-[8px] md:max-w-[624px] w-full transition-all duration-300 hover:scale-[1.02]"
+    class="border-gold border-2 min-h-25 h-fit bg-[#0B0B0B] flex  items-center   w-full transition-all duration-300 hover:bg-[#CE8F00] gap-4 px-5"
+    @click="handleToggle"
   >
-    <button
-      type="button"
-      @click="handleToggle"
-      class="bg-[#FFD005] w-full h-16 md:h-20 flex items-center justify-between rounded-[8px] px-5 md:px-10 cursor-pointer hover:bg-[#CE8F00] text-black transition-all duration-300 font-orbitron"
+    
+    
+    <img
+        class="w-4 h-4 transition-transform duration-300 "
+        :style="{ transform: props.isOpen ? 'rotate(45deg)' : 'rotate(0deg)' }"
+        src="../../assets/icons/plus.svg"
+        alt="Toggle FAQ"
+      />
+    <div
+      class="px-5 py-3 md:px-10 md:py-6 transition-all duration-300 flex flex-col gap-4"
     >
       <p class="text-left text-small md:text-base font-bold">
         {{ props.question }}
       </p>
-      <img
-        class="w-3 h-2 transition-transform duration-300 brightness-0"
-        :style="{ transform: props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }"
-        src="../../assets/chevron.png"
-        alt="Toggle FAQ"
-      />
-    </button>
-    <div
-      v-show="props.isOpen"
-      class="px-5 py-3 md:px-10 md:py-6 transition-all duration-300"
-    >
-      <p class="text-smallest md:text-normal font-orbitron">
+      <p class="text-smallest  font-inter text-[#F6F6F6]
+      " v-show="props.isOpen">
         {{ props.answer }}
       </p>
     </div>
@@ -45,6 +42,7 @@ const emit = defineEmits(["update:isOpen"]);
 
 const handleToggle = () => {
   emit("update:isOpen", !props.isOpen);
+  
 };
 </script>
 

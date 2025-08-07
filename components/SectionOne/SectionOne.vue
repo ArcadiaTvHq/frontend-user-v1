@@ -260,7 +260,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { openModal } from "../composables/states";
+import { useModal } from "#imports";
 import { useRouter } from "vue-router";
 import { useBlobImages } from "~/composables/useBlobImages";
 
@@ -272,12 +272,12 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const modal = openModal();
+const modal = useModal();
 const { getImageUrl } = useBlobImages();
 
 const handleClick = () => {
   if (props.button === "Join the waitlist") {
-    modal.value = true;
+    modal.toggleWaitlist()
   } else {
     navigateTo("/login");
   }

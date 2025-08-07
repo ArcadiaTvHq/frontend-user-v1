@@ -6,7 +6,7 @@
           class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 items-start md:items-center"
         >
           <!-- Poster Image -->
-          <div class="md:col-span-3 relative mb-6 md:mb-0">
+          <div class="md:col-span-3 grid relative mb-6 md:mb-0 justify-center items-center">
             <img
               :src="
                 buildImageUrl(
@@ -19,7 +19,7 @@
             <!-- Play Icon and Label Overlay -->
             <div
               v-if="showPosterOverlay"
-              class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-lg cursor-pointer hover:bg-black/50 transition-colors duration-300"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-lg cursor-pointer hover:bg-black/50 transition-colors duration-300 max-w-xs mx-auto"
               @click="navigateToTrailer"
             >
               <div

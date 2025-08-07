@@ -1,6 +1,6 @@
 <template>
   <section
-    class="bg-body text-textprimary px-4 sm:px-8 md:px-12 lg:px-16 py-12 md:py-16 lg:py-20 flex flex-col lg:flex-row items-center justify-center font-mont gap-8 lg:gap-16"
+    class="bg-body text-textprimary px-4 sm:px-8 md:px-12 lg:px-16 py-12 md:py-16 lg:py-20 flex flex-col items-center justify-center font-mont gap-8 lg:gap-16"
   >
     <div class="flex flex-1 flex-col items-center max-w-[600px] lg:items-start">
       <h1
@@ -9,21 +9,10 @@
         Frequently Asked
         <span class="text-gold">Questions & Answers</span>
       </h1>
-      <p
-        class="text-base md:text-normal font-medium text-center lg:text-left mb-8 lg:mb-12 opacity-90"
-      >
-        Whether you're here to stream blockbuster movies or upload your own
-        content, these answers will help you get the most out of Arcadia TV.
-      </p>
-      <img
-        class="hidden lg:block w-[280px] xl:w-[440px] hover:scale-110 transition-transform duration-200"
-        src="../../assets/Decoration.png"
-        alt="Decoration"
-      />
     </div>
 
     <div
-      class="flex flex-col gap-2 w-full lg:w-1/2 max-w-[624px] mx-auto lg:mx-0 px-2 sm:px-0 faq-container"
+      class=" gap-2 w-full grid md:grid-cols-2 grid-cols-1 mx-auto lg:mx-0 px-2 sm:px-0 faq-container"
     >
       <FaqItem
         v-for="(faq, index) in faqItems"
