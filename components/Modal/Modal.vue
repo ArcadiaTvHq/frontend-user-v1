@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="modal"
+    v-if="waitlist"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4"
   >
     <div
@@ -96,10 +96,10 @@ label {
 import { ref, reactive } from "@vue/runtime-core";
 import { useVuelidate } from "@vuelidate/core";
 import { required, email, minLength } from "@vuelidate/validators";
-import { openModal } from "../composables/states";
 import { WaitlistService } from "../../api/services/waitlist.service";
 import ToastComponent from "../Toast/Toast.vue";
 import CloseIcon from "../CloseIcon/CloseIcon.vue";
+import { useModal } from "#imports";
 
 const Toast = ToastComponent;
 
@@ -115,7 +115,8 @@ interface ToastState {
   type: "success" | "error";
 }
 
-const modal = openModal();
+const modal = useModal();
+const waitlist = computed(()=> modal.isWaitlist)
 const isSubmitting = ref(false);
 
 const toast = reactive<ToastState>({
@@ -139,7 +140,7 @@ const rules = {
 const v$ = useVuelidate(rules, formData);
 
 const handleClose = () => {
-  modal.value = false;
+  modal.toggleWaitlist()
   v$.value.$reset();
   formData.firstName = "";
   formData.lastName = "";

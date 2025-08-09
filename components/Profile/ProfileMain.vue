@@ -1,25 +1,26 @@
 <template>
-  <div class="text-white">
+    
+  <div class="text-white w-full justify-center">
     <p class="text-normal">Profile Info</p>
-    <div class="flex gap-13 mt-6">
+    <div class="flex gap-13 mt-6 items-end">
       <div class="w-1/2 flex flex-col gap-2">
         <label>Display Name</label>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" />
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :disabled="true" />
       </div>
       <div class="w-1/2 flex flex-col gap-2">
-        <span><label>Password</label><a class="ml-5 text-gold">change Password</a></span>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" />
+        <span><label>Password</label><button class="ml-5 text-gold" @click="modal.toggleChange">change </button></span>
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :dis />
       </div>
     </div>
     <p class="text-normal mt-16">Subscription info</p>
-    <div class="display flex mt-8 justify-between">
+    <div class="display flex mt-8 justify-between gap-2 flex-col lg:flex-row items-center">
       <Card
         type="Free"
         :logo="free"
         price="₦0"
-        priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium"
-        button="border-[0.85px] border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer transition-all duration-300"
-        class="slide-left w-full"
+        priceStyling="text-[24px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-[24px] font-inter"
+        button="hidden"
+        class="slide-left w-full max-w-full  border-gold border-1"
         :benefits="freeBenefits"
         typeclass="text-type font-medium md:text-[21px]"
       />
@@ -27,9 +28,9 @@
         type="standard"
         :logo="free"
         price="₦500"
-        priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium"
-        button="border-[0.85px] text-gold border-[#FFD005]  hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer transition-all duration-300"
-        class="w-full"
+        priceStyling="text-[24px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-[24px] text-white font-inter"
+        button="hidden"
+        class="w-full max-w-full"
         :benefits="standardBenefits"
         typeclass="text-type font-medium md:text-[21px] text-white"
       />
@@ -37,9 +38,9 @@
         type="Premium"
         :logo="premium"
         price="₦1000"
-        priceStyling="text-[20px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-smedium text-gold"
-        button="h-13 w-full md:h-17 rounded-[8.51px] mb-[18px] cursor-pointer bg-[#FFD005] text-black hover:bg-[#CE8F00] transition-all duration-300"
-        class="slide-right w-full"
+        priceStyling="text-[24px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-[24px] text-white font-inter"
+        button="hidden"
+        class="slide-right w-full max-w-full"
         :benefits="premiumBenefits"
         typeclass="text-type font-medium md:text-[21px] text-gold"
       />
@@ -56,6 +57,7 @@ import premium from "../../assets/king.png";
 import standard from "../../assets/standard.png";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useModal } from "#imports";
 
 const freeBenefits = [
   { text: "4k HD streaming content", included: false },
@@ -77,5 +79,12 @@ const premiumBenefits = [
   { text: "No pause ads", included: true },
   { text: "International Content", included: true },
 ];
+
+  const modal = useModal()
+  const change =  computed(()=> modal.isChange)
+
+  
+
+  
 
 </script>

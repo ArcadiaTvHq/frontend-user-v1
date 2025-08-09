@@ -15,7 +15,7 @@
       title="Anticipate"
       iconAlt="Flame icon"
       :content="anticipatedContent"
-      :showSeeMore="true"
+      :showSeeMore="false"
       :fetchContent="false"
     />
     <SectionThree />

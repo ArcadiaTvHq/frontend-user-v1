@@ -70,6 +70,25 @@
           <!-- <div
             class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           >
+
+            <img
+              :src="poster.image"
+              :alt="poster.title"
+              class=" object-cover rounded-[10px] h-full w-full"
+            />
+            <div
+              class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            >
+              <h3 class="text-white text-sm font-bold mb-1">
+                {{ poster.title }}
+              </h3>
+              <p class="text-white/80 text-xs line-clamp-2">
+                {{ poster.description }}
+              </p>
+            </div>
+          </div>
+        </div>
+
             <h3 class="text-white text-sm font-bold mb-1">
               {{ poster.title }}
             </h3>
@@ -112,10 +131,21 @@
   cursor: pointer;
 }
 
+
 .poster:hover {
   transform: scale(1.05);
   z-index: 20;
   box-shadow: 0 4px 20px rgba(255, 208, 5, 0.2);
+}
+
+.poster:hover .poster-info {
+  opacity: 1;
+}
+
+.poster img {
+  max-height: 100%;
+  width: auto;
+  object-fit: fill contain;
 }
 
 /* Large screens (1280px+) */
@@ -230,7 +260,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { openModal } from "../composables/states";
+import { useModal } from "#imports";
 import { useRouter } from "vue-router";
 import { useBlobImages } from "~/composables/useBlobImages";
 
@@ -242,22 +272,25 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const modal = openModal();
+const modal = useModal();
 const { getImageUrl } = useBlobImages();
 
 const handleClick = () => {
   if (props.button === "Join the waitlist") {
-    modal.value = true;
+    modal.toggleWaitlist()
   } else {
     navigateTo("/login");
   }
 };
 
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
+
+let visiblePosters = computed(() => props.posters.slice(0, 5));
+console.log(visiblePosters);
 // Use reactive currentIndex for visiblePosters to enable rotation
 const currentIndex = ref(0);
 
-const visiblePosters = computed(() => {
+ visiblePosters = computed(() => {
   const posters = props.posters;
   if (!posters || posters.length === 0) return [];
 
@@ -272,6 +305,9 @@ const visiblePosters = computed(() => {
 
   return result;
 });
+
+
+//  let intervalId = null;
 
 // Compute the actual poster index that should be in the center
 const centerPosterIndex = computed(() => {

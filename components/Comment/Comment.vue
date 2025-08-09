@@ -2,9 +2,7 @@
   <section
     class="flex flex-col text-white items-center gap-6 sm:gap-8 mt-16 sm:mt-20 md:mt-28 px-4 sm:px-6 md:px-12 lg:px-[104px]"
   >
-    <div
-      class="flex flex-col sm:flex-row justify-between w-full gap-4 sm:gap-0"
-    >
+    <div class="flex flex-col sm:flex-row justify-between w-full gap-4 sm:gap-0">
       <div class="gap-2 flex items-center justify-center sm:justify-start">
         <IconsCommenticon />
         <div class="flex items-center gap-2">
@@ -12,6 +10,17 @@
           <p class="text-sm text-gray-500">28 Comments</p>
         </div>
       </div>
+
+      <div class="flex gap-3">
+        <!-- <button class="bg-gold h-13 rounded-[20px] w-37 justify-center items-center flex px-5 text-black btn gap-3 ">
+        <p>Add Review</p>
+        <IconsAdd/>
+      </button>
+      <button class="bg-[#1A1A1ACC] h-13 rounded-[20px] w-37 justify-center items-center flex px-5 btn gap-3">
+        <p>Latest</p>
+        <IconsDown color="#ffffff"/>
+      </button> -->
+
       <div class="flex flex-row gap-3 justify-center sm:justify-end">
         <button
           v-if="isAuthenticated"
@@ -69,16 +78,20 @@
             </button>
           </div>
         </div>
+</div>
       </div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 w-full">
       <CommentCard v-for="i in 4" :key="i" ratings="4" />
     </div>
-    <button
+
+    <button class="flex bg-gold text-black w-41 rounded-[10px] justify-center h-11  items-center px-5 gap-3 btn "><p>See More </p><IconsDown/></button>
+    <!-- <button
       class="flex bg-gold text-black w-full sm:w-auto max-w-xs rounded-[10px] justify-center h-10 sm:h-11 items-center px-5 btn text-sm sm:text-base"
     >
       See More <IconsDown />
-    </button>
+    </button> -->
+
   </section>
 </template>
 
