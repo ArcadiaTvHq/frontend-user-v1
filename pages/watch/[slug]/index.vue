@@ -141,6 +141,8 @@
         </div>
       </template>
 
+      <Series />
+
       <comment />
 
       <!-- Similar Content Section -->

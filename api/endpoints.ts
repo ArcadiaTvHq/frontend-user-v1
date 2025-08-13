@@ -10,7 +10,7 @@ export const ENDPOINTS = {
   USER: {
     PROFILE: "/user/profile",
     UPDATE_PROFILE: "/user/profile/update",
-    CHANGE_PASSWORD: "/user/change-password",
+    CHANGE_PASSWORD: "/auth/change-password",
   },
   CONTENT: {
     BASE: "/content",

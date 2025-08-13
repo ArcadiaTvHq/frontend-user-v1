@@ -34,6 +34,11 @@ const Links = [
     pathname: "/new",
     matches: (path) => path.startsWith("/new"),
   },
+  {
+    name:"MY LIST",
+    pathname:"/my-list",
+    matches: (path) => path.startsWith('/my-list')
+  }
 ];
 
 const isActiveRoute = (link) => {
@@ -254,13 +259,13 @@ watch(
               class="w-6 h-6 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
             />
           </button>
-          <button class="hover:opacity-80 transition-opacity">
+          <nuxt-link to="/profile" class="hover:opacity-80 transition-opacity">
             <img
               src="../../assets/images/avatar.png"
               class="w-10 h-10 rounded-full object-cover"
               alt="User avatar"
             />
-          </button>
+          </nuxt-link>
         </div>
       </div>
 
@@ -319,13 +324,13 @@ watch(
                 class="w-6 h-6"
               />
             </button>
-            <button class="hover:opacity-80 transition-opacity">
+            <nuxt-link to="/profile" class="hover:opacity-80 transition-opacity">
               <img
                 src="../../assets/images/avatar.png"
                 class="w-10 h-10 rounded-full object-cover"
                 alt="User avatar"
               />
-            </button>
+            </nuxt-link>
           </div>
         </div>
       </div>
