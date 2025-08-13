@@ -19,7 +19,7 @@
           <div class="relative z-20 py-20">
             <ContentDetail
               :content="content"
-              :showPosterOverlay="content.trailer_upload_status === 'ready'"
+              :showPosterOverlay="true"
               @trailer-click="handleMobileTrailerClick"
             />
           </div>
@@ -27,7 +27,6 @@
 
         <!-- Mobile Video Player (always present, shows when trailer is clicked) -->
         <div
-          v-if="content.trailer_upload_status === 'ready'"
           class="mobile-video-container"
           :class="watchingTrailer ? 'block' : 'hidden'"
         >
@@ -51,9 +50,9 @@
             </svg>
           </button>
 
-          <CustomVideoPlayer
-            :key="`mobile-${content.id}`"
-            :contentId="content.id"
+          <CustomTrailerPlayer
+            :key="`mobile-${content.slug}`"
+            :contentSlug="content.slug"
             player-type="trailer"
             :bannerImage="content.banner_image_id"
             :autoplay="watchingTrailer"
@@ -75,20 +74,16 @@
         <div class="relative w-full">
           <!-- Background Image (always shown behind video) -->
           <img
-            v-if="content.trailer_upload_status === 'ready'"
             :src="buildImageUrl(content.banner_image_id, 'public')"
             :alt="content.title"
             class="w-full h-full object-cover absolute inset-0"
           />
 
           <!-- Video Player -->
-          <div
-            v-if="content.trailer_upload_status === 'ready'"
-            class="relative w-full h-full"
-          >
-            <CustomVideoPlayer
-              :key="`desktop-${content.id}`"
-              :contentId="content.id"
+          <div class="relative w-full h-full">
+            <CustomTrailerPlayer
+              :key="`desktop-${content.slug}`"
+              :contentSlug="content.slug"
               player-type="trailer"
               :bannerImage="content.banner_image_id"
               :autoplay="true"
@@ -105,12 +100,12 @@
           </div>
 
           <!-- Background Image (when no trailer) -->
-          <img
+          <!-- <img
             v-else
             :src="buildImageUrl(content.banner_image_id, 'public')"
             :alt="content.title"
             class="w-full h-full object-cover"
-          />
+          /> -->
 
           <!-- Enhanced gradient overlay (hidden when watching trailer) -->
           <div
@@ -122,7 +117,7 @@
           <ContentDetail
             v-show="!watchingTrailer"
             :content="content"
-            :showPosterOverlay="content.trailer_upload_status === 'ready'"
+            :showPosterOverlay="true"
             class="absolute inset-0 flex items-center z-20 transition-all duration-500 ease-in-out"
             @trailer-click="handleTrailerClick"
           />
@@ -148,7 +143,7 @@
 
       <comment />
 
-      <!-- Related Content Section -->
+      <!-- Similar Content Section -->
       <SectionTwo
         title="More Like This"
         iconAlt="Similar content icon"
@@ -174,7 +169,7 @@ import { useContentType } from "~/composables/useContentType";
 import { useComponentLoading } from "~/composables/useComponentLoading";
 import { ContentService } from "~/api/services/content.service";
 import Navbar from "~/components/Navbar/Navbar.vue";
-import CustomVideoPlayer from "~/components/VideoPlayer/CustomVideoPlayer.vue";
+import CustomTrailerPlayer from "~/components/VideoPlayer/CustomTrailerPlayer.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import { buildImageUrl } from "~/src/utils/helpers";
 
@@ -214,10 +209,10 @@ const { data: contentData, pending: contentPending } = await useAsyncData(
   }
 );
 
-// Single async data call for related content
-const { data: relatedData, pending: relatedPending } = await useAsyncData(
-  "related-content",
-  () => ContentService.getContents({ limit: 6, page: 1 }),
+// Single async data call for similar content
+const { data: similarData, pending: similarPending } = await useAsyncData(
+  "similar-content",
+  () => ContentService.getSimilarContent(route.params.slug),
   {
     server: false,
     lazy: true,
@@ -257,10 +252,10 @@ onMounted(async () => {
       }
     }
 
-    if (relatedData.value?.data) {
-      relatedContent.value = relatedData.value.data;
+    if (similarData.value?.data) {
+      relatedContent.value = similarData.value.data;
       console.log(
-        "Related content loaded:",
+        "Similar content loaded:",
         relatedContent.value.length,
         "items"
       );
@@ -284,10 +279,10 @@ onMounted(async () => {
 
       // Preload images and wait for them to be ready
       try {
-        await preloadContentImages(relatedData.value.data, "public");
+        await preloadContentImages(similarData.value.data, "public");
         console.log("Images preloaded successfully");
       } catch (error) {
-        console.warn("Failed to preload some related images:", error);
+        console.warn("Failed to preload some similar images:", error);
       }
     }
   } catch (error) {
@@ -309,8 +304,8 @@ watchEffect(() => {
     // Set the content type when content is loaded
     setContentType(content.value.type);
   }
-  if (relatedData.value?.data && !relatedContent.value.length) {
-    relatedContent.value = relatedData.value.data;
+  if (similarData.value?.data && !relatedContent.value.length) {
+    relatedContent.value = similarData.value.data;
   }
 });
 
@@ -320,7 +315,7 @@ watchEffect(() => {
     content.value &&
     relatedContent.value.length > 0 &&
     !contentPending.value &&
-    !relatedPending.value
+    !similarPending.value
   ) {
     // Small delay to ensure smooth transition
     setTimeout(() => {

@@ -169,13 +169,30 @@
           class="flex flex-wrap justify-center gap-4 mb-6 text-sm opacity-80"
         >
           <span
-            v-if="currentHeroContent.duration"
+            v-if="
+              currentHeroContent.type === 'series' &&
+              currentHeroContent.seasonCount
+            "
+            class="flex items-center gap-1 capitalize"
+          >
+            <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
+            {{ currentHeroContent.seasonCount }} Season{{
+              currentHeroContent.seasonCount > 1 ? "s" : ""
+            }}
+          </span>
+          <span
+            v-else-if="
+              currentHeroContent.type === 'movie' && currentHeroContent.duration
+            "
             class="flex items-center gap-1"
           >
             <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
             {{ formatDuration(currentHeroContent.duration) }}
           </span>
-          <span v-if="currentHeroContent.type" class="flex items-center gap-1">
+          <span
+            v-if="currentHeroContent.type"
+            class="flex items-center gap-1 capitalize"
+          >
             <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
             {{ currentHeroContent.type }}
           </span>
@@ -292,30 +309,41 @@ const buildImageUrl = (imageId) => {
 const fetchHeroContent = async () => {
   try {
     loading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 5,
-    });
+    const response = await ContentService.getFeaturedContent();
 
     // Transform the data to include image URLs
-    heroContent.value = response.data.map((content) => ({
-      id: content.id,
-      title: content.title,
-      description: content.description,
-      type: content.type,
-      duration: content.duration_in_seconds,
-      rating: content.interactions?.rating?.average || null,
-      posterImage: buildImageUrl(
-        content.poster_image_id || content.thumbnail_image_id
-      ),
-      bannerImage: buildImageUrl(
-        content.banner_image_id || content.poster_image_id
-      ),
-      slug: content.slug,
-      isPremium: content.is_premium,
-      isFree: content.is_free,
-    }));
+    heroContent.value = response.data.map((content) => {
+      // Debug: Log series content structure
+      if (content.type === "series") {
+        console.log("Series content structure:", content);
+        console.log("Available properties:", Object.keys(content));
+        if (content.series) {
+          console.log("Series object:", content.series);
+        }
+      }
+
+      return {
+        id: content.id,
+        title: content.title,
+        description: content.description,
+        type: content.type,
+        duration: content.duration_in_seconds,
+        seasonCount:
+          content.type === "series"
+            ? content.season_count || content.seasons?.length || null
+            : null,
+        rating: content.interactions?.rating?.average || null,
+        posterImage: buildImageUrl(
+          content.poster_image_id || content.thumbnail_image_id
+        ),
+        bannerImage: buildImageUrl(
+          content.banner_image_id || content.poster_image_id
+        ),
+        slug: content.slug,
+        isPremium: content.is_premium,
+        isFree: content.is_free,
+      };
+    });
 
     // Images will be loaded directly via URLs
   } catch (error) {
@@ -329,6 +357,7 @@ const fetchHeroContent = async () => {
           "After the king's sudden death, Elizabeth's seemingly quiet life is rattled with personal trials and tribulations and the affairs of the state as she succeeds to the throne of the British monarchy.",
         type: "series",
         duration: 3600,
+        seasonCount: 6,
         rating: 4.5,
         posterImage: "/assets/images/preview.png",
         bannerImage: "/assets/images/Picture.png",

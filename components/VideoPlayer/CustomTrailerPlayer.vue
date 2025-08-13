@@ -74,7 +74,11 @@ import Hls from "hls.js";
 const props = defineProps({
   contentId: {
     type: String,
-    required: true,
+    required: false,
+  },
+  contentSlug: {
+    type: String,
+    required: false,
   },
   playerType: {
     type: String,
@@ -378,22 +382,28 @@ const getRetryDelay = (attempt) => {
 
 // Fetch stream URL with retry logic
 const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
-  if (!props.contentId) return;
+  if (!props.contentId && !props.contentSlug) return;
 
   try {
     loadingMessage.value = isRetry
       ? `Retrying to load video... (${retryCount + 1}/${MAX_RETRIES})`
       : "Loading video...";
 
-    const response =
-      props.playerType === "trailer"
-        ? await ContentService.getTrailerSignedUrl(props.contentId)
-        : await ContentService.getVideoSignedUrl(props.contentId);
+    let response;
+    if (props.playerType === "trailer") {
+      if (props.contentSlug) {
+        response = await ContentService.getTrailerUrlBySlug(props.contentSlug);
+      } else {
+        response = await ContentService.getTrailerSignedUrl(props.contentId);
+      }
+    } else {
+      response = await ContentService.getVideoSignedUrl(props.contentId);
+    }
 
     console.log("API Response:", response);
 
-    if (response?.data?.url) {
-      let url = response.data.url;
+    if (response?.data?.signed_url) {
+      let url = response.data.signed_url;
       console.log("Original URL:", url);
 
       // Convert iframe URL to direct video URL
@@ -462,7 +472,7 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
 };
 
 const initializePlayer = () => {
-  if (props.contentId) {
+  if (props.contentId || props.contentSlug) {
     streamUrl.value = null;
     isLoading.value = true;
     loadingMessage.value = "Loading...";
@@ -470,267 +480,15 @@ const initializePlayer = () => {
     isBuffering.value = false;
     isPlaying.value = false;
     canPlay.value = false;
-    initializeStreaming();
+    fetchStreamUrl();
   }
 };
 
-// Fetch chunk URL with retry logic
-const fetchChunkUrl = async (chunkIndex, isRetry = false, retryCount = 0) => {
-  if (!props.contentId) return;
-
-  try {
-    loadingMessage.value = isRetry
-      ? `Retrying to load chunk ${chunkIndex}... (${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      : `Loading chunk ${chunkIndex}...`;
-
-    // Request access to specific chunk
-    const response = await ContentService.requestChunkAccess({
-      contentId: props.contentId,
-      chunkIndex: chunkIndex,
-      userAgent: navigator.userAgent,
-      // Note: IP address should be handled server-side from request headers
-    });
-
-    console.log("Chunk API Response:", response);
-
-    if (response?.signedUrl) {
-      let url = response.signedUrl;
-      console.log("Original Chunk URL:", url);
-
-      // Convert chunk URL to direct video URL if needed
-      if (url.includes("cloudflarestream.com") && url.includes("/chunks/")) {
-        const tokenMatch = url.match(
-          /cloudflarestream\.com\/([^\/]+)\/chunks\/(\d+)\/([^\/]+)/
-        );
-        if (tokenMatch) {
-          const videoId = tokenMatch[1];
-          const chunkIndex = tokenMatch[2];
-          const signedToken = tokenMatch[3];
-          const customerCode =
-            url.match(/customer-([^.]+)\.cloudflarestream\.com/)?.[1] || "";
-
-          // For chunked content, we might need to construct a different URL format
-          // This depends on how Cloudflare handles chunked streaming
-          url = `https://customer-${customerCode}.cloudflarestream.com/${videoId}/chunks/${chunkIndex}/${signedToken}`;
-          console.log("Converted Chunk URL:", url);
-        }
-      }
-
-      // Store chunk information
-      currentChunk.value = {
-        index: response.chunkIndex,
-        url: url,
-        expiresIn: response.expiresIn,
-        isLastChunk: response.isLastChunk,
-        nextChunkIndex: response.nextChunkIndex,
-      };
-
-      console.log("Current chunk:", currentChunk.value);
-
-      // Initialize HLS.js with the chunk URL
-      nextTick(() => {
-        if (videoPlayer.value) {
-          initializeHLS(url);
-        } else {
-          console.log("Video player not found");
-        }
-      });
-
-      isLoading.value = false;
-
-      // Schedule refresh before chunk URL expires
-      if (response.expiresIn) {
-        const refreshTime = (response.expiresIn - 30) * 1000; // Refresh 30 seconds before expiry
-        setTimeout(() => {
-          // Request next chunk if available
-          if (response.nextChunkIndex !== undefined) {
-            fetchChunkUrl(response.nextChunkIndex);
-          }
-        }, refreshTime);
-      }
-    } else {
-      throw new Error("No signed URL in response");
-    }
-  } catch (error) {
-    console.error(`Error fetching chunk ${chunkIndex}:`, error);
-
-    // Handle specific error types
-    if (error.status === 403) {
-      if (error.message?.includes("Rate limit exceeded")) {
-        const retryAfter = error.retryAfter || 60;
-        loadingMessage.value = `Rate limit exceeded. Retrying in ${retryAfter} seconds...`;
-
-        setTimeout(() => {
-          fetchChunkUrl(chunkIndex, true, retryCount);
-        }, retryAfter * 1000);
-        return;
-      } else if (error.message?.includes("sequential pattern")) {
-        // Request the next allowed chunk
-        const nextAllowedChunk = error.nextAllowedChunk || 0;
-        console.log(
-          `Sequential violation, requesting chunk ${nextAllowedChunk}`
-        );
-        fetchChunkUrl(nextAllowedChunk);
-        return;
-      }
-    }
-
-    if (retryCount < MAX_RETRIES) {
-      const delay = getRetryDelay(retryCount + 1);
-      console.log(
-        `Retrying chunk ${chunkIndex} fetch in ${delay}ms (attempt ${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      );
-
-      setTimeout(() => {
-        fetchChunkUrl(chunkIndex, true, retryCount + 1);
-      }, delay);
-    } else {
-      console.error(
-        `Failed to fetch chunk ${chunkIndex} after ${MAX_RETRIES} attempts`
-      );
-      loadingMessage.value =
-        "Unable to load video chunk. Please try again later.";
-      isLoading.value = false;
-      emit("error", {
-        code: "CHUNK_FETCH_FAILED",
-        message: `Failed to load chunk ${chunkIndex} after multiple attempts`,
-      });
-    }
-  }
-};
-
-// Function to request next chunk
-const requestNextChunk = async () => {
-  if (currentChunk.value?.nextChunkIndex !== undefined) {
-    await fetchChunkUrl(currentChunk.value.nextChunkIndex);
-  }
-};
-
-// Function to request specific chunk (for seeking)
-const requestSpecificChunk = async (chunkIndex) => {
-  await fetchChunkUrl(chunkIndex);
-};
-
-// Function to get streaming information
-const getStreamingInfo = async () => {
-  if (!props.contentId) return;
-
-  try {
-    const info = await ContentService.getStreamingInfo(props.contentId);
-    console.log("Streaming info:", info);
-
-    // Store streaming information for UI
-    streamingInfo.value = {
-      totalChunks: info.totalChunks,
-      chunkDuration: info.chunkDuration,
-      totalDuration: info.totalDuration,
-      estimatedSize: info.estimatedSize,
-    };
-  } catch (error) {
-    console.error("Error getting streaming info:", error);
-  }
-};
-
-// Function to get chunk manifest
-const getChunkManifest = async () => {
-  if (!props.contentId) return;
-
-  try {
-    const manifest = await ContentService.getChunkManifest(props.contentId);
-    console.log("Chunk manifest:", manifest);
-
-    // Store manifest for chunk management
-    chunkManifest.value = manifest;
-  } catch (error) {
-    console.error("Error getting chunk manifest:", error);
-  }
-};
-
-// Initialize streaming when component mounts
-const initializeStreaming = async () => {
-  if (!props.contentId) return;
-
-  try {
-    // Get streaming information first
-    await getStreamingInfo();
-
-    // Get chunk manifest
-    await getChunkManifest();
-
-    // Start with first chunk
-    await fetchChunkUrl(0);
-  } catch (error) {
-    console.error("Error initializing streaming:", error);
-  }
-};
-
-// Add these reactive variables to your component
-const currentChunk = ref(null);
-
-const streamingInfo = ref(null);
-
-const chunkManifest = ref(null);
-
-// Update your existing fetchStreamUrl function call
-// Replace: fetchStreamUrl()
-// With: initializeStreaming()
-
-// Add chunk management functions to your component's methods
-const onChunkEnd = () => {
-  if (currentChunk.value && !currentChunk.value.isLastChunk) {
-    requestNextChunk();
-  }
-};
-
-// Handle seeking to specific time
-const onSeek = (timeInSeconds) => {
-  if (chunkManifest.value) {
-    const chunkIndex = Math.floor(
-      timeInSeconds / chunkManifest.value.chunkDuration
-    );
-    if (chunkIndex !== currentChunk.value?.index) {
-      requestSpecificChunk(chunkIndex);
-    }
-  }
-};
-
-// Get current playback position in chunk context
-const getCurrentChunkTime = () => {
-  if (currentChunk.value && chunkManifest.value) {
-    const chunkStartTime =
-      currentChunk.value.index * chunkManifest.value.chunkDuration;
-    const videoElement = videoPlayer.value;
-    if (videoElement) {
-      return chunkStartTime + videoElement.currentTime;
-    }
-  }
-  return 0;
-};
-
-// In your component setup or mounted hook
-onMounted(() => {
-  initializePlayer();
-});
-
-// For seeking functionality
-const handleSeek = (time) => {
-  onSeek(time);
-};
-
-// For manual chunk navigation
-const loadChunk = (chunkIndex) => {
-  requestSpecificChunk(chunkIndex);
-};
-
-// Watch for changes to contentId
+// Watch for changes to contentId or contentSlug
 watch(
-  () => props.contentId,
-  (newContentId, oldContentId) => {
-    if (newContentId !== oldContentId) {
+  [() => props.contentId, () => props.contentSlug],
+  ([newContentId, newContentSlug], [oldContentId, oldContentSlug]) => {
+    if (newContentId !== oldContentId || newContentSlug !== oldContentSlug) {
       initializePlayer();
     }
   },

@@ -16,8 +16,13 @@ export const ENDPOINTS = {
     BASE: "/content",
     BY_ID: (id: string) => `/content/${id}`,
     BY_SLUG: (slug: string) => `/content/${slug}`,
-    TRAILER_URL: (id: string) => `/content/${id}/trailer`,
+    TRAILER_URL: (id: string) => `/content/${id}/trailer-url`,
     VIDEO_URL: (id: string) => `/content/${id}/video`,
+    ANTICIPATED: "/content/anticipate",
+    FEATURED: "/content/featured",
+    RECOMMENDED: "/content/recommended",
+    SIMILAR: (slug: string) => `/content/${slug}/similar`,
+    TRAILER_URL_BY_SLUG: (slug: string) => `/content/${slug}/trailer-url`,
   },
   // Add more endpoint categories as needed
 } as const;
@@ -26,4 +31,6 @@ export const ENDPOINTS = {
 export type EndpointPath =
   | (typeof ENDPOINTS)[keyof typeof ENDPOINTS][keyof (typeof ENDPOINTS)[keyof typeof ENDPOINTS]]
   | ReturnType<(typeof ENDPOINTS)["CONTENT"]["BY_ID"]>
-  | ReturnType<(typeof ENDPOINTS)["CONTENT"]["BY_SLUG"]>;
+  | ReturnType<(typeof ENDPOINTS)["CONTENT"]["BY_SLUG"]>
+  | ReturnType<(typeof ENDPOINTS)["CONTENT"]["SIMILAR"]>
+  | ReturnType<(typeof ENDPOINTS)["CONTENT"]["TRAILER_URL_BY_SLUG"]>;

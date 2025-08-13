@@ -86,6 +86,20 @@
         :showSeeMore="true"
         :fetchContent="false"
       />
+      <SectionTwo
+        title="Recommended"
+        iconAlt="Flame icon"
+        :content="recommendedContent"
+        :showSeeMore="true"
+        :fetchContent="false"
+      />
+      <SectionTwo
+        title="Anticipate"
+        iconAlt="Flame icon"
+        :content="anticipatedContent"
+        :showSeeMore="true"
+        :fetchContent="false"
+      />
       <div class="mt-20 md:mt-32">
         <HomeFoot />
       </div>
@@ -181,6 +195,11 @@ const anticipatedContent = ref([]);
 const anticipatedLoading = ref(true);
 const anticipatedError = ref(null);
 
+// Recommended content state
+const recommendedContent = ref([]);
+const recommendedLoading = ref(true);
+const recommendedError = ref(null);
+
 // Update featured posters (called from SectionOne component)
 const updateFeaturedPosters = (newPosters) => {
   featuredPosters.value = newPosters;
@@ -247,6 +266,27 @@ const fetchAnticipatedContent = async () => {
   }
 };
 
+// Fetch recommended content
+const fetchRecommendedContent = async () => {
+  try {
+    recommendedLoading.value = true;
+    const response = await ContentService.getRecommendedContent();
+
+    recommendedContent.value = response.data;
+
+    // Preload all images for recommended content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some recommended images:", error);
+    }
+  } catch (err) {
+    recommendedError.value = err.message;
+  } finally {
+    recommendedLoading.value = false;
+  }
+};
+
 const handleLogout = async () => {
   try {
     await authStore.logout();
@@ -269,6 +309,10 @@ const handleAddToList = (content) => {
 
 // Fetch data when component mounts
 onMounted(async () => {
-  await Promise.all([fetchFeaturedContent(), fetchAnticipatedContent()]);
+  await Promise.all([
+    fetchFeaturedContent(),
+    fetchAnticipatedContent(),
+    fetchRecommendedContent(),
+  ]);
 });
 </script>

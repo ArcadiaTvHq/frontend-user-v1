@@ -20,19 +20,11 @@ export class ContentService {
   ): Promise<ContentListResponse> {
     // Check if we're fetching featured content
     if (params?.is_featured) {
-      const cachedFeatured = LocalStorageService.getFeaturedContent();
-      if (cachedFeatured) {
-        return cachedFeatured;
-      }
+      return this.getFeaturedContent();
     }
 
-    // Check if we're fetching anticipated content
-    if (params?.released_after) {
-      const cachedAnticipated = LocalStorageService.getAnticipatedContent();
-      if (cachedAnticipated) {
-        return cachedAnticipated;
-      }
-    }
+    // Note: released_after is used for "new content" (recently released), not anticipated content
+    // Anticipated content should use the dedicated /content/anticipate endpoint
 
     const cleanedParams = params ? cleanQueryParams(params) : {};
     const response = await apiClient.get<ContentListResponse>(
@@ -41,13 +33,6 @@ export class ContentService {
         params: cleanedParams,
       }
     );
-
-    // Cache the response based on the query type
-    if (params?.is_featured) {
-      LocalStorageService.setFeaturedContent(response);
-    } else if (params?.released_after) {
-      LocalStorageService.setAnticipatedContent(response);
-    }
 
     return response;
   }
@@ -114,6 +99,83 @@ export class ContentService {
   ): Promise<SignedUrlResponse> {
     const response = await apiClient.get<SignedUrlResponse>(
       ENDPOINTS.CONTENT.VIDEO_URL(contentId)
+    );
+    return response;
+  }
+
+  /**
+   * Fetch anticipated content
+   * @returns Promise with content list response
+   */
+  static async getAnticipatedContent(): Promise<ContentListResponse> {
+    // Check cache first
+    const cachedAnticipated = LocalStorageService.getAnticipatedContent();
+    if (cachedAnticipated) {
+      return cachedAnticipated;
+    }
+
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.ANTICIPATED
+    );
+
+    // Cache the response
+    LocalStorageService.setAnticipatedContent(response);
+
+    return response;
+  }
+
+  /**
+   * Fetch featured content
+   * @returns Promise with content list response
+   */
+  static async getFeaturedContent(): Promise<ContentListResponse> {
+    // Check cache first
+    const cachedFeatured = LocalStorageService.getFeaturedContent();
+    if (cachedFeatured) {
+      return cachedFeatured;
+    }
+
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.FEATURED
+    );
+
+    // Cache the response
+    LocalStorageService.setFeaturedContent(response);
+
+    return response;
+  }
+
+  /**
+   * Fetch recommended content
+   * @returns Promise with content list response
+   */
+  static async getRecommendedContent(): Promise<ContentListResponse> {
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.RECOMMENDED
+    );
+    return response;
+  }
+
+  /**
+   * Fetch similar content by slug
+   * @param slug Content slug
+   * @returns Promise with content list response
+   */
+  static async getSimilarContent(slug: string): Promise<ContentListResponse> {
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.SIMILAR(slug)
+    );
+    return response;
+  }
+
+  /**
+   * Fetch trailer URL by content slug
+   * @param slug Content slug
+   * @returns Promise with signed URL response
+   */
+  static async getTrailerUrlBySlug(slug: string): Promise<SignedUrlResponse> {
+    const response = await apiClient.get<SignedUrlResponse>(
+      ENDPOINTS.CONTENT.TRAILER_URL_BY_SLUG(slug)
     );
     return response;
   }

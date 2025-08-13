@@ -12,6 +12,13 @@
 
     <!-- <Divider /> -->
     <SectionTwo
+      title="Recommended"
+      iconAlt="Flame icon"
+      :content="recommendedContent"
+      :showSeeMore="true"
+      :fetchContent="false"
+    />
+    <SectionTwo
       title="Anticipate"
       iconAlt="Flame icon"
       :content="anticipatedContent"
@@ -68,6 +75,11 @@ const anticipatedContent = ref([]);
 const anticipatedLoading = ref(true);
 const anticipatedError = ref(null);
 
+// Recommended content state
+const recommendedContent = ref([]);
+const recommendedLoading = ref(true);
+const recommendedError = ref(null);
+
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
 
@@ -83,11 +95,7 @@ const updateFeaturedPosters = (newPosters) => {
 const fetchFeaturedContent = async () => {
   return withApiLoading(async () => {
     featuredLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 10,
-    });
+    const response = await ContentService.getFeaturedContent();
 
     featuredPosters.value = response.data.map((content) => ({
       id: content.id,
@@ -112,12 +120,7 @@ const fetchAnticipatedContent = async () => {
   return withApiLoading(async () => {
     try {
       anticipatedLoading.value = true;
-      const response = await ContentService.getContents({
-        types: [EContentType.MOVIE, EContentType.SERIES],
-        // released_after: new Date().toISOString(),
-        limit: 12,
-        page: 1,
-      });
+      const response = await ContentService.getAnticipatedContent();
 
       anticipatedContent.value = response.data;
 
@@ -135,6 +138,29 @@ const fetchAnticipatedContent = async () => {
   });
 };
 
+// Fetch recommended content
+const fetchRecommendedContent = async () => {
+  return withApiLoading(async () => {
+    try {
+      recommendedLoading.value = true;
+      const response = await ContentService.getRecommendedContent();
+
+      recommendedContent.value = response.data;
+
+      // Preload all images for recommended content
+      try {
+        await preloadContentImages(response.data, "public");
+      } catch (error) {
+        console.warn("Failed to preload some recommended images:", error);
+      }
+    } catch (err) {
+      recommendedError.value = err.message;
+    } finally {
+      recommendedLoading.value = false;
+    }
+  });
+};
+
 // HeroHome event handlers
 const handleWatchContent = (content) => {
   console.log("Watching content:", content.title);
@@ -148,7 +174,11 @@ const handleAddToList = (content) => {
 
 // Fetch data when component mounts
 onMounted(async () => {
-  await Promise.all([fetchFeaturedContent(), fetchAnticipatedContent()]);
+  await Promise.all([
+    fetchFeaturedContent(),
+    fetchAnticipatedContent(),
+    fetchRecommendedContent(),
+  ]);
 });
 
 // Uncomment if you want to redirect to waitlist

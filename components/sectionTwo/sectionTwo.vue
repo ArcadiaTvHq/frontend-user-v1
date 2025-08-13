@@ -250,12 +250,8 @@ const fetchAnticipatedContent = async () => {
     loading.value = true;
     imagesLoaded.value = false;
 
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      // released_after: new Date().toISOString(),
-      limit: 6,
-      page: 1,
-    });
+    // Use the new dedicated anticipated content endpoint
+    const response = await ContentService.getAnticipatedContent();
 
     anticipatedContent.value = response.data;
 
