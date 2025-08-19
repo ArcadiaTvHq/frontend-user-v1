@@ -232,16 +232,22 @@ export const useBlobStore = defineStore("blobStore", () => {
     imageId: string,
     size: string = "public"
   ): Promise<string> => {
+    console.log(`BlobStore: Fetching image ${imageId} with size ${size}`);
+
     // If already cached, return the blob URL and update access
     if (blobs[imageId]) {
       const blob = blobs[imageId];
       blob.lastAccessed = Date.now();
       blob.accessCount++;
+      console.log(
+        `BlobStore: Image ${imageId} already cached, returning URL: ${blob.url}`
+      );
       return blob.url;
     }
 
     // If already loading, wait for it to complete
     if (loading[imageId]) {
+      console.log(`BlobStore: Image ${imageId} already loading, waiting...`);
       return new Promise((resolve, reject) => {
         const checkLoading = () => {
           if (!loading[imageId]) {
@@ -275,9 +281,11 @@ export const useBlobStore = defineStore("blobStore", () => {
     // Start loading
     loading[imageId] = true;
     delete errors[imageId];
+    console.log(`BlobStore: Starting to fetch image ${imageId}`);
 
     try {
       const url = `${IMAGE_DELIVERY_BASE_URL}/${imageId}/${size}`;
+      console.log(`BlobStore: Fetching from URL: ${url}`);
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -286,6 +294,9 @@ export const useBlobStore = defineStore("blobStore", () => {
 
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
+      console.log(
+        `BlobStore: Successfully fetched image ${imageId}, blob size: ${blob.size}, URL: ${blobUrl}`
+      );
 
       // Calculate priority for this image
       const priority = getImagePriority(imageId, size);
@@ -314,7 +325,10 @@ export const useBlobStore = defineStore("blobStore", () => {
       // Update retry state
       updateRetryState(imageId, false);
 
-      console.warn(`Failed to fetch blob for image ${imageId}:`, errorMessage);
+      console.error(
+        `BlobStore: Failed to fetch blob for image ${imageId}:`,
+        errorMessage
+      );
       throw error;
     } finally {
       loading[imageId] = false;

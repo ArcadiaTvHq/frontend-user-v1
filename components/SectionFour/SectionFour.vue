@@ -1,8 +1,8 @@
 <template>
   <section
-    class="bg-body text-textprimary px-4 sm:px-8 md:px-12 lg:px-16 py-12 md:py-16 lg:py-20 flex flex-col items-center justify-center font-mont gap-8 lg:gap-16"
+    class="bg-body text-textprimary px-4 sm:px-9 md:px-28 py-12 md:py-16 lg:py-20 flex flex-col items-center justify-center font-mont gap-8 lg:gap-16"
   >
-    <div class="flex flex-1 flex-col items-center max-w-[600px] lg:items-start">
+    <div class="flex flex-1 flex-col items-center max-w-full lg:items-start">
       <h1
         class="font-bold text-[28px] md:text-[36px] lg:text-[44px] text-center lg:text-left mb-4 lg:mb-6"
       >
@@ -12,7 +12,7 @@
     </div>
 
     <div
-      class=" gap-2 w-full grid md:grid-cols-2 grid-cols-1 mx-auto lg:mx-0 px-2 sm:px-0 faq-container"
+      class="gap-2 w-full grid md:grid-cols-2 grid-cols-1 mx-auto lg:mx-0 faq-container"
     >
       <FaqItem
         v-for="(faq, index) in faqItems"

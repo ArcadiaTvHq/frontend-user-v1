@@ -23,15 +23,7 @@
       </div>
     </div>
 
-    <!-- Loading overlay -->
-    <div
-      v-if="loading"
-      class="absolute inset-0 bg-black/50 flex items-center justify-center z-10"
-    >
-      <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FFD005]"
-      ></div>
-    </div>
+    <!-- Loading overlay - REMOVED: Component-level loading eliminated -->
 
     <!-- Main content -->
     <div
@@ -151,7 +143,7 @@
           :key="currentHeroContent?.id"
           :class="{ 'animate-fade-in': currentHeroContent }"
         >
-          {{ currentHeroContent?.title || "Loading..." }}
+          {{ currentHeroContent?.title }}
         </h1>
 
         <!-- Content Description with Animation -->
@@ -160,7 +152,7 @@
           :key="`desc-${currentHeroContent?.id}`"
           :class="{ 'animate-fade-in': currentHeroContent }"
         >
-          {{ currentHeroContent?.description || "Loading description..." }}
+          {{ currentHeroContent?.description }}
         </p>
 
         <!-- Content Meta Info -->
@@ -211,11 +203,10 @@
             @click="watchContent"
             class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-10 rounded-2xl flex items-center justify-center gap-3 font-medium btn-animate animate-scale-in delay-200"
           >
-            <span>Watch</span>
+            <span>View Details</span>
             <img src="../../assets/icons/play.svg" alt="Play" class="w-5 h-5" />
           </button>
           <button
-            v-if="isAuthenticated"
             @click="addToList"
             class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-10 rounded-2xl font-medium btn-animate animate-scale-in delay-300 flex items-center justify-center gap-3 group"
           >
@@ -251,10 +242,7 @@
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
-import { useAuthStore } from "~/stores/auth";
 
-const authStore = useAuthStore();
-const isAuthenticated = computed(() => authStore.isAuthenticated);
 // Props
 const props = defineProps({
   autoPlay: {
@@ -273,7 +261,6 @@ const emit = defineEmits(["watch", "addToList"]);
 // Reactive state
 const heroContent = ref([]);
 const currentIndex = ref(0);
-const loading = ref(true);
 const autoPlayTimer = ref(null);
 
 // Computed properties
@@ -312,19 +299,11 @@ const buildImageUrl = (imageId) => {
 // Methods
 const fetchHeroContent = async () => {
   try {
-    loading.value = true;
     const response = await ContentService.getFeaturedContent();
 
     // Transform the data to include image URLs
     heroContent.value = response.data.map((content) => {
-      // Debug: Log series content structure
-      if (content.type === "series") {
-        console.log("Series content structure:", content);
-        console.log("Available properties:", Object.keys(content));
-        if (content.series) {
-          console.log("Series object:", content.series);
-        }
-      }
+      // Series content structure handled
 
       return {
         id: content.id,
@@ -351,7 +330,6 @@ const fetchHeroContent = async () => {
 
     // Images will be loaded directly via URLs
   } catch (error) {
-    console.error("Failed to fetch hero content:", error);
     // Fallback content
     heroContent.value = [
       {
@@ -370,9 +348,8 @@ const fetchHeroContent = async () => {
         isFree: true,
       },
     ];
-  } finally {
-    loading.value = false;
   }
+  // No loading state to set - component-level loading eliminated
 };
 
 const nextSlide = () => {
@@ -468,7 +445,6 @@ const addToList = () => {
   if (currentHeroContent.value) {
     emit("addToList", currentHeroContent.value);
     // You can add toast notification here
-    console.log("Added to list:", currentHeroContent.value.title);
   }
 };
 

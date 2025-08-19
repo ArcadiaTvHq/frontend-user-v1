@@ -40,7 +40,16 @@ export const useBlobImages = () => {
     fallbackUrl: string = "/images/default-poster.jpg"
   ): string => {
     const imageId = getPrimaryImageId(content);
-    return getImageUrl(imageId, fallbackUrl);
+    if (!imageId) return fallbackUrl;
+
+    // Try to get from blob store first
+    const blobUrl = getImageUrl(imageId, fallbackUrl);
+    if (blobUrl !== fallbackUrl) {
+      return blobUrl;
+    }
+
+    // Fallback: Direct Cloudflare URL if blob store doesn't have it
+    return `https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg/${imageId}/public`;
   };
 
   /**
@@ -51,7 +60,16 @@ export const useBlobImages = () => {
     fallbackUrl: string = "/images/default-poster.jpg"
   ): string => {
     const imageId = getHoverImageId(content);
-    return getImageUrl(imageId, fallbackUrl);
+    if (!imageId) return fallbackUrl;
+
+    // Try to get from blob store first
+    const blobUrl = getImageUrl(imageId, fallbackUrl);
+    if (blobUrl !== fallbackUrl) {
+      return blobUrl;
+    }
+
+    // Fallback: Direct Cloudflare URL if blob store doesn't have it
+    return `https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg/${imageId}/public`;
   };
 
   /**

@@ -80,16 +80,16 @@
         @addToList="handleAddToList"
       />
       <SectionTwo
-        title="Anticipate"
+        title="Recommended"
         iconAlt="Flame icon"
-        :content="anticipatedContent"
+        :content="recommendedContent"
         :showSeeMore="true"
         :fetchContent="false"
       />
       <SectionTwo
-        title="Recommended"
+        title="Trending"
         iconAlt="Flame icon"
-        :content="recommendedContent"
+        :content="trendingContent"
         :showSeeMore="true"
         :fetchContent="false"
       />
@@ -200,6 +200,11 @@ const recommendedContent = ref([]);
 const recommendedLoading = ref(true);
 const recommendedError = ref(null);
 
+// Trending content state
+const trendingContent = ref([]);
+const trendingLoading = ref(true);
+const trendingError = ref(null);
+
 // Update featured posters (called from SectionOne component)
 const updateFeaturedPosters = (newPosters) => {
   featuredPosters.value = newPosters;
@@ -287,6 +292,27 @@ const fetchRecommendedContent = async () => {
   }
 };
 
+// Fetch trending content
+const fetchTrendingContent = async () => {
+  try {
+    trendingLoading.value = true;
+    const response = await ContentService.getTrendingContent();
+
+    trendingContent.value = response.data;
+
+    // Preload all images for trending content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some trending images:", error);
+    }
+  } catch (err) {
+    trendingError.value = err.message;
+  } finally {
+    trendingLoading.value = false;
+  }
+};
+
 const handleLogout = async () => {
   try {
     await authStore.logout();
@@ -313,6 +339,7 @@ onMounted(async () => {
     fetchFeaturedContent(),
     fetchAnticipatedContent(),
     fetchRecommendedContent(),
+    fetchTrendingContent(),
   ]);
 });
 </script>

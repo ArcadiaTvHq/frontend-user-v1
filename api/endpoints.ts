@@ -10,7 +10,7 @@ export const ENDPOINTS = {
   USER: {
     PROFILE: "/user/profile",
     UPDATE_PROFILE: "/user/profile/update",
-    CHANGE_PASSWORD: "/auth/change-password",
+    CHANGE_PASSWORD: "/user/change-password",
   },
   CONTENT: {
     BASE: "/content",
@@ -21,8 +21,18 @@ export const ENDPOINTS = {
     ANTICIPATED: "/content/anticipate",
     FEATURED: "/content/featured",
     RECOMMENDED: "/content/recommended",
+    TRENDING: "content/trending",
     SIMILAR: (slug: string) => `/content/${slug}/similar`,
     TRAILER_URL_BY_SLUG: (slug: string) => `/content/${slug}/trailer-url`,
+  },
+  PLAYBACK: {
+    START: "/playback/start-playback",
+    UPDATE: "/playback/update-playback",
+    HEARTBEAT: "/playback/heartbeat",
+    TEST_KEY: "/playback/test-private-key",
+  },
+  ADVERTS: {
+    FETCH: "/adverts/public/fetch",
   },
   // Add more endpoint categories as needed
 } as const;

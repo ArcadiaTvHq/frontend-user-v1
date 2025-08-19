@@ -1,7 +1,7 @@
 <template>
   <Transition name="fade" mode="out-in">
     <div
-      v-if="shouldShowLoader && !isInitialLoading"
+      v-if="isInitialLoading"
       class="fixed inset-0 bg-black z-50 flex items-center justify-center"
     >
       <div class="text-center">
@@ -10,41 +10,47 @@
           src="@/assets/logo2.png"
           alt="Logo"
         />
-        <p
-          v-if="routeLoading && shouldShowRouteLoading"
-          class="text-white text-lg font-medium"
-        >
-          Loading content...
-        </p>
-        <p
-          v-else-if="hasLoadingComponents"
-          class="text-white text-lg font-medium"
-        >
-          Loading content...
-        </p>
-        <p v-else class="text-white text-lg font-medium">Welcome to Arcadia</p>
+        <p class="text-white text-lg font-medium">{{ loadingTitle }}</p>
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup>
-import { useLoadingStore } from "~/stores/loading";
+import { computed } from "vue";
 
-const loadingStore = useLoadingStore();
-const shouldShowLoader = computed(() => loadingStore.shouldShowLoader);
-const routeLoading = computed(() => loadingStore.routeLoading);
-const hasLoadingComponents = computed(() => loadingStore.hasLoadingComponents);
-const shouldShowRouteLoading = computed(
-  () => loadingStore.shouldShowRouteLoading
-);
-
-// Don't show Vue loading screen during initial load
+// Only show this loading screen during initial app load
+// Page-specific loading should use their own standardized loading screens
 const isInitialLoading = ref(true);
+
+// Detect if user is coming from external source
+const isExternalNavigation = computed(() => {
+  if (typeof window === "undefined") return false;
+
+  const referrer = document.referrer;
+  if (!referrer) return true; // No referrer means external or direct navigation
+
+  try {
+    const referrerUrl = new URL(referrer);
+    const currentUrl = new URL(window.location.href);
+    return referrerUrl.origin !== currentUrl.origin;
+  } catch {
+    return true; // If URL parsing fails, assume external
+  }
+});
+
+// Set appropriate title based on navigation type
+const loadingTitle = computed(() => {
+  if (isExternalNavigation.value) {
+    return "Welcome to Arcadia";
+  }
+  return "Loading...";
+});
+
 onMounted(() => {
   setTimeout(() => {
     isInitialLoading.value = false;
-  }, 2500); // Wait longer than the layout loading
+  }, 2000); // Wait for initial app load to complete
 });
 </script>
 

@@ -157,6 +157,17 @@ export class ContentService {
   }
 
   /**
+   * Fetch trending content
+   * @returns Promise with content list response
+   */
+  static async getTrendingContent(): Promise<ContentListResponse> {
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.TRENDING
+    );
+    return response;
+  }
+
+  /**
    * Fetch similar content by slug
    * @param slug Content slug
    * @returns Promise with content list response

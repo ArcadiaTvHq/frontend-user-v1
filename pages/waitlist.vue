@@ -19,8 +19,10 @@ import Navbar from "~/components/Navbar/Navbar.vue";
 import SectionOne from "~/components/SectionOne/SectionOne.vue";
 import SectionFour from "~/components/SectionFour/SectionFour.vue";
 import SectionLast from "~/components/SectionLast/SectionLast.vue";
+import { ref, onMounted } from "vue";
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
+import { useBlobImages } from "~/composables/useBlobImages";
 
 definePageMeta({
   middleware: ["auth"],
@@ -31,14 +33,6 @@ const { preloadContentImages } = useBlobImages();
 
 // API loading composable
 const { withApiLoading } = useApiLoading();
-
-const IMAGE_DELIVERY_BASE_URL =
-  "https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg";
-
-const buildImageUrl = (imageId) => {
-  if (!imageId) return "/images/default-poster.jpg";
-  return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/public`;
-};
 
 // Featured content state
 const featuredPosters = ref([]);
@@ -60,24 +54,15 @@ const fetchFeaturedContent = async () => {
       limit: 10,
     });
 
-    featuredPosters.value = response.data.map((content) => ({
-      id: content.id,
-      slug: content.slug,
-      image: content.poster_image_id || content.thumbnail_image_id,
-      banner: content.banner_image_id,
-      title: content.title,
-      description: content.description,
-    }));
+    // Use full content objects for SectionOne to work with getPrimaryImageUrl
+    featuredPosters.value = response.data;
 
     // Preload all images for featured content
-    try {
-      await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some featured images:", error);
+    if (featuredPosters.value.length > 0) {
+      await preloadContentImages(featuredPosters.value);
     }
   });
 };
-
 
 // Fetch data when component mounts
 onMounted(async () => {

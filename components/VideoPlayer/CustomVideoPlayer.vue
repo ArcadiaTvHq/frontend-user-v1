@@ -6,6 +6,7 @@
     <div class="relative w-full h-full">
       <video
         ref="videoPlayer"
+        :src="useDirectUrl ? videoUrl : null"
         :poster="poster"
         :autoplay="autoplay"
         :muted="muted"
@@ -24,6 +25,8 @@
         @timeupdate="handleTimeUpdate"
         @click="handleVideoClick"
         @loadedmetadata="onLoadedMetadata"
+        @progress="onProgress"
+        @canplaythrough="onCanPlayThrough"
       >
         <!-- Fallback message -->
         <p class="text-white text-center p-4">
@@ -31,34 +34,100 @@
         </p>
       </video>
 
-      <!-- Loading/Buffering Overlay -->
+      <!-- Minimal Loading Indicator - Only show when actually buffering -->
       <div
-        v-if="!streamUrl || !canPlay || bufferedPercent < 10"
-        class="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10"
-        :style="
-          bannerImage
-            ? `background-image: url(${buildImageUrl(
-                bannerImage,
-                'size3'
-              )}); background-size: cover; background-position: center;`
-            : ''
-        "
+        v-if="isBuffering && streamUrl"
+        class="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm z-10"
       >
-        <div v-if="showLoading" class="text-center relative z-10">
-          <img
-            class="w-[100px] h-[100px] object-contain animate-pulse mb-4"
-            src="@/assets/logo2.png"
-            alt="Loading"
-          />
-          <p class="mb-2 text-lg font-medium text-white">
-            {{ getLoadingMessage() }}
-          </p>
-          <p
-            v-if="streamUrl && bufferedPercent > 0"
-            class="text-sm text-gray-300"
-          >
-            {{ Math.round(bufferedPercent) }}% buffered
-          </p>
+        <div class="flex items-center space-x-2">
+          <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          <span>Buffering...</span>
+        </div>
+      </div>
+
+      <!-- Playback Session Status Overlay -->
+      <!-- <div
+        v-if="isSessionActive && showSessionStatus"
+        class="absolute top-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg text-sm z-20"
+      >
+        <div class="flex items-center space-x-2">
+          <div
+            :class="[
+              'w-2 h-2 rounded-full',
+              isTokenExpiringSoon ? 'bg-yellow-500' : 'bg-green-500',
+            ]"
+          ></div>
+          <span>{{
+            isTokenExpiringSoon ? "Token Expiring Soon" : "Session Active"
+          }}</span>
+        </div>
+        <div class="text-xs text-gray-300 mt-1">
+          Expires in {{ Math.floor(tokenExpiresIn / 60) }}:{{
+            (tokenExpiresIn % 60).toString().padStart(2, "0")
+          }}
+        </div>
+      </div> -->
+
+      <!-- Advert Overlay -->
+      <AdvertOverlay
+        :show="showAdvertOverlay"
+        :advert="currentAdvert"
+        :skip-delay="5"
+        @close="onAdvertClose"
+        @skip="onAdvertSkip"
+        @visit="onAdvertVisit"
+      />
+
+      <!-- Error Overlay -->
+      <div
+        v-if="error && !isLoading"
+        class="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-30"
+      >
+        <div class="text-center max-w-md mx-auto p-6">
+          <div class="error-icon mb-4">
+            <svg
+              class="w-16 h-16 text-red-500 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Playback Error</h3>
+          <p class="text-gray-300 mb-6 leading-relaxed">{{ error.message }}</p>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              @click="retryPlayback"
+              class="retry-button inline-flex items-center px-4 py-2 bg-[#FFD005] hover:bg-[#CE8F00] text-black font-medium rounded-lg transition-colors duration-200"
+            >
+              <svg
+                class="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Retry
+            </button>
+            <button
+              @click="resetError"
+              class="reset-button inline-flex items-center px-4 py-2 bg-transparent hover:bg-white hover:bg-opacity-10 text-white font-medium rounded-lg border border-white border-opacity-30 transition-all duration-200"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -67,9 +136,12 @@
 
 <script setup>
 import { ref, onMounted, watch, nextTick, onUnmounted } from "vue";
-import { ContentService } from "~/api/services/content.service";
 import { buildImageUrl, preloadImage } from "~/src/utils/helpers";
+import { usePlaybackSession } from "~/composables/usePlaybackSession.js";
 import Hls from "hls.js";
+import AdvertOverlay from "~/components/AdvertOverlay/AdvertOverlay.vue";
+import { useAdvertStore } from "~/stores/adverts";
+import { AdvertService } from "~/api/services/advert.service";
 
 const props = defineProps({
   contentId: {
@@ -87,12 +159,23 @@ const props = defineProps({
   },
   poster: String,
   autoplay: { type: Boolean, default: true },
-  muted: { type: Boolean, default: true },
+  muted: { type: Boolean, default: false },
   controls: { type: Boolean, default: true },
   preload: { type: String, default: "auto" },
   loop: { type: Boolean, default: true },
   volume: { type: Number, default: 1.0 },
   showLoading: { type: Boolean, default: true },
+  showSessionStatus: { type: Boolean, default: true },
+  // New prop for direct video URL (non-expiring Cloudflare HLS)
+  videoUrl: {
+    type: String,
+    default: null,
+  },
+  // Flag to indicate if using direct URL instead of session-based
+  useDirectUrl: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -102,13 +185,37 @@ const emit = defineEmits([
   "videoPaused",
   "videoEnded",
   "timeUpdate",
+  "sessionStarted",
+  "sessionStopped",
+  "tokenRefreshed",
 ]);
+
+// Playback session composable
+const {
+  currentSession,
+  isSessionActive,
+  isLoading: sessionLoading,
+  error: sessionError,
+  stats,
+  sessionDuration,
+  tokenExpiresIn,
+  isTokenExpiringSoon,
+  isTokenValid,
+  startPlayback,
+  updatePlayback,
+  stopPlayback,
+  autoUpdateVideoUrl,
+  sendHeartbeat: composableSendHeartbeat,
+} = usePlaybackSession();
+
+// Advert store
+const advertStore = useAdvertStore();
 
 // Reactive state
 const videoPlayer = ref(null);
 const streamUrl = ref(null);
 const isLoading = ref(true);
-const loadingMessage = ref("Loading...");
+// Loading message removed - simplified loading experience
 const error = ref(null);
 const isPlaying = ref(false);
 const isBuffering = ref(false);
@@ -119,8 +226,102 @@ const bufferedPercent = ref(0);
 const lastEmittedSecond = ref(-1);
 const canPlay = ref(false);
 
+// Advert state
+const showAdvertOverlay = ref(false);
+const currentAdvert = ref(null);
+const hasShownBeginningAd = ref(false);
+
+// Simplified advert flow: show beginning ads immediately when video loads
+onMounted(() => {
+  // Small delay to ensure everything is initialized
+  setTimeout(() => {
+    if (advertStore.adverts && advertStore.adverts.length > 0) {
+      // Video loaded, showing beginning advert immediately
+      showBeginningAdvert();
+    } else {
+      // No adverts available, starting main video directly
+      // Start main video if no ads
+      if (videoPlayer.value && videoPlayer.value.paused) {
+        // Double-check that no advert overlay is active
+        if (!showAdvertOverlay.value) {
+          safePlay(false, "high").catch((err) => {
+            // Failed to start main video
+          });
+        } else {
+          // Advert overlay still active, waiting for completion
+        }
+      }
+    }
+  }, 1000); // 1 second delay to ensure video player is ready
+});
+
 // HLS instance
 let hlsInstance = null;
+
+// Advanced playback session management
+let heartbeatInterval = null;
+let tokenRefreshInterval = null;
+
+// Advanced playback state coordination system
+let playbackState = "playing"; // 'playing', 'paused', 'resuming', 'pausing'
+let isManualResume = false;
+let resumeCooldown = false;
+
+// Unified playback control system
+let playbackQueue = [];
+let isProcessingPlayback = false;
+let lastPlaybackAction = 0;
+let playbackActionCooldown = 500; // Minimum 500ms between actions
+
+// Proactive buffer monitoring system
+let bufferMonitorInterval = null;
+let lastQualityLevel = -1;
+let bufferWarningShown = false;
+let bufferCriticalShown = false;
+let isBufferRebuilding = false;
+let bufferRebuildTimer = null;
+
+// Pre-buffering system for seamless token refresh
+let isPreloading = false;
+let preloadBufferReady = false;
+let preloadUrl = null;
+let preloadExpiry = null;
+let preloadHls = null;
+let isStreamReady = false;
+let isSourceSwitching = false;
+
+// Buffering threshold settings
+const MIN_BUFFER_LENGTH = 15; // Minimum 15 seconds of buffer before playing
+const TARGET_BUFFER_LENGTH = 30; // Target 30 seconds of buffer for smooth playback
+
+// Network optimization settings
+const NETWORK_OPTIMIZATION = {
+  // Adaptive buffering based on network conditions
+  adaptiveBufferLength: true,
+  minBufferLength: 10, // Reduced for faster start
+  maxBufferLength: 60, // Increased for network resilience
+
+  // Quality adaptation
+  enableQualityAdaptation: true,
+  qualitySwitchThreshold: 0.8, // 80% buffer before quality increase
+  qualityDropThreshold: 0.3, // 30% buffer before quality decrease
+
+  // Network resilience
+  maxRetryAttempts: 3,
+  retryDelay: 2000,
+  networkTimeout: 10000,
+
+  // Buffer management
+  aggressiveBufferManagement: true,
+  bufferRebuildThreshold: 0.2, // Rebuild buffer if below 20%
+
+  // Proactive buffer monitoring
+  proactiveBufferMonitoring: true,
+  criticalBufferThreshold: 10, // Critical buffer level (seconds)
+  warningBufferThreshold: 15, // Warning buffer level (seconds)
+  qualityReductionThreshold: 12, // Reduce quality when buffer < 12s
+  bufferCheckInterval: 1000, // Check buffer every 1 second
+};
 
 // Helper function to format time
 const formatTime = (seconds) => {
@@ -130,37 +331,446 @@ const formatTime = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
-// Helper function to calculate buffered percentage
-const calculateBufferedPercent = () => {
-  // Simple approach: show 0% when loading, 100% when ready
-  if (!videoPlayer.value || videoPlayer.value.readyState < 4) {
-    return 0;
+// Coordinated playback control system
+const coordinatedPlay = () => {
+  if (playbackState === "resuming" || resumeCooldown) {
+    console.log("Playback resumption already in progress - skipping");
+    return Promise.resolve();
   }
-  return 100;
+
+  playbackState = "resuming";
+  isManualResume = true;
+
+  console.log("Coordinated play request initiated");
+
+  return videoPlayer.value
+    .play()
+    .then(() => {
+      console.log("Coordinated play successful");
+      playbackState = "playing";
+      isManualResume = false;
+      return Promise.resolve();
+    })
+    .catch((error) => {
+      console.log(`Coordinated play failed: ${error.message}`);
+      playbackState = "paused";
+      isManualResume = false;
+      return Promise.reject(error);
+    });
 };
 
-// Helper function to get loading message
-const getLoadingMessage = () => {
-  if (!streamUrl.value) {
-    return loadingMessage.value;
+const coordinatedPause = () => {
+  if (playbackState === "pausing" || playbackState === "paused") {
+    console.log(
+      "Playback pause already in progress or already paused - skipping"
+    );
+    return;
   }
-  if (!canPlay.value) {
-    return "Loading video...";
-  }
-  if (bufferedPercent.value < 10) {
-    return "Buffering...";
-  }
-  return "Loading...";
+
+  playbackState = "pausing";
+  console.log("Coordinated pause request initiated");
+
+  videoPlayer.value.pause();
+  playbackState = "paused";
+  console.log("Coordinated pause completed");
 };
+
+const isPlaybackStable = () => {
+  return playbackState === "playing" && !isManualResume && !resumeCooldown;
+};
+
+const isPlaybackResumable = () => {
+  return playbackState === "paused" && !isManualResume && !resumeCooldown;
+};
+
+const setResumeCooldown = (duration = 2000) => {
+  resumeCooldown = true;
+  console.log(`Setting resume cooldown for ${duration}ms`);
+  setTimeout(() => {
+    resumeCooldown = false;
+    console.log("Resume cooldown expired");
+  }, duration);
+};
+
+// UNIFIED PLAYBACK CONTROL SYSTEM
+const queuePlaybackAction = (action, priority = "normal") => {
+  const now = Date.now();
+  const timeSinceLastAction = now - lastPlaybackAction;
+
+  // If we're still in cooldown, skip this action
+  if (timeSinceLastAction < playbackActionCooldown) {
+    console.log(
+      `Skipping playback action - cooldown active (${timeSinceLastAction}ms < ${playbackActionCooldown}ms)`
+    );
+    return Promise.resolve();
+  }
+
+  // Add to queue with priority
+  const queueItem = {
+    action,
+    priority,
+    timestamp: now,
+    id: Math.random().toString(36).substr(2, 9),
+  };
+
+  if (priority === "high") {
+    playbackQueue.unshift(queueItem); // High priority goes to front
+  } else {
+    playbackQueue.push(queueItem); // Normal priority goes to back
+  }
+
+  console.log(
+    `Queued playback action: ${action.type} (priority: ${priority}, queue length: ${playbackQueue.length})`
+  );
+
+  // Process queue if not already processing
+  if (!isProcessingPlayback) {
+    processPlaybackQueue();
+  }
+
+  return new Promise((resolve, reject) => {
+    queueItem.resolve = resolve;
+    queueItem.reject = reject;
+  });
+};
+
+const processPlaybackQueue = async () => {
+  if (isProcessingPlayback || playbackQueue.length === 0) {
+    return;
+  }
+
+  isProcessingPlayback = true;
+
+  while (playbackQueue.length > 0) {
+    const item = playbackQueue.shift();
+
+    try {
+      console.log(`Processing playback action: ${item.action.type}`);
+
+      // Execute the action
+      const result = await executePlaybackAction(item.action);
+
+      // Update last action timestamp
+      lastPlaybackAction = Date.now();
+
+      // Resolve the promise
+      if (item.resolve) {
+        item.resolve(result);
+      }
+
+      console.log(`Playback action completed: ${item.action.type}`);
+
+      // Wait for cooldown before next action
+      await new Promise((resolve) =>
+        setTimeout(resolve, playbackActionCooldown)
+      );
+    } catch (error) {
+      console.log(
+        `Playback action failed: ${item.action.type} - ${error.message}`
+      );
+
+      // Reject the promise
+      if (item.reject) {
+        item.reject(error);
+      }
+    }
+  }
+
+  isProcessingPlayback = false;
+  console.log("Playback queue processing completed");
+};
+
+const executePlaybackAction = async (action) => {
+  switch (action.type) {
+    case "play":
+      if (playbackState === "resuming" || resumeCooldown) {
+        console.log(
+          "⏸️ Playback resumption already in progress, skipping duplicate request"
+        );
+        return Promise.resolve(); // Return resolved promise instead of throwing error
+      }
+
+      playbackState = "resuming";
+      isManualResume = action.manual || false;
+
+      console.log(`Executing play action (manual: ${action.manual})`);
+
+      try {
+        const result = await videoPlayer.value.play();
+        playbackState = "playing";
+        isManualResume = false;
+        return result;
+      } catch (error) {
+        playbackState = "paused"; // Reset state on error
+        isManualResume = false;
+        throw error;
+      }
+
+    case "pause":
+      if (playbackState === "pausing" || playbackState === "paused") {
+        console.log("Pause already in progress or already paused - skipping");
+        return;
+      }
+
+      playbackState = "pausing";
+      console.log("Executing pause action");
+
+      videoPlayer.value.pause();
+      playbackState = "paused";
+
+      return;
+
+    default:
+      throw new Error(`Unknown playback action: ${action.type}`);
+  }
+};
+
+// Simplified playback control functions
+const safePlay = (manual = false, priority = "normal") => {
+  return queuePlaybackAction({ type: "play", manual }, priority);
+};
+
+const safePause = (priority = "normal") => {
+  return queuePlaybackAction({ type: "pause" }, priority);
+};
+
+// Helper function to calculate buffered percentage
+const calculateBufferedPercent = () => {
+  if (!videoPlayer.value) return 0;
+
+  // Get actual buffered ranges from video element
+  const buffered = videoPlayer.value.buffered;
+  if (buffered.length === 0) return 0;
+
+  const duration = videoPlayer.value.duration || 0;
+  if (duration === 0) return 0;
+
+  // Calculate total buffered time
+  let bufferedTime = 0;
+  for (let i = 0; i < buffered.length; i++) {
+    bufferedTime += buffered.end(i) - buffered.start(i);
+  }
+
+  // Return percentage of video that's buffered
+  return Math.round((bufferedTime / duration) * 100);
+};
+
+// Playback session heartbeat and token refresh functions
+//
+// API Endpoints:
+// - /start-playback: Starts a new session (called once)
+// - /update-playback: Gets a new token (called every 4 minutes 30 seconds)
+// - /heartbeat: Keeps session alive (called every minute)
+//
+const sendHeartbeat = async () => {
+  if (!isSessionActive.value || !props.contentId) return;
+
+  try {
+    // Send heartbeat to keep session alive using the composable's function
+    console.log("💓 Sending heartbeat for content:", props.contentId);
+
+    // Call the composable's sendHeartbeat function which calls /heartbeat API
+    // This keeps the session alive WITHOUT refreshing the token
+    await composableSendHeartbeat(props.contentId);
+
+    // Check if token is expiring soon and refresh if needed
+    if (isTokenExpiringSoon.value) {
+      console.log("⚠️ Token expiring soon, refreshing playback session...");
+      await updatePlayback(props.contentId);
+      emit("tokenRefreshed");
+    }
+  } catch (err) {
+    console.warn("⚠️ Heartbeat failed:", err);
+  }
+};
+
+const startHeartbeat = () => {
+  if (!props.contentId) return;
+
+  // Clear existing interval
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+
+  // Send heartbeat every 5 minutes (300 seconds)
+  heartbeatInterval = setInterval(() => {
+    sendHeartbeat();
+  }, 300000);
+
+  console.log("💓 Started heartbeat (every 5 minutes)");
+};
+
+const startTokenRefresh = () => {
+  if (!props.contentId) return;
+
+  // Clear existing interval
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+
+  // Get new token every 13 minutes (780 seconds) for proactive switching
+  // This ensures we always have a fresh URL before the old one expires
+  tokenRefreshInterval = setInterval(async () => {
+    if (isSessionActive.value) {
+      console.log("🔄 Proactive token refresh triggered (every 13 minutes)");
+      try {
+        // Start pre-buffering for seamless transition (background process)
+        if (!isPreloading && !preloadBufferReady) {
+          console.log("🔄 Starting pre-buffering for seamless token refresh");
+          startPreBuffering();
+        }
+
+        // Call /update-playback API to get a new token immediately
+        const response = await updatePlayback(props.contentId);
+        emit("tokenRefreshed");
+
+        // ALWAYS switch to new URL immediately when response is received
+        if (response && response.token) {
+          console.log(
+            "🔄 New token received, switching immediately:",
+            response.token.substring(0, 50) + "..."
+          );
+
+          // Store current playback state
+          const currentTime = videoPlayer.value.currentTime;
+          const wasPlaying = !videoPlayer.value.paused;
+          const currentVolume = videoPlayer.value.volume;
+          const currentPlaybackRate = videoPlayer.value.playbackRate;
+
+          console.log(
+            "🔄 Preserving state: time=" +
+              currentTime.toFixed(2) +
+              "s, playing=" +
+              wasPlaying
+          );
+
+          // Switch to new stream immediately using the new token
+          await switchToNewStream(
+            response.token,
+            currentTime,
+            wasPlaying,
+            currentVolume,
+            currentPlaybackRate
+          );
+
+          // Update the session with new token for future reference
+          if (currentSession.value) {
+            currentSession.value.token = response.token;
+            currentSession.value.expires_at =
+              response.expires_at || response.expires_in_seconds;
+          }
+
+          console.log("✅ URL switched successfully to new token");
+        } else {
+          console.warn("⚠️ No token found in update-playback response");
+        }
+      } catch (err) {
+        console.error("❌ Failed to refresh token:", err);
+      }
+    }
+  }, 780000); // 13 minutes
+
+  console.log("🔄 Started proactive token refresh (every 13 minutes)");
+};
+
+// Smart token refresh with adaptive timing
+const startSmartTokenRefresh = () => {
+  if (!props.contentId) return;
+
+  // Clear existing interval
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+
+  // Smart token refresh: every 13 minutes with immediate switching
+  tokenRefreshInterval = setInterval(async () => {
+    if (isSessionActive.value) {
+      console.log("🔄 Smart token refresh triggered (every 13 minutes)");
+      try {
+        // Start pre-buffering for seamless transition (background process)
+        if (!isPreloading && !preloadBufferReady) {
+          console.log("🔄 Starting pre-buffering for seamless token refresh");
+          startPreBuffering();
+        }
+
+        // Call /update-playback API to get a new token
+        const response = await updatePlayback(props.contentId);
+        emit("tokenRefreshed");
+
+        // ALWAYS switch to new URL immediately when response is received
+        if (response && response.token) {
+          console.log(
+            "🔄 New token received, switching immediately:",
+            response.token.substring(0, 50) + "..."
+          );
+
+          // Store current playback state
+          const currentTime = videoPlayer.value.currentTime;
+          const wasPlaying = !videoPlayer.value.paused;
+          const currentVolume = videoPlayer.value.volume;
+          const currentPlaybackRate = videoPlayer.value.playbackRate;
+
+          console.log(
+            "🔄 Preserving state: time=" +
+              currentTime.toFixed(2) +
+              "s, playing=" +
+              wasPlaying
+          );
+
+          // Switch to new stream immediately using the new token
+          await switchToNewStream(
+            response.token,
+            currentTime,
+            wasPlaying,
+            currentVolume,
+            currentPlaybackRate
+          );
+
+          // Update the session with new token for future reference
+          if (currentSession.value) {
+            currentSession.value.token = response.token;
+            currentSession.value.expires_at =
+              response.expires_at || response.expires_in_seconds;
+          }
+
+          console.log("✅ URL switched successfully to new token");
+        } else {
+          console.warn("⚠️ No token found in update-playback response");
+        }
+      } catch (err) {
+        console.error("❌ Failed to refresh token:", err);
+      }
+    }
+  }, 780000); // 13 minutes
+
+  console.log("🔄 Started smart token refresh (every 13 minutes)");
+};
+
+// Loading message is no longer needed - simplified loading experience
 
 // Event handlers
 const onCanPlay = () => {
-  console.log("✅ Video can play");
   canPlay.value = true;
   isLoading.value = false;
 
   // Force a buffering check when video can play
   bufferedPercent.value = calculateBufferedPercent();
+
+  // Start periodic buffering check
+  startBufferingCheck();
+
+  // Ensure video is unmuted for perfect viewing experience
+  if (videoPlayer.value && props.muted === false) {
+    videoPlayer.value.muted = false;
+    // Video unmuted for perfect viewing experience
+  }
+
+  // Auto-play immediately when video can play using coordinated system
+  if (props.autoplay && !isPlaying.value) {
+    safePlay(false, "high").catch((err) => {
+      console.warn("Auto-play failed:", err);
+    });
+  }
 
   emit("ready");
 };
@@ -188,35 +798,194 @@ const onError = (e) => {
   });
 
   let errorMessage = "Video cannot be played. Please try again.";
+  let errorType = "UNKNOWN";
 
   switch (errorCode) {
     case 1:
-      errorMessage = "Video loading was aborted.";
+      errorMessage = "Video loading was aborted. Please try again.";
+      errorType = "ABORTED";
       break;
     case 2:
-      errorMessage = "Network error occurred while loading video.";
+      errorMessage =
+        "Network error occurred while loading video. Please check your connection.";
+      errorType = "NETWORK";
       break;
     case 3:
-      errorMessage = "Video decoding failed.";
+      errorMessage =
+        "Video decoding failed. This video format may not be supported.";
+      errorType = "DECODE";
       break;
     case 4:
-      errorMessage = "Video format is not supported.";
+      errorMessage = "Video format is not supported by your browser.";
+      errorType = "FORMAT";
       break;
+    default:
+      errorMessage = "An unexpected error occurred while playing the video.";
+      errorType = "UNKNOWN";
   }
 
-  error.value = errorMessage;
-  emit("error", { code: errorCode, message: errorMessage });
+  // Enhanced error object with more context
+  const enhancedError = {
+    code: errorCode,
+    message: errorMessage,
+    type: errorType,
+    timestamp: new Date().toISOString(),
+    videoSrc: video.src,
+    currentSrc: video.currentSrc,
+    networkState: video.networkState,
+    readyState: video.readyState,
+    error: video.error,
+  };
+
+  error.value = enhancedError;
+  emit("error", enhancedError);
+
+  // Log detailed error for debugging
+  console.error("Enhanced video error:", enhancedError);
+};
+
+// Retry playback functionality
+const retryPlayback = async () => {
+  console.log("🔄 Retrying playback...");
+
+  try {
+    // Reset error state
+    error.value = null;
+    isLoading.value = true;
+
+    // Check if we need to update the playback session first
+    if (props.contentId && isSessionActive.value) {
+      console.log(
+        "🔄 Checking if playback session needs update before retry..."
+      );
+      try {
+        await updatePlayback(props.contentId);
+        console.log("✅ Playback session updated successfully");
+      } catch (sessionError) {
+        console.warn(
+          "⚠️ Failed to update playback session, continuing with retry:",
+          sessionError
+        );
+      }
+    }
+
+    // Reset video player
+    if (videoPlayer.value) {
+      videoPlayer.value.currentTime = 0;
+      videoPlayer.value.load();
+    }
+
+    // Reinitialize streaming
+    await initializeStreaming();
+
+    console.log("✅ Playback retry successful");
+  } catch (retryError) {
+    console.error("❌ Playback retry failed:", retryError);
+
+    // Check if it's an authentication error
+    if (retryError.message && retryError.message.includes("401")) {
+      error.value = {
+        code: "AUTH_ERROR",
+        message:
+          "Authentication failed. Please refresh the page and try again.",
+        type: "AUTH",
+        timestamp: new Date().toISOString(),
+        originalError: retryError.message,
+      };
+    } else {
+      error.value = {
+        code: "RETRY_FAILED",
+        message: "Failed to retry playback. Please refresh the page.",
+        type: "RETRY",
+        timestamp: new Date().toISOString(),
+        originalError: retryError.message,
+      };
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Reset error state
+const resetError = () => {
+  console.log("🔄 Resetting error state...");
+  error.value = null;
+};
+
+// Handle HLS 401/403 errors by updating playback session and retrying
+const handleHls401Error = async () => {
+  console.log("🔐 Handling HLS 401/403 error - updating playback session...");
+
+  try {
+    // Show loading state
+    isLoading.value = true;
+
+    // Update the playback session to get a new token
+    if (props.contentId && isSessionActive.value) {
+      console.log("🔄 Updating playback session for new token...");
+      await updatePlayback(props.contentId);
+
+      // Wait a moment for the token to be updated
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Reinitialize streaming with new token
+      console.log("🔄 Reinitializing streaming with new token...");
+      await initializeStreaming();
+
+      console.log("✅ Successfully recovered from 401/403 error");
+
+      // Clear any existing errors
+      error.value = null;
+
+      // Emit success event
+      emit("tokenRefreshed");
+    } else {
+      console.warn(
+        "⚠️ Cannot update playback session - no active session or content ID"
+      );
+      throw new Error("No active playback session to update");
+    }
+  } catch (error) {
+    console.error("❌ Failed to handle HLS 401/403 error:", error);
+
+    // Set error state for user to see
+    error.value = {
+      code: "AUTH_ERROR",
+      message: "Authentication failed. Please refresh the page and try again.",
+      type: "AUTH",
+      timestamp: new Date().toISOString(),
+      originalError: error.message,
+    };
+
+    // Emit error for parent component
+    emit("error", error.value);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const handlePlay = () => {
   isPlaying.value = true;
   console.log("▶️ Play event triggered");
   emit("videoStarted");
+
+  console.log("🎬 About to show beginning advert...");
+  // Show beginning advert if not shown yet
+  showBeginningAdvert();
 };
 
 const handlePause = () => {
   isPlaying.value = false;
   emit("videoPaused");
+
+  console.log("⏸️ About to show pause advert...");
+
+  // Only show pause advert if beginning ads are not active
+  if (!showAdvertOverlay.value || hasShownBeginningAd.value) {
+    showPauseAdvert();
+  } else {
+    console.log("⏸️ Skipping pause advert - beginning ads are still active");
+  }
 };
 
 const handleEnded = () => {
@@ -233,20 +1002,10 @@ const handleTimeUpdate = (e) => {
   progressPercent.value = total > 0 ? (current / total) * 100 : 0;
   bufferedPercent.value = calculateBufferedPercent();
 
-  // Auto-play when both conditions are met
-  if (
-    canPlay.value &&
-    bufferedPercent.value >= 10 &&
-    !isPlaying.value &&
-    props.autoplay
-  ) {
-    console.log(
-      "🚀 Auto-playing video - canPlay:",
-      canPlay.value,
-      "buffered:",
-      Math.round(bufferedPercent.value) + "%"
-    );
-    videoPlayer.value.play().catch((err) => {
+  // Auto-play when video can play and autoplay is enabled using coordinated system
+  if (canPlay.value && !isPlaying.value && props.autoplay) {
+    console.log("🚀 Auto-playing video - canPlay:", canPlay.value);
+    safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
     });
   }
@@ -275,9 +1034,324 @@ const onLoadedMetadata = () => {
   bufferedPercent.value = calculateBufferedPercent();
 };
 
+const onProgress = () => {
+  // Update buffering progress when new data is downloaded
+  bufferedPercent.value = calculateBufferedPercent();
+  // Buffering progress
+};
+
+const onCanPlayThrough = () => {
+  console.log("🎯 Video can play through without buffering");
+  // Update buffering percentage one more time
+  bufferedPercent.value = calculateBufferedPercent();
+};
+
 const handleVideoClick = () => {
   if (!props.controls) {
     togglePlay();
+  }
+};
+
+// Advert methods
+const showBeginningAdvert = () => {
+  // showBeginningAdvert called
+
+  // Check if advert store is available
+  if (!advertStore) {
+    // Advert store not available
+    return;
+  }
+
+  // Adverts in store and beginning adverts
+
+  if (hasShownBeginningAd.value) {
+    // Beginning advert already shown, skipping
+    return;
+  }
+
+  // Check if we have any adverts at all
+  if (!advertStore.adverts || advertStore.adverts.length === 0) {
+    // No adverts available in store, skipping beginning advert
+    return;
+  }
+
+  // Use the beginningAdverts computed property directly since it already filters for video adverts with beginning position
+  if (advertStore.beginningAdverts.length === 0) {
+    // No beginning video adverts available
+    return;
+  }
+
+  // Get a random advert from the already-filtered beginning adverts
+  const beginningAdvert = AdvertService.getRandomAdvert(
+    advertStore.beginningAdverts
+  );
+  // Selected beginning advert
+
+  if (beginningAdvert) {
+    // Ensure main video is paused before showing ads
+    if (videoPlayer.value && !videoPlayer.value.paused) {
+      // Pausing main video for beginning advert
+      videoPlayer.value.pause();
+    }
+
+    currentAdvert.value = beginningAdvert;
+    showAdvertOverlay.value = true;
+    hasShownBeginningAd.value = true;
+
+    // Beginning advert overlay shown - main video paused in background
+  } else {
+    // No beginning advert available
+  }
+};
+
+const showPauseAdvert = () => {
+  console.log("⏸️ showPauseAdvert called");
+
+  // Prevent pause ads during beginning ads
+  if (showAdvertOverlay.value && hasShownBeginningAd.value === false) {
+    console.log("⏸️ Skipping pause advert - beginning ads are still active");
+    return;
+  }
+
+  // Check if advert store is available
+  if (!advertStore) {
+    console.log("❌ Advert store not available");
+    return;
+  }
+
+  console.log("🔍 Pause adverts:", advertStore.pauseAdverts);
+
+  // Check if we have any adverts at all
+  if (!advertStore.adverts || advertStore.adverts.length === 0) {
+    console.log("📭 No adverts available in store, skipping pause advert");
+    return;
+  }
+
+  // Use the pauseAdverts computed property directly since it already filters for image adverts
+  if (advertStore.pauseAdverts.length === 0) {
+    console.log(
+      "📭 No pause image adverts available - video will remain paused"
+    );
+    // Don't return here - let the video stay paused
+    return;
+  }
+
+  // Get a random advert from the already-filtered pause adverts
+  const pauseAdvert = AdvertService.getRandomAdvert(advertStore.pauseAdverts);
+  console.log("🎯 Selected pause advert:", pauseAdvert);
+
+  if (pauseAdvert) {
+    // Pause the main video before showing advert to prevent conflicts
+    if (videoPlayer.value && !videoPlayer.value.paused) {
+      console.log("⏸️ Pausing main video before showing pause advert");
+      videoPlayer.value.pause();
+    }
+
+    currentAdvert.value = pauseAdvert;
+    showAdvertOverlay.value = true;
+    console.log("✅ Pause advert overlay shown");
+  } else {
+    console.log("❌ No pause advert available - video will remain paused");
+  }
+};
+
+const onAdvertClose = () => {
+  console.log(
+    "🎬 onAdvertClose called - advert completed (manual close or natural completion)"
+  );
+
+  // Store the advert type before cleaning up (to determine behavior)
+  const advertType = currentAdvert.value?.type;
+  const isBeginningAd =
+    !hasShownBeginningAd.value ||
+    advertType === "short_video" ||
+    advertType === "long_video";
+
+  console.log("🎯 Advert type:", advertType, "Is beginning ad:", isBeginningAd);
+
+  // Clean up advert state
+  showAdvertOverlay.value = false;
+  currentAdvert.value = null;
+
+  // Reset playback state to allow starting the main video
+  if (playbackState === "resuming" || playbackState === "playing") {
+    console.log("🔄 Resetting playback state from", playbackState, "to paused");
+    playbackState = "paused";
+  }
+
+  // Ensure advert state is fully cleaned up before proceeding
+  nextTick(() => {
+    if (isBeginningAd) {
+      console.log(
+        "🧹 Beginning advert state cleaned up, ready to start main video"
+      );
+    } else {
+      console.log("🧹 Pause advert state cleaned up, video will remain paused");
+    }
+  });
+
+  // Debug: Check video player state
+  console.log("🔍 Video player state after reset:", {
+    videoPlayerExists: !!videoPlayer.value,
+    isPaused: videoPlayer.value?.paused,
+    playbackState,
+    isPlaying: isPlaying.value,
+    canPlay: canPlay.value,
+  });
+
+  // Only start playing the main video for beginning ads, not pause ads
+  if (isBeginningAd && videoPlayer.value && videoPlayer.value.paused) {
+    console.log("▶️ Starting main video after beginning advert completion");
+
+    // Check if video is ready to play
+    if (!canPlay.value) {
+      console.log("⏳ Video not ready to play yet, waiting...");
+      // Wait for video to be ready
+      const checkCanPlay = setInterval(() => {
+        if (canPlay.value) {
+          clearInterval(checkCanPlay);
+          console.log("✅ Video is now ready, starting playback");
+          startMainVideo();
+        }
+      }, 100);
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkCanPlay);
+        console.log("⏰ Timeout waiting for video to be ready, trying anyway");
+        startMainVideo();
+      }, 5000);
+      return;
+    }
+
+    // Video is ready, start it
+    startMainVideo();
+  } else if (!isBeginningAd) {
+    console.log(
+      "⏸️ Pause advert closed - video will remain paused as expected"
+    );
+  } else {
+    console.log("⚠️ Cannot start main video:", {
+      videoPlayerExists: !!videoPlayer.value,
+      isPaused: videoPlayer.value?.paused,
+    });
+  }
+
+  // Helper function to start main video
+  function startMainVideo() {
+    console.log("🚀 Calling safePlay to start main video");
+
+    // Debug: Check current state
+    console.log("🔍 Current state before starting:", {
+      videoPlayerExists: !!videoPlayer.value,
+      isPaused: videoPlayer.value?.paused,
+      playbackState,
+      isPlaying: isPlaying.value,
+      canPlay: canPlay.value,
+      isLoading: isLoading.value,
+    });
+
+    // Try safePlay first
+    safePlay(false, "high")
+      .then(() => {
+        console.log("✅ Main video started successfully after advert");
+      })
+      .catch((err) => {
+        console.error("❌ safePlay failed, trying direct play:", err);
+
+        // Fallback: try direct play
+        if (videoPlayer.value && videoPlayer.value.paused) {
+          videoPlayer.value
+            .play()
+            .then(() => {
+              console.log("✅ Main video started with direct play");
+            })
+            .catch((directError) => {
+              console.error("❌ Direct play also failed:", directError);
+            });
+        }
+      });
+  }
+};
+
+const onAdvertSkip = () => {
+  console.log("🎬 onAdvertSkip called - advert skipped");
+
+  // Store the advert type before cleaning up (to determine behavior)
+  const advertType = currentAdvert.value?.type;
+  const isBeginningAd =
+    !hasShownBeginningAd.value ||
+    advertType === "short_video" ||
+    advertType === "long_video";
+
+  console.log("🎯 Advert type:", advertType, "Is beginning ad:", isBeginningAd);
+
+  showAdvertOverlay.value = false;
+  currentAdvert.value = null;
+
+  // Reset playback state to allow starting the main video
+  if (playbackState === "resuming" || playbackState === "playing") {
+    console.log("🔄 Resetting playback state from", playbackState, "to paused");
+    playbackState = "paused";
+  }
+
+  // Only start playing the main video for beginning ads, not pause ads
+  if (isBeginningAd && videoPlayer.value && videoPlayer.value.paused) {
+    console.log("▶️ Starting main video after beginning advert skip");
+
+    // Start the main video
+    safePlay(false, "high")
+      .then(() => {
+        console.log("✅ Main video started successfully after advert skip");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to start main video after advert skip:", err);
+      });
+  } else if (!isBeginningAd) {
+    console.log(
+      "⏸️ Pause advert skipped - video will remain paused as expected"
+    );
+  }
+};
+
+const onAdvertVisit = () => {
+  console.log("🎬 onAdvertVisit called - advert visited");
+
+  // Store the advert type before cleaning up (to determine behavior)
+  const advertType = currentAdvert.value?.type;
+  const isBeginningAd =
+    !hasShownBeginningAd.value ||
+    advertType === "short_video" ||
+    advertType === "long_video";
+
+  console.log("🎯 Advert type:", advertType, "Is beginning ad:", isBeginningAd);
+
+  // Advert was clicked, close overlay
+  showAdvertOverlay.value = false;
+  currentAdvert.value = null;
+
+  // Reset playback state to allow starting the main video
+  if (playbackState === "resuming" || playbackState === "playing") {
+    console.log("🔄 Resetting playback state from", playbackState, "to paused");
+    playbackState = "paused";
+  }
+
+  // Only start playing the main video for beginning ads, not pause ads
+  if (isBeginningAd && videoPlayer.value && videoPlayer.value.paused) {
+    console.log("▶️ Starting main video after beginning advert visit");
+
+    // Start the main video
+    safePlay(false, "high")
+      .then(() => {
+        console.log("✅ Main video started successfully after advert visit");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to start main video after advert visit:", err);
+      });
+  } else if (!isBeginningAd) {
+    console.log(
+      "⏸️ Pause advert visited - video will remain paused as expected"
+    );
   }
 };
 
@@ -316,6 +1390,517 @@ const retryLoad = () => {
   initializePlayer();
 };
 
+// Start buffering function
+const startBuffering = () => {
+  if (!videoPlayer.value) return;
+
+  // Starting buffering
+
+  // Set a small buffer ahead target to start buffering immediately
+  if (videoPlayer.value.buffered.length > 0) {
+    const currentTime = videoPlayer.value.currentTime || 0;
+    const bufferedEnd = videoPlayer.value.buffered.end(
+      videoPlayer.value.buffered.length - 1
+    );
+
+    // If we have buffered content ahead, start buffering more
+    if (bufferedEnd > currentTime) {
+      console.log("📦 Buffering ahead from current position");
+      // The browser will automatically start buffering more content
+    }
+  }
+
+  // Force a buffering check
+  bufferedPercent.value = calculateBufferedPercent();
+};
+
+// Advanced buffer monitoring and pre-buffering functions
+const startProactiveBufferMonitoring = () => {
+  if (bufferMonitorInterval) {
+    clearInterval(bufferMonitorInterval);
+  }
+
+  if (!NETWORK_OPTIMIZATION.proactiveBufferMonitoring) {
+    return;
+  }
+
+  // Starting proactive buffer monitoring
+
+  bufferMonitorInterval = setInterval(() => {
+    if (
+      !hlsInstance ||
+      !hlsInstance.media ||
+      isSourceSwitching ||
+      isBufferRebuilding
+    ) {
+      return; // Skip monitoring during source switches or buffer rebuilding
+    }
+
+    // Only skip monitoring during active resumption, not during stable playback
+    if (playbackState === "resuming") {
+      return; // Skip monitoring during active playback resumption
+    }
+
+    const currentBuffer = getCurrentBufferLength();
+    const criticalThreshold = NETWORK_OPTIMIZATION.criticalBufferThreshold;
+    const warningThreshold = NETWORK_OPTIMIZATION.warningBufferThreshold;
+    const qualityThreshold = NETWORK_OPTIMIZATION.qualityReductionThreshold;
+
+    // CRITICAL: Buffer below 10 seconds - immediate action required
+    if (currentBuffer < criticalThreshold) {
+      if (!bufferCriticalShown) {
+        bufferCriticalShown = true;
+      }
+
+      // Immediate quality reduction to lowest level
+      reduceQualityToLowest();
+
+      // Pause playback temporarily to rebuild buffer ONLY if not already rebuilding
+      if (
+        !videoPlayer.value.paused &&
+        currentBuffer < 5 &&
+        !isBufferRebuilding &&
+        playbackState === "playing"
+      ) {
+        console.log("Buffer critically low - pausing to rebuild");
+        isBufferRebuilding = true;
+        safePause("high"); // High priority pause
+
+        // Clear any existing rebuild timer
+        if (bufferRebuildTimer) {
+          clearTimeout(bufferRebuildTimer);
+        }
+
+        // Start buffer rebuilding process
+        startBufferRebuilding();
+      }
+    }
+    // WARNING: Buffer below 15 seconds - reduce quality
+    else if (currentBuffer < warningThreshold) {
+      if (!bufferWarningShown) {
+        bufferWarningShown = true;
+      }
+
+      // Reduce quality when buffer gets low
+      if (currentBuffer < qualityThreshold) {
+        reduceQualityByOne();
+      }
+    }
+    // Buffer is healthy - can increase quality
+    else {
+      // Reset warning flags
+      if (bufferWarningShown || bufferCriticalShown) {
+        bufferWarningShown = false;
+        bufferCriticalShown = false;
+      }
+
+      // Gradually increase quality if buffer is stable
+      if (currentBuffer > warningThreshold + 10) {
+        increaseQualityGradually();
+      }
+    }
+  }, NETWORK_OPTIMIZATION.bufferCheckInterval);
+};
+
+const startBufferRebuilding = () => {
+  console.log("Starting buffer rebuilding process...");
+
+  // Monitor buffer growth during rebuilding
+  const rebuildCheckInterval = setInterval(() => {
+    const currentBuffer = getCurrentBufferLength();
+    const targetBuffer = NETWORK_OPTIMIZATION.criticalBufferThreshold;
+
+    console.log(
+      `Buffer rebuilding: ${currentBuffer.toFixed(
+        1
+      )}s / ${targetBuffer}s target`
+    );
+
+    if (currentBuffer >= targetBuffer) {
+      // Buffer is sufficient, resume playback
+      clearInterval(rebuildCheckInterval);
+      resumePlaybackAfterRebuild();
+    }
+  }, 500); // Check every 500ms during rebuilding
+
+  // Set a maximum rebuild time to prevent infinite waiting
+  bufferRebuildTimer = setTimeout(() => {
+    clearInterval(rebuildCheckInterval);
+    console.log("Buffer rebuild timeout - resuming with available buffer");
+    resumePlaybackAfterRebuild();
+  }, 10000); // Max 10 seconds to rebuild
+};
+
+const resumePlaybackAfterRebuild = () => {
+  if (!isBufferRebuilding) return;
+
+  const currentBuffer = getCurrentBufferLength();
+  console.log(
+    `Buffer rebuilt to ${currentBuffer.toFixed(1)}s - resuming playback`
+  );
+
+  // Reset rebuilding state
+  isBufferRebuilding = false;
+  bufferCriticalShown = false;
+
+  // Resume playback using unified system
+  setTimeout(() => {
+    if (
+      videoPlayer.value.paused &&
+      currentBuffer >= NETWORK_OPTIMIZATION.criticalBufferThreshold
+    ) {
+      // Use unified playback control for automatic resumption
+      safePlay(false, "high")
+        .then(() => {
+          console.log("Playback resumed successfully after buffer rebuild");
+        })
+        .catch((error) => {
+          console.log(
+            `Failed to resume playback after buffer rebuild: ${error.message}`
+          );
+          // Don't retry immediately to avoid conflicts
+          setTimeout(() => {
+            if (videoPlayer.value.paused && playbackState === "paused") {
+              safePlay(false, "normal").catch((e) =>
+                console.log(`Retry failed: ${e.message}`)
+              );
+            }
+          }, 2000);
+        });
+    }
+  }, 100); // Reduced delay for faster resumption
+};
+
+const getCurrentBufferLength = () => {
+  if (!hlsInstance || !hlsInstance.media || !hlsInstance.media.buffered) {
+    return 0;
+  }
+
+  try {
+    const buffered = hlsInstance.media.buffered;
+    if (buffered.length === 0) return 0;
+
+    const currentTime = hlsInstance.media.currentTime;
+    let bufferLength = 0;
+
+    for (let i = 0; i < buffered.length; i++) {
+      const start = buffered.start(i);
+      const end = buffered.end(i);
+
+      if (currentTime >= start && currentTime < end) {
+        bufferLength = end - currentTime;
+        break;
+      }
+    }
+
+    return bufferLength;
+  } catch (error) {
+    return 0;
+  }
+};
+
+const reduceQualityToLowest = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
+    return;
+
+  const lowestLevel = hlsInstance.levels.length - 1;
+  if (hlsInstance.currentLevel !== lowestLevel) {
+    lastQualityLevel = hlsInstance.currentLevel;
+    hlsInstance.currentLevel = lowestLevel;
+    // Quality reduced to lowest level to preserve buffer
+  }
+};
+
+const reduceQualityByOne = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
+    return;
+
+  const currentLevel = hlsInstance.currentLevel;
+  if (currentLevel > 0) {
+    lastQualityLevel = currentLevel;
+    hlsInstance.currentLevel = currentLevel - 1;
+    // Quality reduced by one level to preserve buffer
+  }
+};
+
+const increaseQualityGradually = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
+    return;
+
+  const currentLevel = hlsInstance.currentLevel;
+  const maxLevel = hlsInstance.levels.length - 1;
+
+  // Only increase if we have room and buffer is stable
+  if (
+    currentLevel < maxLevel &&
+    getCurrentBufferLength() > NETWORK_OPTIMIZATION.warningBufferThreshold + 15
+  ) {
+    hlsInstance.currentLevel = currentLevel + 1;
+    // Quality increased by one level - buffer stable
+  }
+};
+
+// Pre-buffering system for seamless token refresh
+const startPreBuffering = async () => {
+  if (isPreloading || preloadHls) {
+    console.log("Pre-buffering already in progress");
+    return;
+  }
+
+  try {
+    isPreloading = true;
+    console.log("Starting to pre-buffer next stream...");
+
+    // Get new token for pre-buffering
+    const res = await updatePlayback(props.contentId);
+    if (!res) {
+      throw new Error("Failed to get token for pre-buffering");
+    }
+
+    const newUrl = res.token;
+    const newExpiry = parse_expiry(res);
+
+    console.log(
+      `Pre-buffering stream with token expiring at: ${new Date(
+        newExpiry
+      ).toISOString()}`
+    );
+
+    // Store for later use
+    preloadUrl = newUrl;
+    preloadExpiry = newExpiry;
+
+    // Create HLS instance for pre-buffering
+    preloadHls = new Hls({
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      maxBufferSize: 60 * 1000 * 1000, // 60MB
+      maxBufferHole: 0.1,
+      lowLatencyMode: false,
+      backBufferLength: 30,
+      autoStartLoad: true,
+      startLevel: -1,
+      enableWorker: true,
+    });
+
+    // Load the stream and start buffering
+    preloadHls.loadSource(newUrl);
+
+    preloadHls.on(Hls.Events.MANIFEST_PARSED, () => {
+      console.log(
+        "Pre-buffer stream manifest parsed, starting background buffering..."
+      );
+      preloadHls.startLoad();
+      monitorPreloadBuffer();
+    });
+
+    preloadHls.on(Hls.Events.LEVEL_LOADED, () => {
+      console.log("Pre-buffer stream segments loaded");
+    });
+
+    preloadHls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        console.log(`Fatal error in pre-buffer stream: ${data.details}`);
+
+        // Check if it's a 401/403 error in preload
+        if (
+          data.details === "FRAG_LOAD_ERROR" &&
+          data.response &&
+          (data.response.code === 401 || data.response.code === 403)
+        ) {
+          console.log(
+            "🔐 401/403 error in preload stream - will retry with new token"
+          );
+          // Don't destroy preload HLS instance yet, let the main error handler deal with it
+        } else {
+          // Clean up failed preload for other fatal errors
+          if (preloadHls) {
+            preloadHls.destroy();
+            preloadHls = null;
+          }
+          isPreloading = false;
+          preloadBufferReady = false;
+          isStreamReady = false;
+        }
+      }
+    });
+  } catch (error) {
+    console.log(`Pre-buffering failed: ${error.message}`);
+    isPreloading = false;
+  }
+};
+
+const monitorPreloadBuffer = () => {
+  if (!preloadHls) {
+    console.log("Pre-buffering HLS instance not initialized.");
+    return;
+  }
+
+  let consecutiveReadyChecks = 0;
+  const requiredConsecutiveChecks = 3; // Must be ready 3 times in a row
+  let lastBufferLength = 0;
+  let stabilityChecks = 0;
+  const maxStabilityChecks = 20; // Check stability over 2 seconds
+
+  const checkBuffer = () => {
+    if (!preloadHls.buffered || preloadHls.buffered.length === 0) {
+      // No buffer yet, check again in 100ms
+      setTimeout(checkBuffer, 100);
+      return;
+    }
+
+    // Calculate current buffer length
+    const currentTime = videoPlayer.value.currentTime;
+    let bufferLength = 0;
+
+    for (let i = 0; i < preloadHls.buffered.length; i++) {
+      const start = preloadHls.buffered.start(i);
+      const end = preloadHls.buffered.end(i);
+
+      if (currentTime >= start && currentTime < end) {
+        // Current time is within this buffer range
+        bufferLength = end - currentTime;
+        break;
+      }
+    }
+
+    // Check if buffer is stable (not fluctuating)
+    const bufferStable = Math.abs(bufferLength - lastBufferLength) < 0.5;
+    lastBufferLength = bufferLength;
+
+    if (bufferLength >= TARGET_BUFFER_LENGTH && bufferStable) {
+      consecutiveReadyChecks++;
+      console.log(
+        `Pre-buffer stability check ${consecutiveReadyChecks}/${requiredConsecutiveChecks}`
+      );
+
+      if (consecutiveReadyChecks >= requiredConsecutiveChecks) {
+        // Stream is truly ready - perform final readiness verification
+        performFinalReadinessCheck();
+        return;
+      }
+    } else {
+      // Reset consecutive checks if buffer is unstable
+      consecutiveReadyChecks = 0;
+    }
+
+    // Continue monitoring
+    if (stabilityChecks < maxStabilityChecks) {
+      stabilityChecks++;
+      setTimeout(checkBuffer, 100);
+    } else {
+      console.log("Pre-buffer stability timeout reached");
+      // Fallback: mark as ready if we have minimum buffer
+      if (bufferLength >= MIN_BUFFER_LENGTH) {
+        console.log("Fallback: Using minimum buffer for pre-buffer");
+        performFinalReadinessCheck();
+      }
+    }
+  };
+
+  // Start checking buffer
+  checkBuffer();
+};
+
+const performFinalReadinessCheck = () => {
+  if (!preloadHls) return;
+
+  console.log("Performing final readiness check for pre-buffered stream...");
+
+  // Check multiple readiness criteria
+  let readinessScore = 0;
+  const maxReadinessScore = 5;
+
+  // 1. Buffer length check
+  if (preloadHls.buffered && preloadHls.buffered.length > 0) {
+    readinessScore++;
+  }
+
+  // 2. Stream state check
+  if (preloadHls.media && preloadHls.media.readyState >= 2) {
+    readinessScore++;
+  }
+
+  // 3. HLS state check
+  if (preloadHls.readyState === Hls.HlsState.READY) {
+    readinessScore++;
+  }
+
+  // 4. Segment availability check
+  if (preloadHls.levels && preloadHls.levels.length > 0) {
+    readinessScore++;
+  }
+
+  // 5. Buffer stability check
+  if (preloadHls.buffered && preloadHls.buffered.length > 0) {
+    const bufferLength =
+      preloadHls.buffered.end(0) - preloadHls.buffered.start(0);
+    if (bufferLength >= TARGET_BUFFER_LENGTH) {
+      readinessScore++;
+    }
+  }
+
+  console.log(`Final readiness score: ${readinessScore}/${maxReadinessScore}`);
+
+  if (readinessScore >= 4) {
+    // Require 80% readiness
+    console.log("Pre-buffered stream is fully ready for instant switching!");
+    preloadBufferReady = true;
+    isStreamReady = true;
+    isPreloading = false;
+  } else {
+    console.log(
+      "Pre-buffered stream not ready enough, continuing to monitor..."
+    );
+    // Continue monitoring
+    setTimeout(() => monitorPreloadBuffer(), 200);
+  }
+};
+
+const parse_expiry = (data) => {
+  if (data.expires_at) {
+    return Date.parse(data.expires_at);
+  }
+  if (data.expires_in_seconds) {
+    return Date.now() + data.expires_in_seconds * 1000;
+  }
+  return Date.now() + 5 * 60 * 1000;
+};
+
+// --- Direct Video Initialization ---
+const initializeDirectVideo = (url) => {
+  if (!url || !videoPlayer.value) return;
+
+  console.log("🎬 Initializing direct video with URL:", url);
+
+  // Set the stream URL
+  streamUrl.value = url;
+
+  // For direct URLs, we can set the src directly on the video element
+  // and let the browser handle HLS natively if supported
+  if (videoPlayer.value.canPlayType("application/vnd.apple.mpegurl")) {
+    console.log("🔧 Using native HLS support");
+    videoPlayer.value.src = url;
+  } else {
+    // Fallback to HLS.js for browsers without native HLS support
+    console.log("🔧 Using HLS.js fallback");
+    initializeHLS(url);
+  }
+
+  // Start buffering immediately
+  startBuffering();
+  startBufferingCheck();
+
+  // Auto-play if enabled
+  if (props.autoplay && !isPlaying.value) {
+    safePlay(false, "high").catch((err) => {
+      console.warn("Auto-play failed:", err);
+    });
+  }
+
+  isLoading.value = false;
+};
+
 // --- HLS Initialization ---
 const initializeHLS = (url) => {
   if (!url || !videoPlayer.value) return;
@@ -331,384 +1916,587 @@ const initializeHLS = (url) => {
   if (Hls.isSupported()) {
     console.log("🔧 Using HLS.js for streaming");
     hlsInstance = new Hls({
-      debug: false,
-      enableWorker: true,
+      // Optimized for smooth playback
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      maxBufferSize: 60 * 1000 * 1000, // 60MB
+      maxBufferHole: 0.1, // Reduced from 0.5 for smoother playback
       lowLatencyMode: false,
+      backBufferLength: 30,
+      // Performance optimizations
+      enableWorker: true, // Use Web Workers for better performance
+      startLevel: -1, // Auto quality selection
+      abrEwmaDefaultEstimate: 500000, // Better bandwidth estimation
+      abrBandWidthFactor: 0.95, // Conservative bandwidth usage
+      abrBandWidthUpFactor: 0.7, // Slower quality increases
+      // Buffer management
+      maxStarvationDelay: 4, // Max delay before switching quality
+      maxLoadingDelay: 4, // Max delay for segment loading
+      // ADDITIONAL IMPROVEMENTS for better playback
+      enableSoftwareAES: true, // Better encryption handling
+      debug: false, // Disable debug logging for performance
+      // Network resilience
+      maxBufferHole: 0.05, // Tighter buffer hole tolerance
+      maxSeekHoleLength: 2, // Max seek hole length
+      maxStarvationDelay: 6, // Increased tolerance for poor networks
+      maxLoadingDelay: 6, // Increased loading tolerance
+      // Quality adaptation
+      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
+      abrBandWidthUpFactor: 0.8, // More aggressive quality increases
+      abrBandWidthDownFactor: 0.9, // Conservative quality decreases
     });
 
     hlsInstance.loadSource(url);
     hlsInstance.attachMedia(videoPlayer.value);
 
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-      console.log("✅ HLS manifest loaded successfully");
-      // Don't auto-play here - let handleTimeUpdate handle it when buffering is ready
+      // HLS manifest loaded successfully
+      // Start buffering immediately
+      startBuffering();
+      // Start periodic buffering check
+      startBufferingCheck();
+      // Start proactive buffer monitoring for smooth playback
+      setTimeout(() => {
+        startProactiveBufferMonitoring();
+      }, 2000); // Start monitoring 2 seconds after manifest is ready
+
+      // Main video is paused during beginning ads - no autoplay
+      // Main video paused - waiting for beginning ads to complete
+    });
+
+    hlsInstance.on(Hls.Events.FRAG_LOADED, () => {
+      // Update buffering progress when fragments are loaded
+      bufferedPercent.value = calculateBufferedPercent();
     });
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
       console.error("HLS.js error:", data);
-      emit("error", { code: data.details, message: data.type });
+
+      // Handle specific HLS error types
+      if (data.fatal) {
+        console.error("❌ Fatal HLS error:", data.details);
+
+        // Check if it's a 401 unauthorized error (token expired)
+        if (
+          data.details === "FRAG_LOAD_ERROR" &&
+          data.response &&
+          data.response.code === 401
+        ) {
+          console.log(
+            "🔐 401 Unauthorized error detected - updating playback session and retrying"
+          );
+          if (props.useDirectUrl) {
+            // For direct URLs, show error since we can't refresh tokens
+            error.value = {
+              code: "HLS_ERROR",
+              message: "Video playback error. Please try again later.",
+            };
+          } else {
+            handleHls401Error();
+          }
+        } else if (
+          data.details === "FRAG_LOAD_ERROR" &&
+          data.response &&
+          data.response.code === 403
+        ) {
+          console.log(
+            "🚫 403 Forbidden error detected - updating playback session and retrying"
+          );
+          if (props.useDirectUrl) {
+            // For direct URLs, show error since we can't refresh tokens
+            error.value = {
+              code: "HLS_ERROR",
+              message: "Video playback error. Please try again later.",
+            };
+          } else {
+            handleHls401Error();
+          }
+        } else {
+          // For other fatal errors, emit the error
+          emit("error", {
+            code: data.details,
+            message: data.type,
+            fatal: true,
+            hlsData: data,
+          });
+        }
+      } else {
+        // Non-fatal errors - log but don't stop playback
+        console.warn("⚠️ Non-fatal HLS error:", data.details);
+
+        // Still check for 401/403 in non-fatal errors
+        if (
+          data.details === "FRAG_LOAD_ERROR" &&
+          data.response &&
+          (data.response.code === 401 || data.response.code === 403)
+        ) {
+          console.log(
+            "🔐 401/403 error in non-fatal error - updating playback session"
+          );
+          handleHls401Error();
+        }
+      }
+    });
+
+    hlsInstance.on(Hls.Events.FRAG_LOADED, () => {
+      // Update buffering progress when fragments are loaded
+      bufferedPercent.value = calculateBufferedPercent();
     });
   } else if (videoPlayer.value.canPlayType("application/vnd.apple.mpegurl")) {
     console.log("🍎 Using native HLS support (Safari)");
     videoPlayer.value.src = url;
+    // Auto-play immediately for native HLS using coordinated system
+    if (props.autoplay && !isPlaying.value) {
+      safePlay(false, "high").catch((err) => {
+        console.warn("Auto-play failed:", err);
+      });
+    }
   } else {
     console.log("⚠️ HLS not supported, using URL directly");
     // Only set src directly if HLS.js is definitely not available
     if (videoPlayer.value && typeof Hls === "undefined") {
       videoPlayer.value.src = url;
       console.log("✅ Set video src for fallback:", url);
+      // Auto-play immediately for fallback using coordinated system
+      if (props.autoplay && !isPlaying.value) {
+        safePlay(false, "high").catch((err) => {
+          console.warn("Auto-play failed:", err);
+        });
+      }
     } else {
       console.log("⏳ Waiting for HLS.js to load before setting video src");
     }
   }
 };
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 1000; // Start with 1 second
-const MAX_RETRY_DELAY = 5000; // Maximum 5 seconds between retries
+// Token update callback for auto-updating video URL
+const onTokenUpdate = async (newToken) => {
+  console.log("🔄 Updating video with new token:", newToken);
 
-const getRetryDelay = (attempt) => {
-  // Exponential backoff with maximum delay
-  return Math.min(
-    INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1),
-    MAX_RETRY_DELAY
-  );
+  if (hlsInstance && hlsInstance.media) {
+    try {
+      // Store current playback position and state
+      const currentTime = videoPlayer.value.currentTime;
+      const wasPlaying = !videoPlayer.value.paused;
+      const currentVolume = videoPlayer.value.volume;
+      const currentPlaybackRate = videoPlayer.value.playbackRate;
+
+      console.log(
+        "🔄 Current playback state - Time:",
+        currentTime,
+        "Playing:",
+        wasPlaying,
+        "Volume:",
+        currentVolume,
+        "Rate:",
+        currentPlaybackRate
+      );
+
+      // Check if we have a pre-buffered stream that's truly ready
+      if (preloadBufferReady && isStreamReady && preloadHls && preloadUrl) {
+        console.log("Using fully ready pre-buffered stream for instant switch");
+
+        // Perform instant switch using pre-buffered stream
+        await performInstantSwitch(
+          currentTime,
+          wasPlaying,
+          currentVolume,
+          currentPlaybackRate
+        );
+      } else {
+        console.log(
+          "No fully ready pre-buffered stream available, switching normally..."
+        );
+
+        // Switch to new stream seamlessly
+        await switchToNewStream(
+          newToken,
+          currentTime,
+          wasPlaying,
+          currentVolume,
+          currentPlaybackRate
+        );
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to update HLS source: ${error.message}`);
+    }
+  } else if (
+    videoPlayer.value.src &&
+    videoPlayer.value.src.includes("cloudflarestream.com")
+  ) {
+    // Update native video source
+    try {
+      // Store current playback position and state
+      const currentTime = videoPlayer.value.currentTime;
+      const wasPlaying = !videoPlayer.value.paused;
+      const currentVolume = videoPlayer.value.volume;
+      const currentPlaybackRate = videoPlayer.value.playbackRate;
+
+      videoPlayer.value.src = newToken;
+      videoPlayer.value.load();
+      console.log("✅ Native video source updated with new token");
+
+      // Restore playback position and state
+      videoPlayer.value.addEventListener(
+        "loadedmetadata",
+        () => {
+          if (currentTime > 0) {
+            videoPlayer.value.currentTime = currentTime;
+            console.log(
+              `⏱️ Restored playback position to ${Math.floor(currentTime)}s`
+            );
+          }
+          // Restore settings
+          videoPlayer.value.volume = currentVolume;
+          videoPlayer.value.playbackRate = currentPlaybackRate;
+
+          if (wasPlaying) {
+            safePlay(true, "high").catch((e) =>
+              console.warn(`⚠️ Could not auto-resume: ${e.message}`)
+            );
+          }
+        },
+        { once: true }
+      );
+    } catch (error) {
+      console.warn(`⚠️ Failed to update native video source: ${error.message}`);
+    }
+  }
 };
 
-// Fetch stream URL with retry logic
-const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
-  if (!props.contentId) return;
+// Seamless source switching function
+const switchToNewStream = async (
+  newUrl,
+  currentTime,
+  wasPlaying,
+  volume,
+  playbackRate
+) => {
+  return new Promise((resolve) => {
+    if (!Hls.isSupported()) {
+      // Fallback for non-HLS browsers
+      videoPlayer.value.src = newUrl;
+      if (wasPlaying) {
+        // For non-HLS, we still need to wait for buffer
+        waitForSufficientBuffer();
+      }
+      videoPlayer.value.volume = volume;
+      videoPlayer.value.playbackRate = playbackRate;
+      resolve();
+      return;
+    }
 
-  try {
-    loadingMessage.value = isRetry
-      ? `Retrying to load video... (${retryCount + 1}/${MAX_RETRIES})`
-      : "Loading video...";
+    console.log("Performing seamless source switch...");
 
-    const response =
-      props.playerType === "trailer"
-        ? await ContentService.getTrailerSignedUrl(props.contentId)
-        : await ContentService.getVideoSignedUrl(props.contentId);
+    // CRITICAL: Set source switching flag to bypass buffer monitoring
+    isSourceSwitching = true;
 
-    console.log("API Response:", response);
+    // Switch the source URL of the current HLS instance
+    // This maintains the same HLS instance and prevents detachment
+    hlsInstance.loadSource(newUrl);
 
-    if (response?.data?.url) {
-      let url = response.data.url;
-      console.log("Original URL:", url);
+    // Position at the correct time
+    videoPlayer.value.currentTime = currentTime;
 
-      // Convert iframe URL to direct video URL
-      if (url.includes("cloudflarestream.com") && url.includes("/iframe")) {
-        const tokenMatch = url.match(
-          /cloudflarestream\.com\/([^\/]+)\/([^\/]+)\/iframe/
-        );
-        if (tokenMatch) {
-          const videoId = tokenMatch[1];
-          const signedToken = tokenMatch[2];
-          const customerCode =
-            url.match(/customer-([^.]+)\.cloudflarestream\.com/)?.[1] || "";
-          url = `https://customer-${customerCode}.cloudflarestream.com/${videoId}/${signedToken}/manifest/video.m3u8`;
-          console.log("Converted HLS URL:", url);
+    // Restore settings immediately
+    videoPlayer.value.volume = volume;
+    videoPlayer.value.playbackRate = playbackRate;
+
+    // CRITICAL: Resume playback immediately after source switch
+    // The video element naturally pauses during source loading, so we must resume
+    if (wasPlaying) {
+      console.log("Resuming playback immediately after source switch...");
+      // Network-adaptive delay: faster on good networks, longer on poor networks
+      const adaptiveDelay = NETWORK_OPTIMIZATION.adaptiveBufferLength
+        ? 50
+        : 100;
+      setTimeout(() => {
+        // Use unified playback control to prevent conflicts
+        safePlay(true, "high").catch((error) => {
+          console.log(
+            `Failed to resume playback after source switch: ${error.message}`
+          );
+        });
+      }, adaptiveDelay);
+    }
+
+    console.log(
+      `Seamless source switch complete: time=${videoPlayer.value.currentTime.toFixed(
+        2
+      )}s`
+    );
+
+    // Reset source switching flag after a brief delay
+    setTimeout(() => {
+      isSourceSwitching = false;
+      console.log("Source switching flag reset");
+    }, 1000);
+
+    resolve();
+  });
+};
+
+// Instant switch using pre-buffered stream
+const performInstantSwitch = async (
+  currentTime,
+  wasPlaying,
+  volume,
+  playbackRate
+) => {
+  return new Promise((resolve) => {
+    if (!preloadHls || !preloadBufferReady) {
+      console.log(
+        "Pre-buffered stream not ready, falling back to normal switch"
+      );
+      resolve();
+      return;
+    }
+
+    console.log("Performing instant switch using pre-buffered stream...");
+
+    // CRITICAL: Set source switching flag to bypass buffer monitoring
+    isSourceSwitching = true;
+
+    // OPTIMIZATION: Preserve quality level during switch
+    const currentQualityLevel = hlsInstance.currentLevel;
+    const currentAutoLevelCapping = hlsInstance.autoLevelCapping;
+
+    // Switch the source URL of the current HLS instance
+    // This maintains the same HLS instance and prevents detachment
+    hlsInstance.loadSource(preloadUrl);
+
+    // Position at the correct time
+    videoPlayer.value.currentTime = currentTime;
+
+    // Restore settings immediately
+    videoPlayer.value.volume = volume;
+    videoPlayer.value.playbackRate = playbackRate;
+
+    // CRITICAL: Resume playback immediately after source switch
+    if (wasPlaying) {
+      console.log("Resuming playback immediately after instant switch...");
+      const adaptiveDelay = NETWORK_OPTIMIZATION.adaptiveBufferLength
+        ? 50
+        : 100;
+      setTimeout(() => {
+        safePlay(true, "high").catch((error) => {
+          console.log(
+            `Failed to resume playback after instant switch: ${error.message}`
+          );
+        });
+      }, adaptiveDelay);
+    }
+
+    // Restore quality settings after source switch
+    setTimeout(() => {
+      if (NETWORK_OPTIMIZATION.enableQualityAdaptation) {
+        // Restore previous quality level if available
+        if (
+          currentQualityLevel !== -1 &&
+          hlsInstance.levels &&
+          hlsInstance.levels.length > currentQualityLevel
+        ) {
+          hlsInstance.currentLevel = currentQualityLevel;
+          console.log(`Quality level restored to: ${currentQualityLevel}`);
+        }
+
+        // Restore auto level capping
+        hlsInstance.autoLevelCapping = currentAutoLevelCapping;
+        console.log("Auto level capping restored");
+      }
+    }, 500);
+
+    // Clean up pre-buffer resources
+    if (preloadHls) {
+      preloadHls.destroy();
+      preloadHls = null;
+    }
+
+    preloadBufferReady = false;
+    preloadUrl = null;
+    preloadExpiry = null;
+    isPreloading = false;
+
+    console.log(
+      `Instant switch complete: time=${videoPlayer.value.currentTime.toFixed(
+        2
+      )}s, playing=${!videoPlayer.value.paused}`
+    );
+
+    // Reset source switching flag after a brief delay
+    setTimeout(() => {
+      isSourceSwitching = false;
+      console.log("Source switching flag reset");
+    }, 1000);
+
+    resolve();
+  });
+};
+
+// Wait for sufficient buffer function
+const waitForSufficientBuffer = () => {
+  if (!hlsInstance || !hlsInstance.media) return;
+
+  const checkBuffer = () => {
+    try {
+      const buffered = hlsInstance.media.buffered;
+      if (buffered.length === 0) {
+        setTimeout(checkBuffer, 200);
+        return;
+      }
+
+      const currentTime = hlsInstance.media.currentTime;
+      let bufferLength = 0;
+
+      for (let i = 0; i < buffered.length; i++) {
+        const start = buffered.start(i);
+        const end = buffered.end(i);
+
+        if (currentTime >= start && currentTime < end) {
+          bufferLength = end - currentTime;
+          break;
         }
       }
 
-      streamUrl.value = url;
-      console.log("Final streamUrl:", streamUrl.value);
+      if (bufferLength >= MIN_BUFFER_LENGTH) {
+        console.log(
+          `Sufficient buffer available (${bufferLength.toFixed(
+            1
+          )}s), starting playback`
+        );
 
-      // Initialize HLS.js immediately when URL is available
+        // Use unified playback control for initial start
+        safePlay(false, "high")
+          .then(() => {
+            console.log("Initial playback started successfully");
+          })
+          .catch((error) => {
+            console.log(`Failed to start initial playback: ${error.message}`);
+          });
+      } else {
+        // Still building initial buffer
+        setTimeout(checkBuffer, 200);
+      }
+    } catch (error) {
+      console.log(`Error checking buffer: ${error.message}`);
+      setTimeout(checkBuffer, 200);
+    }
+  };
+
+  checkBuffer();
+};
+
+// Initialize playback session and load video
+const initializePlaybackSession = async () => {
+  if (!props.contentId) return;
+
+  try {
+    // Loading message removed - simplified loading experience
+    isLoading.value = true;
+
+    // Start playback session using /start-playback API
+    const session = await startPlayback(props.contentId, navigator.userAgent);
+
+    if (session) {
+      console.log("✅ Playback session started:", session);
+      emit("sessionStarted", session);
+
+      // Set the stream URL to the token (which is the full video URL)
+      streamUrl.value = session.token;
+      console.log("🎬 Video URL set from session token");
+
+      // Start heartbeat and smart token refresh for this session
+      startHeartbeat();
+      startSmartTokenRefresh();
+
+      // Initialize HLS.js with the token URL
       nextTick(() => {
         if (videoPlayer.value) {
-          initializeHLS(url);
+          initializeHLS(session.token);
         } else {
           console.log("Video player not found");
         }
       });
 
       isLoading.value = false;
-
-      // Schedule refresh before URL expires
-      if (response.expires_in_seconds) {
-        const refreshTime = (response.expires_in_seconds - 60) * 1000;
-        setTimeout(() => {
-          fetchStreamUrl();
-        }, refreshTime);
-      }
-    } else {
-      throw new Error("No URL in response");
     }
   } catch (error) {
-    console.error(`Error fetching ${props.playerType} URL:`, error);
-
-    if (retryCount < MAX_RETRIES) {
-      const delay = getRetryDelay(retryCount + 1);
-      console.log(
-        `Retrying video fetch in ${delay}ms (attempt ${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      );
-
-      setTimeout(() => {
-        fetchStreamUrl(true, retryCount + 1);
-      }, delay);
-    } else {
-      console.error(`Failed to fetch video after ${MAX_RETRIES} attempts`);
-      loadingMessage.value = "Unable to load video. Please try again later.";
-      isLoading.value = false;
-      emit("error", {
-        code: "FETCH_FAILED",
-        message: "Failed to load video after multiple attempts",
-      });
-    }
+    console.error("❌ Error starting playback session:", error);
+    // Loading message removed - simplified loading experience
+    isLoading.value = false;
+    emit("error", {
+      code: "SESSION_FAILED",
+      message: "Failed to start playback session",
+    });
   }
 };
 
+// Initialize player
 const initializePlayer = () => {
   if (props.contentId) {
     streamUrl.value = null;
     isLoading.value = true;
-    loadingMessage.value = "Loading...";
+    // Loading message removed - simplified loading experience
     error.value = null;
     isBuffering.value = false;
     isPlaying.value = false;
     canPlay.value = false;
-    initializeStreaming();
-  }
-};
 
-// Fetch chunk URL with retry logic
-const fetchChunkUrl = async (chunkIndex, isRetry = false, retryCount = 0) => {
-  if (!props.contentId) return;
-
-  try {
-    loadingMessage.value = isRetry
-      ? `Retrying to load chunk ${chunkIndex}... (${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      : `Loading chunk ${chunkIndex}...`;
-
-    // Request access to specific chunk
-    const response = await ContentService.requestChunkAccess({
-      contentId: props.contentId,
-      chunkIndex: chunkIndex,
-      userAgent: navigator.userAgent,
-      // Note: IP address should be handled server-side from request headers
-    });
-
-    console.log("Chunk API Response:", response);
-
-    if (response?.signedUrl) {
-      let url = response.signedUrl;
-      console.log("Original Chunk URL:", url);
-
-      // Convert chunk URL to direct video URL if needed
-      if (url.includes("cloudflarestream.com") && url.includes("/chunks/")) {
-        const tokenMatch = url.match(
-          /cloudflarestream\.com\/([^\/]+)\/chunks\/(\d+)\/([^\/]+)/
-        );
-        if (tokenMatch) {
-          const videoId = tokenMatch[1];
-          const chunkIndex = tokenMatch[2];
-          const signedToken = tokenMatch[3];
-          const customerCode =
-            url.match(/customer-([^.]+)\.cloudflarestream\.com/)?.[1] || "";
-
-          // For chunked content, we might need to construct a different URL format
-          // This depends on how Cloudflare handles chunked streaming
-          url = `https://customer-${customerCode}.cloudflarestream.com/${videoId}/chunks/${chunkIndex}/${signedToken}`;
-          console.log("Converted Chunk URL:", url);
-        }
-      }
-
-      // Store chunk information
-      currentChunk.value = {
-        index: response.chunkIndex,
-        url: url,
-        expiresIn: response.expiresIn,
-        isLastChunk: response.isLastChunk,
-        nextChunkIndex: response.nextChunkIndex,
+    // Check if using direct URL or session-based approach
+    if (props.useDirectUrl && props.videoUrl) {
+      console.log("🎬 Using direct video URL:", props.videoUrl);
+      initializeDirectVideo(props.videoUrl);
+    } else if (props.useDirectUrl && !props.videoUrl) {
+      // Direct URL mode but no URL provided
+      console.error("❌ Direct URL mode enabled but no video URL provided");
+      error.value = {
+        code: "NO_VIDEO_URL",
+        message: "Video URL not available. Please try again later.",
       };
-
-      console.log("Current chunk:", currentChunk.value);
-
-      // Initialize HLS.js with the chunk URL
-      nextTick(() => {
-        if (videoPlayer.value) {
-          initializeHLS(url);
-        } else {
-          console.log("Video player not found");
-        }
-      });
-
       isLoading.value = false;
-
-      // Schedule refresh before chunk URL expires
-      if (response.expiresIn) {
-        const refreshTime = (response.expiresIn - 30) * 1000; // Refresh 30 seconds before expiry
-        setTimeout(() => {
-          // Request next chunk if available
-          if (response.nextChunkIndex !== undefined) {
-            fetchChunkUrl(response.nextChunkIndex);
-          }
-        }, refreshTime);
-      }
     } else {
-      throw new Error("No signed URL in response");
-    }
-  } catch (error) {
-    console.error(`Error fetching chunk ${chunkIndex}:`, error);
-
-    // Handle specific error types
-    if (error.status === 403) {
-      if (error.message?.includes("Rate limit exceeded")) {
-        const retryAfter = error.retryAfter || 60;
-        loadingMessage.value = `Rate limit exceeded. Retrying in ${retryAfter} seconds...`;
-
-        setTimeout(() => {
-          fetchChunkUrl(chunkIndex, true, retryCount);
-        }, retryAfter * 1000);
-        return;
-      } else if (error.message?.includes("sequential pattern")) {
-        // Request the next allowed chunk
-        const nextAllowedChunk = error.nextAllowedChunk || 0;
-        console.log(
-          `Sequential violation, requesting chunk ${nextAllowedChunk}`
-        );
-        fetchChunkUrl(nextAllowedChunk);
-        return;
-      }
+      // Initialize playback session instead of old streaming approach
+      console.log("🔐 Using session-based playback");
+      initializePlaybackSession();
     }
 
-    if (retryCount < MAX_RETRIES) {
-      const delay = getRetryDelay(retryCount + 1);
-      console.log(
-        `Retrying chunk ${chunkIndex} fetch in ${delay}ms (attempt ${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      );
-
-      setTimeout(() => {
-        fetchChunkUrl(chunkIndex, true, retryCount + 1);
-      }, delay);
-    } else {
-      console.error(
-        `Failed to fetch chunk ${chunkIndex} after ${MAX_RETRIES} attempts`
-      );
-      loadingMessage.value =
-        "Unable to load video chunk. Please try again later.";
-      isLoading.value = false;
-      emit("error", {
-        code: "CHUNK_FETCH_FAILED",
-        message: `Failed to load chunk ${chunkIndex} after multiple attempts`,
-      });
-    }
+    // Start buffering immediately when component mounts
+    console.log("🚀 Component mounted, starting immediate buffering...");
   }
 };
 
-// Function to request next chunk
-const requestNextChunk = async () => {
-  if (currentChunk.value?.nextChunkIndex !== undefined) {
-    await fetchChunkUrl(currentChunk.value.nextChunkIndex);
+// Watch for session changes to auto-update video URL
+watch(currentSession, (newSession) => {
+  if (newSession && videoPlayer.value) {
+    // Auto-update video URL when token changes
+    autoUpdateVideoUrl(videoPlayer.value, onTokenUpdate);
   }
-};
+});
 
-// Function to request specific chunk (for seeking)
-const requestSpecificChunk = async (chunkIndex) => {
-  await fetchChunkUrl(chunkIndex);
-};
-
-// Function to get streaming information
-const getStreamingInfo = async () => {
-  if (!props.contentId) return;
-
-  try {
-    const info = await ContentService.getStreamingInfo(props.contentId);
-    console.log("Streaming info:", info);
-
-    // Store streaming information for UI
-    streamingInfo.value = {
-      totalChunks: info.totalChunks,
-      chunkDuration: info.chunkDuration,
-      totalDuration: info.totalDuration,
-      estimatedSize: info.estimatedSize,
-    };
-  } catch (error) {
-    console.error("Error getting streaming info:", error);
+// Watch for token expiry to show warnings and trigger refresh
+watch(isTokenExpiringSoon, (expiringSoon) => {
+  if (expiringSoon) {
+    console.log("⚠️ Token expiring soon, will auto-refresh");
   }
-};
+});
 
-// Function to get chunk manifest
-const getChunkManifest = async () => {
-  if (!props.contentId) return;
-
-  try {
-    const manifest = await ContentService.getChunkManifest(props.contentId);
-    console.log("Chunk manifest:", manifest);
-
-    // Store manifest for chunk management
-    chunkManifest.value = manifest;
-  } catch (error) {
-    console.error("Error getting chunk manifest:", error);
+// Watch for token expiry to show warnings
+watch(isTokenExpiringSoon, (expiringSoon) => {
+  if (expiringSoon) {
+    console.log("⚠️ Token expiring soon, will auto-refresh");
   }
-};
+});
 
 // Initialize streaming when component mounts
 const initializeStreaming = async () => {
   if (!props.contentId) return;
 
   try {
-    // Get streaming information first
-    await getStreamingInfo();
-
-    // Get chunk manifest
-    await getChunkManifest();
-
-    // Start with first chunk
-    await fetchChunkUrl(0);
+    // Initialize playback session
+    await initializePlaybackSession();
   } catch (error) {
     console.error("Error initializing streaming:", error);
   }
-};
-
-// Add these reactive variables to your component
-const currentChunk = ref(null);
-
-const streamingInfo = ref(null);
-
-const chunkManifest = ref(null);
-
-// Update your existing fetchStreamUrl function call
-// Replace: fetchStreamUrl()
-// With: initializeStreaming()
-
-// Add chunk management functions to your component's methods
-const onChunkEnd = () => {
-  if (currentChunk.value && !currentChunk.value.isLastChunk) {
-    requestNextChunk();
-  }
-};
-
-// Handle seeking to specific time
-const onSeek = (timeInSeconds) => {
-  if (chunkManifest.value) {
-    const chunkIndex = Math.floor(
-      timeInSeconds / chunkManifest.value.chunkDuration
-    );
-    if (chunkIndex !== currentChunk.value?.index) {
-      requestSpecificChunk(chunkIndex);
-    }
-  }
-};
-
-// Get current playback position in chunk context
-const getCurrentChunkTime = () => {
-  if (currentChunk.value && chunkManifest.value) {
-    const chunkStartTime =
-      currentChunk.value.index * chunkManifest.value.chunkDuration;
-    const videoElement = videoPlayer.value;
-    if (videoElement) {
-      return chunkStartTime + videoElement.currentTime;
-    }
-  }
-  return 0;
 };
 
 // In your component setup or mounted hook
@@ -718,12 +2506,7 @@ onMounted(() => {
 
 // For seeking functionality
 const handleSeek = (time) => {
-  onSeek(time);
-};
-
-// For manual chunk navigation
-const loadChunk = (chunkIndex) => {
-  requestSpecificChunk(chunkIndex);
+  seekTo(time);
 };
 
 // Watch for changes to contentId
@@ -731,6 +2514,11 @@ watch(
   () => props.contentId,
   (newContentId, oldContentId) => {
     if (newContentId !== oldContentId) {
+      // Stop current session if exists
+      if (isSessionActive.value) {
+        stopPlayback();
+        emit("sessionStopped");
+      }
       initializePlayer();
     }
   },
@@ -766,6 +2554,11 @@ watch(
   () => props.playerType,
   (newType, oldType) => {
     if (newType !== oldType && props.contentId) {
+      // Stop current session if exists
+      if (isSessionActive.value) {
+        stopPlayback();
+        emit("sessionStopped");
+      }
       initializePlayer();
     }
   }
@@ -786,23 +2579,136 @@ watch(
   { immediate: true }
 );
 
+// Periodic buffering check to ensure accurate progress tracking
+let bufferingCheckInterval = null;
+
+// Start periodic buffering check when video is ready
+const startBufferingCheck = () => {
+  if (bufferingCheckInterval) {
+    clearInterval(bufferingCheckInterval);
+  }
+
+  bufferingCheckInterval = setInterval(() => {
+    if (videoPlayer.value && streamUrl.value) {
+      bufferedPercent.value = calculateBufferedPercent();
+    }
+  }, 500); // Check every 500ms for smoother progress updates
+
+  // Started periodic buffering check
+};
+
 // Cleanup on unmount
 onUnmounted(() => {
   if (hlsInstance) {
     hlsInstance.destroy();
     hlsInstance = null;
   }
+
+  if (preloadHls) {
+    preloadHls.destroy();
+    preloadHls = null;
+  }
+
+  // Stop playback session
+  if (isSessionActive.value) {
+    stopPlayback();
+    emit("sessionStopped");
+  }
+
+  // Clear all intervals and timers
+  if (bufferingCheckInterval) {
+    clearInterval(bufferingCheckInterval);
+  }
+
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+    tokenRefreshInterval = null;
+  }
+
+  if (bufferMonitorInterval) {
+    clearInterval(bufferMonitorInterval);
+  }
+
+  if (bufferRebuildTimer) {
+    clearTimeout(bufferRebuildTimer);
+  }
+
+  // Reset all state variables
+  playbackState = "playing";
+  isManualResume = false;
+  resumeCooldown = false;
+  playbackQueue = [];
+  isProcessingPlayback = false;
+  lastPlaybackAction = 0;
+  isPreloading = false;
+  preloadBufferReady = false;
+  preloadUrl = null;
+  preloadExpiry = null;
+  isStreamReady = false;
+  isSourceSwitching = false;
+  lastQualityLevel = -1;
+  bufferWarningShown = false;
+  bufferCriticalShown = false;
+  isBufferRebuilding = false;
 });
 
 // Expose player methods for parent components
 defineExpose({
-  play: () => videoPlayer.value?.play(),
-  pause: () => videoPlayer.value?.pause(),
+  play: () => videoPlayer.value && videoPlayer.value.play(),
+  pause: () => videoPlayer.value && videoPlayer.value.pause(),
   setVolume,
   setMuted,
   seekTo,
   togglePlay,
   retryLoad,
+  // Expose session methods
+  startPlayback: () => initializePlaybackSession(),
+  stopPlayback,
+  getSessionStats: () => stats.value,
+  getSessionDuration: () => sessionDuration.value,
+  getTokenExpiry: () => tokenExpiresIn.value,
+  // Expose heartbeat and token refresh methods
+  startHeartbeat,
+  startSmartTokenRefresh,
+  sendHeartbeat,
+  // Expose session status
+  isSessionActive: () => isSessionActive.value,
+  isTokenExpiringSoon: () => isTokenExpiringSoon.value,
+  getTokenExpiry: () => tokenExpiresIn.value,
+  // Manual session refresh
+  refreshSession: async () => {
+    if (props.contentId && isSessionActive.value) {
+      console.log("🔄 Manual session refresh requested");
+      try {
+        await updatePlayback(props.contentId);
+        emit("tokenRefreshed");
+        return true;
+      } catch (err) {
+        console.error("❌ Manual session refresh failed:", err);
+        return false;
+      }
+    }
+    return false;
+  },
+  // Expose advanced playback control methods
+  safePlay,
+  safePause,
+  coordinatedPlay,
+  coordinatedPause,
+  // Expose buffer monitoring methods
+  startProactiveBufferMonitoring,
+  getCurrentBufferLength,
+  // Expose pre-buffering methods
+  startPreBuffering,
+  // Expose quality control methods
+  reduceQualityToLowest,
+  reduceQualityByOne,
+  increaseQualityGradually,
 });
 </script>
 
@@ -836,5 +2742,38 @@ video {
 
 video:hover {
   transform: scale(1.02);
+}
+
+/* Error overlay styles */
+.error-icon {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.retry-button,
+.reset-button {
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 208, 5, 0.3);
+}
+
+.reset-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 </style>
