@@ -12,7 +12,7 @@
       :subscription="user.subscription"
       />
       <div class="grid lg:col-span-2 profile holder row-span-3 w-full">
-        <ProfileMain  />
+        <ProfileMain :firstName = 'user.first_name' :lastName="user.last_name"  />
       </div>
     </div>
     <HomeFoot class="mt-auto"/>

@@ -5,11 +5,11 @@
     <div class="flex gap-13 mt-6 items-end">
       <div class="w-1/2 flex flex-col gap-2">
         <label>Display Name</label>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :disabled="true" />
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" :placeholder="firstName + ' ' + lastName " :disabled="true" />
       </div>
       <div class="w-1/2 flex flex-col gap-2">
         <span><label>Password</label><button class="ml-5 text-gold" @click="modal.toggleChange">change </button></span>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :dis />
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :disabled="true" />
       </div>
     </div>
     <p class="text-normal mt-16">Subscription info</p>
@@ -82,6 +82,11 @@ const premiumBenefits = [
 
   const modal = useModal()
   const change =  computed(()=> modal.isChange)
+
+  const props = defineProps({
+    firstName: String,
+    lastName: String
+  })
 
   
 
