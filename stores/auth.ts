@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type { User, AuthResponse } from "~/types/auth";
 import { AuthService } from "~/api/services/auth.service";
+import { LocalStorageService } from "~/src/utils/localStorage";
 
 export const useAuthStore = defineStore(
   "auth",
@@ -29,6 +30,11 @@ export const useAuthStore = defineStore(
         useCookie("auth").value = "true";
       } else {
         useCookie("auth").value = null;
+      }
+
+      // Clear cache when auth state changes for security and data consistency
+      if (process.client) {
+        clearContentCache();
       }
     }
 
@@ -98,9 +104,25 @@ export const useAuthStore = defineStore(
       }
     }
 
+    // Function to clear content cache when auth state changes
+    function clearContentCache(): void {
+      try {
+        console.log("🧹 Clearing content cache due to auth state change...");
+        LocalStorageService.clear();
+        console.log("✅ Content cache cleared successfully");
+      } catch (error) {
+        console.error("❌ Failed to clear content cache:", error);
+      }
+    }
+
     async function logout(): Promise<void> {
       loading.value = true;
       try {
+        // Clear content cache before logout for security
+        if (process.client) {
+          clearContentCache();
+        }
+
         // await AuthService.logout();
         setUser(null);
         setToken(null);
@@ -158,6 +180,7 @@ export const useAuthStore = defineStore(
       verifyOTP,
       resendOTP,
       logout,
+      clearContentCache,
       // refreshUserSession,
       clearError,
     };

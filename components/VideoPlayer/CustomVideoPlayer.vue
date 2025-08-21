@@ -229,14 +229,6 @@ const canPlay = ref(false);
 // Buffer monitoring variables
 let lastBufferingLog = null;
 let canPlayThroughLogged = false;
-let isPauseDueToBuffering = false; // Track if pause is due to buffering
-
-// Smart error management variables
-let lastErrorTime = 0;
-let errorRetryCount = 0;
-let maxErrorRetries = 3;
-let errorRetryDelay = 2000;
-let isHandlingError = false;
 
 // Advert state
 const showAdvertOverlay = ref(false);
@@ -306,12 +298,12 @@ let isSourceSwitching = false;
 const MIN_BUFFER_LENGTH = 8; // Reduced from 15s for faster start
 const TARGET_BUFFER_LENGTH = 20; // Reduced from 30s for better responsiveness
 
-// Enhanced network optimization settings
+// Enhanced network optimization settings with increased caching
 const NETWORK_OPTIMIZATION = {
   // Adaptive buffering based on network conditions
   adaptiveBufferLength: true,
-  minBufferLength: 5, // Reduced for faster start
-  maxBufferLength: 45, // Reduced for better responsiveness
+  minBufferLength: 10, // Increased for better caching
+  maxBufferLength: 60, // Increased for better caching
 
   // Quality adaptation
   enableQualityAdaptation: true,
@@ -319,9 +311,9 @@ const NETWORK_OPTIMIZATION = {
   qualityDropThreshold: 0.4, // 40% buffer before quality decrease
 
   // Network resilience
-  maxRetryAttempts: 2, // Reduced to prevent excessive retries
-  retryDelay: 1500, // Faster retry
-  networkTimeout: 8000, // Faster timeout
+  maxRetryAttempts: 3, // Increased for better reliability
+  retryDelay: 2000, // Slightly longer retry for stability
+  networkTimeout: 10000, // Increased timeout for better reliability
 
   // Buffer management
   aggressiveBufferManagement: false, // Disabled to prevent excessive pausing
@@ -329,10 +321,10 @@ const NETWORK_OPTIMIZATION = {
 
   // Proactive buffer monitoring
   proactiveBufferMonitoring: true,
-  criticalBufferThreshold: 6, // Critical buffer level (seconds) - reduced
-  warningBufferThreshold: 10, // Warning buffer level (seconds) - reduced
-  qualityReductionThreshold: 8, // Reduce quality when buffer < 8s
-  bufferCheckInterval: 2000, // Check buffer every 2 seconds - less frequent
+  criticalBufferThreshold: 10, // Increased critical buffer level
+  warningBufferThreshold: 20, // Increased warning buffer level
+  qualityReductionThreshold: 15, // Increased quality reduction threshold
+  bufferCheckInterval: 3000, // Check buffer every 3 seconds for efficiency
 };
 
 // Helper function to format time
@@ -1816,14 +1808,14 @@ const startPreBuffering = async () => {
     preloadUrl = newUrl;
     preloadExpiry = newExpiry;
 
-    // Create HLS instance for pre-buffering
+    // Create HLS instance for pre-buffering with increased caching
     preloadHls = new Hls({
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      maxBufferSize: 60 * 1000 * 1000, // 60MB
+      maxBufferLength: 60, // Increased for better caching
+      maxMaxBufferLength: 120, // Increased for better caching
+      maxBufferSize: 120 * 1000 * 1000, // 120MB - increased for better caching
       maxBufferHole: 0.1,
       lowLatencyMode: false,
-      backBufferLength: 30,
+      backBufferLength: 60, // Increased for better caching
       autoStartLoad: true,
       startLevel: -1,
       enableWorker: true,
@@ -2062,13 +2054,13 @@ const initializeHLS = (url) => {
   if (Hls.isSupported()) {
     console.log("🔧 Using HLS.js for streaming");
     hlsInstance = new Hls({
-      // Optimized for smooth playback - reduced buffering for better responsiveness
-      maxBufferLength: 20, // Reduced from 30s for faster start
-      maxMaxBufferLength: 40, // Reduced from 60s for better responsiveness
-      maxBufferSize: 40 * 1000 * 1000, // 40MB - reduced for faster loading
+      // Optimized for smooth playback with increased caching
+      maxBufferLength: 45, // Increased for better caching
+      maxMaxBufferLength: 90, // Increased for better caching
+      maxBufferSize: 90 * 1000 * 1000, // 90MB - increased for better caching
       maxBufferHole: 0.05, // Tighter buffer hole tolerance for smoother playback
       lowLatencyMode: false,
-      backBufferLength: 15, // Reduced from 30s for better responsiveness
+      backBufferLength: 45, // Increased for better caching
 
       // Performance optimizations
       enableWorker: true, // Use Web Workers for better performance
