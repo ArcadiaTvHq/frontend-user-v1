@@ -226,6 +226,18 @@ const bufferedPercent = ref(0);
 const lastEmittedSecond = ref(-1);
 const canPlay = ref(false);
 
+// Buffer monitoring variables
+let lastBufferingLog = null;
+let canPlayThroughLogged = false;
+let isPauseDueToBuffering = false; // Track if pause is due to buffering
+
+// Smart error management variables
+let lastErrorTime = 0;
+let errorRetryCount = 0;
+let maxErrorRetries = 3;
+let errorRetryDelay = 2000;
+let isHandlingError = false;
+
 // Advert state
 const showAdvertOverlay = ref(false);
 const currentAdvert = ref(null);
@@ -290,37 +302,37 @@ let preloadHls = null;
 let isStreamReady = false;
 let isSourceSwitching = false;
 
-// Buffering threshold settings
-const MIN_BUFFER_LENGTH = 15; // Minimum 15 seconds of buffer before playing
-const TARGET_BUFFER_LENGTH = 30; // Target 30 seconds of buffer for smooth playback
+// Optimized buffering settings for smoother playback
+const MIN_BUFFER_LENGTH = 8; // Reduced from 15s for faster start
+const TARGET_BUFFER_LENGTH = 20; // Reduced from 30s for better responsiveness
 
-// Network optimization settings
+// Enhanced network optimization settings
 const NETWORK_OPTIMIZATION = {
   // Adaptive buffering based on network conditions
   adaptiveBufferLength: true,
-  minBufferLength: 10, // Reduced for faster start
-  maxBufferLength: 60, // Increased for network resilience
+  minBufferLength: 5, // Reduced for faster start
+  maxBufferLength: 45, // Reduced for better responsiveness
 
   // Quality adaptation
   enableQualityAdaptation: true,
-  qualitySwitchThreshold: 0.8, // 80% buffer before quality increase
-  qualityDropThreshold: 0.3, // 30% buffer before quality decrease
+  qualitySwitchThreshold: 0.7, // 70% buffer before quality increase
+  qualityDropThreshold: 0.4, // 40% buffer before quality decrease
 
   // Network resilience
-  maxRetryAttempts: 3,
-  retryDelay: 2000,
-  networkTimeout: 10000,
+  maxRetryAttempts: 2, // Reduced to prevent excessive retries
+  retryDelay: 1500, // Faster retry
+  networkTimeout: 8000, // Faster timeout
 
   // Buffer management
-  aggressiveBufferManagement: true,
-  bufferRebuildThreshold: 0.2, // Rebuild buffer if below 20%
+  aggressiveBufferManagement: false, // Disabled to prevent excessive pausing
+  bufferRebuildThreshold: 0.15, // Rebuild buffer if below 15%
 
   // Proactive buffer monitoring
   proactiveBufferMonitoring: true,
-  criticalBufferThreshold: 10, // Critical buffer level (seconds)
-  warningBufferThreshold: 15, // Warning buffer level (seconds)
-  qualityReductionThreshold: 12, // Reduce quality when buffer < 12s
-  bufferCheckInterval: 1000, // Check buffer every 1 second
+  criticalBufferThreshold: 6, // Critical buffer level (seconds) - reduced
+  warningBufferThreshold: 10, // Warning buffer level (seconds) - reduced
+  qualityReductionThreshold: 8, // Reduce quality when buffer < 8s
+  bufferCheckInterval: 2000, // Check buffer every 2 seconds - less frequent
 };
 
 // Helper function to format time
@@ -329,6 +341,97 @@ const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+// Smart error management functions
+const showPlaybackError = (message, errorType) => {
+  console.log(`🚨 Playback error (${errorType}): ${message}`);
+
+  // Show error screen for user-facing errors
+  if (errorType === "CONTENT_NOT_FOUND" || errorType === "UNKNOWN_ERROR") {
+    error.value = {
+      code: errorType,
+      message: message,
+      fatal: true,
+    };
+  }
+};
+
+const handlePlaybackUpdate = async (
+  errorType,
+  shouldContinueAtPosition = true
+) => {
+  if (isHandlingError) {
+    console.log("⚠️ Already handling error, skipping duplicate request");
+    return;
+  }
+
+  isHandlingError = true;
+  const currentTime = videoPlayer.value?.currentTime || 0;
+  const wasPlaying = !videoPlayer.value?.paused;
+
+  console.log(`🔄 Handling ${errorType} - updating playback session...`);
+  console.log(
+    `📍 Current position: ${currentTime.toFixed(
+      2
+    )}s, was playing: ${wasPlaying}`
+  );
+
+  try {
+    // Update playback session to get new token/URL
+    if (!props.useDirectUrl) {
+      await updatePlayback(props.contentId);
+      console.log("✅ Playback session updated successfully");
+
+      // Resume at current position if requested
+      if (shouldContinueAtPosition && wasPlaying) {
+        console.log("🔄 Resuming playback at current position...");
+        setTimeout(() => {
+          if (videoPlayer.value && videoPlayer.value.paused) {
+            safePlay(false, "high").catch((err) => {
+              console.warn("Failed to resume after error recovery:", err);
+            });
+          }
+        }, 500);
+      }
+    } else {
+      console.log("⚠️ Direct URL mode - cannot update playback session");
+      showPlaybackError(
+        "Cannot recover from error in direct URL mode.",
+        "DIRECT_URL_ERROR"
+      );
+    }
+  } catch (error) {
+    console.error(`❌ Failed to handle ${errorType}:`, error);
+
+    // Increment retry count
+    errorRetryCount++;
+
+    if (errorRetryCount <= maxErrorRetries) {
+      console.log(
+        `🔄 Retrying error recovery (${errorRetryCount}/${maxErrorRetries})...`
+      );
+      setTimeout(() => {
+        handlePlaybackUpdate(errorType, shouldContinueAtPosition);
+      }, errorRetryDelay * errorRetryCount);
+    } else {
+      console.log("❌ Max error retries exceeded - showing error screen");
+      showPlaybackError(
+        "Failed to recover from playback error. Please try again later.",
+        "MAX_RETRIES_EXCEEDED"
+      );
+      errorRetryCount = 0; // Reset for next error
+    }
+  } finally {
+    isHandlingError = false;
+  }
+};
+
+const resetErrorState = () => {
+  errorRetryCount = 0;
+  lastErrorTime = 0;
+  isHandlingError = false;
+  error.value = null;
 };
 
 // Coordinated playback control system
@@ -753,6 +856,9 @@ const onCanPlay = () => {
   canPlay.value = true;
   isLoading.value = false;
 
+  // Reset error state when video can play
+  resetErrorState();
+
   // Force a buffering check when video can play
   bufferedPercent.value = calculateBufferedPercent();
 
@@ -779,10 +885,21 @@ const onPlaying = () => {
   console.log("▶️ Video is playing");
   isPlaying.value = true;
   isBuffering.value = false;
+
+  // Reset buffering pause flag when playback resumes
+  if (isPauseDueToBuffering) {
+    console.log("🔄 Resetting buffering pause flag - playback resumed");
+    isPauseDueToBuffering = false;
+  }
 };
 
 const onWaiting = () => {
-  console.log("⏳ Video is waiting/buffering");
+  // Only log buffering if it's been more than 2 seconds since last log
+  const now = Date.now();
+  if (!lastBufferingLog || now - lastBufferingLog > 2000) {
+    console.log("⏳ Video is waiting/buffering");
+    lastBufferingLog = now;
+  }
   isBuffering.value = true;
 };
 
@@ -978,10 +1095,17 @@ const handlePause = () => {
   isPlaying.value = false;
   emit("videoPaused");
 
-  console.log("⏸️ About to show pause advert...");
+  console.log("⏸️ Pause event detected");
 
-  // Only show pause advert if beginning ads are not active
+  // Check if pause is due to buffering
+  if (isBuffering.value || isPauseDueToBuffering) {
+    console.log("⏸️ Skipping pause advert - video paused due to buffering");
+    return; // Don't show ads for buffering pauses
+  }
+
+  // Only show pause advert if beginning ads are not active and it's a user-initiated pause
   if (!showAdvertOverlay.value || hasShownBeginningAd.value) {
+    console.log("⏸️ Showing pause advert - user-initiated pause");
     showPauseAdvert();
   } else {
     console.log("⏸️ Skipping pause advert - beginning ads are still active");
@@ -1041,7 +1165,11 @@ const onProgress = () => {
 };
 
 const onCanPlayThrough = () => {
-  console.log("🎯 Video can play through without buffering");
+  // Only log once per session to reduce console spam
+  if (!canPlayThroughLogged) {
+    console.log("🎯 Video can play through without buffering");
+    canPlayThroughLogged = true;
+  }
   // Update buffering percentage one more time
   bufferedPercent.value = calculateBufferedPercent();
 };
@@ -1464,6 +1592,11 @@ const startProactiveBufferMonitoring = () => {
       ) {
         console.log("Buffer critically low - pausing to rebuild");
         isBufferRebuilding = true;
+
+        // Mark as buffering pause to prevent ad triggers
+        isBuffering.value = true;
+        isPauseDueToBuffering = true; // Set flag to prevent pause ads
+
         safePause("high"); // High priority pause
 
         // Clear any existing rebuild timer
@@ -1526,9 +1659,9 @@ const startBufferRebuilding = () => {
   // Set a maximum rebuild time to prevent infinite waiting
   bufferRebuildTimer = setTimeout(() => {
     clearInterval(rebuildCheckInterval);
-    console.log("Buffer rebuild timeout - resuming with available buffer");
+    console.log("⚠️ Buffer rebuild timeout - resuming with available buffer");
     resumePlaybackAfterRebuild();
-  }, 10000); // Max 10 seconds to rebuild
+  }, 8000); // Reduced from 10s to 8s for faster recovery
 };
 
 const resumePlaybackAfterRebuild = () => {
@@ -1543,30 +1676,43 @@ const resumePlaybackAfterRebuild = () => {
   isBufferRebuilding = false;
   bufferCriticalShown = false;
 
+  // Reset buffering flags
+  isBuffering.value = false;
+  isPauseDueToBuffering = false;
+
   // Resume playback using unified system
   setTimeout(() => {
     if (
       videoPlayer.value.paused &&
       currentBuffer >= NETWORK_OPTIMIZATION.criticalBufferThreshold
     ) {
+      console.log(
+        "🔄 Attempting to auto-resume playback after buffer rebuild..."
+      );
+
       // Use unified playback control for automatic resumption
       safePlay(false, "high")
         .then(() => {
-          console.log("Playback resumed successfully after buffer rebuild");
+          console.log("✅ Playback resumed successfully after buffer rebuild");
         })
         .catch((error) => {
           console.log(
-            `Failed to resume playback after buffer rebuild: ${error.message}`
+            `❌ Failed to resume playback after buffer rebuild: ${error.message}`
           );
-          // Don't retry immediately to avoid conflicts
+          // Retry with normal priority after a delay
           setTimeout(() => {
             if (videoPlayer.value.paused && playbackState === "paused") {
+              console.log("🔄 Retrying auto-resume with normal priority...");
               safePlay(false, "normal").catch((e) =>
-                console.log(`Retry failed: ${e.message}`)
+                console.log(`❌ Retry failed: ${e.message}`)
               );
             }
           }, 2000);
         });
+    } else {
+      console.log(
+        "⚠️ Cannot auto-resume: video not paused or insufficient buffer"
+      );
     }
   }, 100); // Reduced delay for faster resumption
 };
@@ -1916,34 +2062,38 @@ const initializeHLS = (url) => {
   if (Hls.isSupported()) {
     console.log("🔧 Using HLS.js for streaming");
     hlsInstance = new Hls({
-      // Optimized for smooth playback
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      maxBufferSize: 60 * 1000 * 1000, // 60MB
-      maxBufferHole: 0.1, // Reduced from 0.5 for smoother playback
+      // Optimized for smooth playback - reduced buffering for better responsiveness
+      maxBufferLength: 20, // Reduced from 30s for faster start
+      maxMaxBufferLength: 40, // Reduced from 60s for better responsiveness
+      maxBufferSize: 40 * 1000 * 1000, // 40MB - reduced for faster loading
+      maxBufferHole: 0.05, // Tighter buffer hole tolerance for smoother playback
       lowLatencyMode: false,
-      backBufferLength: 30,
+      backBufferLength: 15, // Reduced from 30s for better responsiveness
+
       // Performance optimizations
       enableWorker: true, // Use Web Workers for better performance
       startLevel: -1, // Auto quality selection
-      abrEwmaDefaultEstimate: 500000, // Better bandwidth estimation
-      abrBandWidthFactor: 0.95, // Conservative bandwidth usage
-      abrBandWidthUpFactor: 0.7, // Slower quality increases
-      // Buffer management
-      maxStarvationDelay: 4, // Max delay before switching quality
-      maxLoadingDelay: 4, // Max delay for segment loading
-      // ADDITIONAL IMPROVEMENTS for better playback
+
+      // Adaptive Bitrate (ABR) optimizations for smoother streaming
+      abrEwmaDefaultEstimate: 300000, // Reduced for faster adaptation
+      abrBandWidthFactor: 0.9, // More conservative bandwidth usage
+      abrBandWidthUpFactor: 0.6, // Slower quality increases to prevent buffering
+      abrBandWidthDownFactor: 0.8, // Faster quality decreases when needed
+      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
+
+      // Buffer management - optimized for smooth playback
+      maxStarvationDelay: 2, // Reduced from 4s for faster response
+      maxLoadingDelay: 2, // Reduced from 4s for faster loading
+      maxSeekHoleLength: 1, // Reduced from 2s for smoother seeking
+
+      // Additional optimizations
       enableSoftwareAES: true, // Better encryption handling
       debug: false, // Disable debug logging for performance
-      // Network resilience
-      maxBufferHole: 0.05, // Tighter buffer hole tolerance
-      maxSeekHoleLength: 2, // Max seek hole length
-      maxStarvationDelay: 6, // Increased tolerance for poor networks
-      maxLoadingDelay: 6, // Increased loading tolerance
-      // Quality adaptation
-      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
-      abrBandWidthUpFactor: 0.8, // More aggressive quality increases
-      abrBandWidthDownFactor: 0.9, // Conservative quality decreases
+
+      // Network resilience - balanced for smoothness
+      maxFragLookUpTolerance: 0.1, // Reduced tolerance for better sync
+      liveSyncDurationCount: 3, // Reduced live sync for faster start
+      liveMaxLatencyDurationCount: 8, // Reduced max latency
     });
 
     hlsInstance.loadSource(url);
@@ -1972,68 +2122,72 @@ const initializeHLS = (url) => {
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
       console.error("HLS.js error:", data);
 
-      // Handle specific HLS error types
+      // Smart error management based on error type and response code
       if (data.fatal) {
         console.error("❌ Fatal HLS error:", data.details);
 
-        // Check if it's a 401 unauthorized error (token expired)
-        if (
-          data.details === "FRAG_LOAD_ERROR" &&
-          data.response &&
-          data.response.code === 401
-        ) {
-          console.log(
-            "🔐 401 Unauthorized error detected - updating playback session and retrying"
-          );
-          if (props.useDirectUrl) {
-            // For direct URLs, show error since we can't refresh tokens
-            error.value = {
-              code: "HLS_ERROR",
-              message: "Video playback error. Please try again later.",
-            };
+        // Handle different error types with appropriate recovery strategies
+        if (data.details === "FRAG_LOAD_ERROR" && data.response) {
+          const errorCode = data.response.code;
+
+          if (errorCode === 401) {
+            // 401 Unauthorized - token expired, update playback immediately
+            console.log(
+              "🔐 401 Unauthorized error - updating playback session immediately"
+            );
+            handlePlaybackUpdate("AUTH_EXPIRED", true);
+          } else if (errorCode === 403) {
+            // 403 Forbidden - access denied, update playback immediately
+            console.log(
+              "🚫 403 Forbidden error - updating playback session immediately"
+            );
+            handlePlaybackUpdate("ACCESS_DENIED", true);
+          } else if (errorCode === 404) {
+            // 404 Not Found - content not available, show error screen
+            console.log("📭 404 Not Found error - showing error screen");
+            showPlaybackError(
+              "Content not available. Please try again later.",
+              "CONTENT_NOT_FOUND"
+            );
           } else {
-            handleHls401Error();
+            // Other HTTP errors - try to update playback first
+            console.log(
+              `⚠️ HTTP ${errorCode} error - attempting playback update`
+            );
+            handlePlaybackUpdate(`HTTP_${errorCode}`, true);
           }
-        } else if (
-          data.details === "FRAG_LOAD_ERROR" &&
-          data.response &&
-          data.response.code === 403
-        ) {
+        } else if (data.details === "MANIFEST_LOAD_ERROR") {
+          // Manifest loading error - likely network or server issue
+          console.log("📋 Manifest load error - attempting playback update");
+          handlePlaybackUpdate("MANIFEST_ERROR", true);
+        } else if (data.details === "LEVEL_LOAD_ERROR") {
+          // Quality level loading error - try to continue with current quality
           console.log(
-            "🚫 403 Forbidden error detected - updating playback session and retrying"
+            "📊 Quality level load error - attempting to continue playback"
           );
-          if (props.useDirectUrl) {
-            // For direct URLs, show error since we can't refresh tokens
-            error.value = {
-              code: "HLS_ERROR",
-              message: "Video playback error. Please try again later.",
-            };
-          } else {
-            handleHls401Error();
-          }
+          handlePlaybackUpdate("QUALITY_ERROR", true);
         } else {
-          // For other fatal errors, emit the error
-          emit("error", {
-            code: data.details,
-            message: data.type,
-            fatal: true,
-            hlsData: data,
-          });
+          // Other fatal errors - show error screen
+          console.log("❌ Unknown fatal error - showing error screen");
+          showPlaybackError(
+            "Video playback error. Please try again later.",
+            "UNKNOWN_ERROR"
+          );
         }
       } else {
         // Non-fatal errors - log but don't stop playback
         console.warn("⚠️ Non-fatal HLS error:", data.details);
 
-        // Still check for 401/403 in non-fatal errors
+        // Still check for 401/403 in non-fatal errors - these need immediate attention
         if (
           data.details === "FRAG_LOAD_ERROR" &&
           data.response &&
           (data.response.code === 401 || data.response.code === 403)
         ) {
           console.log(
-            "🔐 401/403 error in non-fatal error - updating playback session"
+            "🔐 401/403 error in non-fatal error - updating playback session immediately"
           );
-          handleHls401Error();
+          handlePlaybackUpdate("AUTH_ERROR_NON_FATAL", true);
         }
       }
     });

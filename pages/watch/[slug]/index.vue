@@ -3,7 +3,7 @@
     <Navbar />
     <main v-if="content" class="bg-black">
       <!-- Mobile Template -->
-      <template v-if="isMobile">
+      <template v-if="isMobileComputed">
         <!-- Background Image and Content (hidden when watching trailer) -->
         <div
           v-show="!watchingTrailer"
@@ -367,20 +367,45 @@ const { data: similarData, pending: similarPending } = await useAsyncData(
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
 
-// Better mobile detection using user agent and device capabilities
+// Better mobile detection using multiple methods for reliability
 const detectMobileDevice = () => {
-  // Check user agent for mobile devices
+  // Method 1: Check user agent for mobile devices
   const userAgent = navigator.userAgent.toLowerCase();
   const isMobileUA =
-    /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+    /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i.test(
       userAgent
     );
 
-  // Check for touch capability (more reliable than screen size)
+  // Method 2: Check for touch capability
   const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-  // Check for mobile-specific features
-  const isMobileDevice = isMobileUA || hasTouch;
+  // Method 3: Check screen dimensions (fallback for edge cases)
+  const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 768;
+
+  // Method 4: Check for mobile-specific features
+  const hasMobileFeatures =
+    "orientation" in window || "deviceOrientation" in window;
+
+  // Method 5: Check for mobile-specific CSS media queries
+  const isMobileMediaQuery = window.matchMedia("(max-width: 768px)").matches;
+
+  // Combine all methods - if any suggest mobile, treat as mobile
+  const isMobileDevice =
+    isMobileUA ||
+    hasTouch ||
+    (isSmallScreen && hasMobileFeatures) ||
+    isMobileMediaQuery;
+
+  // Debug logging
+  console.log("Mobile detection debug:", {
+    userAgent: userAgent.substring(0, 100) + "...",
+    isMobileUA,
+    hasTouch,
+    isSmallScreen,
+    hasMobileFeatures,
+    isMobileMediaQuery,
+    finalResult: isMobileDevice,
+  });
 
   return isMobileDevice;
 };
@@ -390,6 +415,24 @@ const initializeMobileDetection = () => {
   isMobile.value = detectMobileDevice();
   console.log("Device detected as:", isMobile.value ? "mobile" : "desktop");
 };
+
+// Fallback mobile detection using computed property for reliability
+const isMobileComputed = computed(() => {
+  // Use the detected mobile state, but fallback to screen size if needed
+  if (isMobile.value) return true;
+
+  // Fallback: check if screen size suggests mobile
+  const screenSizeMobile = window.innerWidth < 768;
+
+  // If screen size suggests mobile but detection didn't, log it
+  if (screenSizeMobile && !isMobile.value) {
+    console.warn(
+      "Mobile detection may have failed, using screen size fallback"
+    );
+  }
+
+  return isMobile.value || screenSizeMobile;
+});
 
 // Remove the resize listener since we're not using screen size anymore
 // const handleResize = () => { ... };
@@ -527,7 +570,7 @@ onUnmounted(() => {
   stopBackgroundRetry();
 
   // Restore body scroll on mobile
-  if (isMobile.value) {
+  if (isMobileComputed.value) {
     document.body.style.overflow = "";
     document.body.classList.remove("video-open");
   }
@@ -544,7 +587,7 @@ const handleVideoPaused = () => {
 const handleVideoEnded = () => {
   console.log("Video ended");
   // On mobile, close the trailer when it ends
-  if (window.innerWidth < 768) {
+  if (isMobileComputed.value) {
     watchingTrailer.value = false;
   }
 };
@@ -585,7 +628,7 @@ const handleVideoError = (error) => {
       error.message ||
       "Failed to load video. Please check your connection and try again.";
     watchingTrailer.value = false;
-    if (isMobile.value) {
+    if (isMobileComputed.value) {
       document.body.style.overflow = "";
       document.body.classList.remove("video-open");
     }
