@@ -15,6 +15,11 @@
         :loop="loop"
         :volume="volume"
         class="w-full h-full object-contain cursor-pointer"
+        playsinline
+        webkit-playsinline
+        x5-playsinline
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
         @canplay="onCanPlay"
         @playing="onPlaying"
         @waiting="onWaiting"
@@ -24,6 +29,8 @@
         @ended="handleEnded"
         @timeupdate="handleTimeUpdate"
         @click="handleVideoClick"
+        @seeking="handleSeeking"
+        @seeked="handleSeeked"
         @loadedmetadata="onLoadedMetadata"
         @progress="onProgress"
         @canplaythrough="onCanPlayThrough"
@@ -230,30 +237,59 @@ const canPlay = ref(false);
 let lastBufferingLog = null;
 let canPlayThroughLogged = false;
 
+// Buffering pause flag to prevent ads during buffering
+let isPauseDueToBuffering = false;
+
+// Enhanced seeking state management
+let isSeeking = false;
+let seekStartTime = 0;
+let seekTimeout = null;
+let seekCooldown = false;
+let seekCooldownTimer = null;
+const SEEK_COOLDOWN_DURATION = 2000; // 2 seconds cooldown after seeking
+
+// Keyboard event handling
+let isKeyboardEventHandling = false;
+
+// Error handling variables - optimized for poor networks
+let lastErrorTime = 0;
+let errorRetryCount = 0;
+const maxErrorRetries = 5; // Increased for poor networks
+const errorRetryDelay = 1000; // Reduced for faster recovery
+let isHandlingError = false;
+let networkQualityScore = 100; // Track network quality for adaptive settings
+
 // Advert state
 const showAdvertOverlay = ref(false);
 const currentAdvert = ref(null);
 const hasShownBeginningAd = ref(false);
 
-// Simplified advert flow: show beginning ads immediately when video loads
+// Enhanced advert flow: show beginning ads immediately when video loads
 onMounted(() => {
   // Small delay to ensure everything is initialized
   setTimeout(() => {
-    if (advertStore.adverts && advertStore.adverts.length > 0) {
+    console.log("🎬 onMounted: Checking for adverts and initializing video");
+
+    // Check if advert store is available and has adverts
+    if (advertStore && advertStore.adverts && advertStore.adverts.length > 0) {
+      console.log("📺 Adverts available, showing beginning advert");
       // Video loaded, showing beginning advert immediately
       showBeginningAdvert();
     } else {
+      console.log("📺 No adverts available, starting main video directly");
       // No adverts available, starting main video directly
-      // Start main video if no ads
+      // Start main video if no ads - but respect autoplay policies
       if (videoPlayer.value && videoPlayer.value.paused) {
         // Double-check that no advert overlay is active
         if (!showAdvertOverlay.value) {
-          safePlay(false, "high").catch((err) => {
-            // Failed to start main video
-          });
+          console.log("▶️ Starting main video (no ads)");
+          // Use user interaction-aware autoplay
+          startVideoWithUserInteraction();
         } else {
-          // Advert overlay still active, waiting for completion
+          console.log("⏸️ Advert overlay active, waiting for completion");
         }
+      } else {
+        console.log("⚠️ Video player not ready or already playing");
       }
     }
   }, 1000); // 1 second delay to ensure video player is ready
@@ -294,37 +330,29 @@ let preloadHls = null;
 let isStreamReady = false;
 let isSourceSwitching = false;
 
-// Optimized buffering settings for smoother playback
-const MIN_BUFFER_LENGTH = 8; // Reduced from 15s for faster start
-const TARGET_BUFFER_LENGTH = 20; // Reduced from 30s for better responsiveness
+// Quality switching control to prevent segment cancellations
+let lastQualityChangeTime = 0;
 
-// Enhanced network optimization settings with increased caching
+// Balanced buffering settings for stable playback
+const MIN_BUFFER_LENGTH = 8; // Minimum buffer for stable start
+const TARGET_BUFFER_LENGTH = 15; // Target buffer for smooth playback
+
+// Enhanced network optimization settings for stable playback
 const NETWORK_OPTIMIZATION = {
-  // Adaptive buffering based on network conditions
-  adaptiveBufferLength: true,
-  minBufferLength: 10, // Increased for better caching
-  maxBufferLength: 60, // Increased for better caching
-
-  // Quality adaptation
-  enableQualityAdaptation: true,
-  qualitySwitchThreshold: 0.7, // 70% buffer before quality increase
-  qualityDropThreshold: 0.4, // 40% buffer before quality decrease
-
-  // Network resilience
-  maxRetryAttempts: 3, // Increased for better reliability
-  retryDelay: 2000, // Slightly longer retry for stability
-  networkTimeout: 10000, // Increased timeout for better reliability
-
-  // Buffer management
-  aggressiveBufferManagement: false, // Disabled to prevent excessive pausing
-  bufferRebuildThreshold: 0.15, // Rebuild buffer if below 15%
-
-  // Proactive buffer monitoring
+  // Proactive buffer monitoring - Balanced for stability
   proactiveBufferMonitoring: true,
-  criticalBufferThreshold: 10, // Increased critical buffer level
-  warningBufferThreshold: 20, // Increased warning buffer level
-  qualityReductionThreshold: 15, // Increased quality reduction threshold
-  bufferCheckInterval: 3000, // Check buffer every 3 seconds for efficiency
+  criticalBufferThreshold: 5, // Critical buffer level for immediate action (5 seconds)
+  warningBufferThreshold: 10, // Warning buffer level for quality reduction (10 seconds)
+  qualityReductionThreshold: 10, // Quality reduction threshold (10 seconds)
+  bufferCheckInterval: 1000, // Check buffer every 1 second for stability
+
+  // Quality adaptation settings - Balanced for stability
+  enableQualityAdaptation: true,
+  qualitySwitchThreshold: 0.8, // 80% buffer before quality increase (stable)
+  qualityDropThreshold: 0.4, // 40% buffer before quality decrease (stable)
+
+  // Adaptive behavior settings
+  adaptiveBufferLength: true, // Enable adaptive delays based on network conditions
 };
 
 // Helper function to format time
@@ -859,8 +887,13 @@ const onCanPlay = () => {
 
   // Ensure video is unmuted for perfect viewing experience
   if (videoPlayer.value && props.muted === false) {
-    videoPlayer.value.muted = false;
-    // Video unmuted for perfect viewing experience
+    try {
+      videoPlayer.value.muted = false;
+      console.log("🔊 Main video unmuted successfully");
+    } catch (error) {
+      console.warn("⚠️ Failed to unmute main video:", error);
+      // Don't show play button for main video, just log the error
+    }
   }
 
   // Auto-play immediately when video can play using coordinated system
@@ -1087,12 +1120,23 @@ const handlePause = () => {
   isPlaying.value = false;
   emit("videoPaused");
 
-  console.log("⏸️ Pause event detected");
+  console.log("⏸️ Pause event detected", {
+    isBuffering: isBuffering.value,
+    isPauseDueToBuffering,
+    isSeeking,
+    seekCooldown,
+    showAdvertOverlay: showAdvertOverlay.value,
+    hasShownBeginningAd: hasShownBeginningAd.value,
+    advertStoreAvailable: !!advertStore,
+    advertCount: advertStore?.adverts?.length || 0,
+  });
 
-  // Check if pause is due to buffering
-  if (isBuffering.value || isPauseDueToBuffering) {
-    console.log("⏸️ Skipping pause advert - video paused due to buffering");
-    return; // Don't show ads for buffering pauses
+  // Check if pause is due to buffering, seeking, or seeking cooldown
+  if (isBuffering.value || isPauseDueToBuffering || isSeeking || seekCooldown) {
+    console.log(
+      "⏸️ Skipping pause advert - video paused due to buffering, seeking, or seeking cooldown"
+    );
+    return; // Don't show ads for buffering or seeking pauses
   }
 
   // Only show pause advert if beginning ads are not active and it's a user-initiated pause
@@ -1172,6 +1216,43 @@ const handleVideoClick = () => {
   }
 };
 
+// Enhanced seeking event handlers
+const handleSeeking = () => {
+  console.log("🎯 Seeking event detected");
+
+  // Immediately hide any pause advert overlay when seeking is detected
+  if (showAdvertOverlay.value && currentAdvert.value) {
+    console.log("🎯 Hiding pause advert overlay due to seeking");
+    showAdvertOverlay.value = false;
+    currentAdvert.value = null;
+  }
+
+  // Set seeking state to prevent ads
+  isSeeking = true;
+  seekStartTime = Date.now();
+};
+
+const handleSeeked = () => {
+  console.log("🎯 Seeked event detected");
+  // Reset seeking state and set cooldown
+  isSeeking = false;
+
+  // Set seeking cooldown to prevent ads from showing immediately after seeking
+  seekCooldown = true;
+  console.log("🎯 Setting seeking cooldown for", SEEK_COOLDOWN_DURATION, "ms");
+
+  // Clear any existing cooldown timer
+  if (seekCooldownTimer) {
+    clearTimeout(seekCooldownTimer);
+  }
+
+  // Set cooldown timer
+  seekCooldownTimer = setTimeout(() => {
+    seekCooldown = false;
+    console.log("🎯 Seeking cooldown expired");
+  }, SEEK_COOLDOWN_DURATION);
+};
+
 // Advert methods
 const showBeginningAdvert = () => {
   // showBeginningAdvert called
@@ -1233,13 +1314,27 @@ const showPauseAdvert = () => {
     return;
   }
 
+  // Prevent pause ads during seeking or seeking cooldown
+  if (isSeeking || seekCooldown) {
+    console.log(
+      "⏸️ Skipping pause advert - seeking in progress or cooldown active"
+    );
+    return;
+  }
+
   // Check if advert store is available
   if (!advertStore) {
     console.log("❌ Advert store not available");
     return;
   }
 
-  console.log("🔍 Pause adverts:", advertStore.pauseAdverts);
+  console.log("🔍 Advert store state:", {
+    totalAdverts: advertStore.adverts?.length || 0,
+    pauseAdverts: advertStore.pauseAdverts?.length || 0,
+    beginningAdverts: advertStore.beginningAdverts?.length || 0,
+    isLoading: advertStore.isLoading,
+    error: advertStore.error,
+  });
 
   // Check if we have any adverts at all
   if (!advertStore.adverts || advertStore.adverts.length === 0) {
@@ -1323,29 +1418,28 @@ const onAdvertClose = () => {
   if (isBeginningAd && videoPlayer.value && videoPlayer.value.paused) {
     console.log("▶️ Starting main video after beginning advert completion");
 
-    // Check if video is ready to play
-    if (!canPlay.value) {
-      console.log("⏳ Video not ready to play yet, waiting...");
-      // Wait for video to be ready
-      const checkCanPlay = setInterval(() => {
-        if (canPlay.value) {
-          clearInterval(checkCanPlay);
-          console.log("✅ Video is now ready, starting playback");
-          startMainVideo();
-        }
-      }, 100);
-
-      // Timeout after 5 seconds
+    // Improved auto-play logic with better timing and user interaction awareness
+    const startMainVideoWithDelay = (delay = 100) => {
       setTimeout(() => {
-        clearInterval(checkCanPlay);
-        console.log("⏰ Timeout waiting for video to be ready, trying anyway");
-        startMainVideo();
-      }, 5000);
-      return;
-    }
+        if (videoPlayer.value && videoPlayer.value.paused) {
+          console.log("🚀 Attempting to start main video after delay");
 
-    // Video is ready, start it
-    startMainVideo();
+          // Check if video is ready to play
+          if (canPlay.value && !isLoading.value) {
+            console.log("✅ Video ready, starting playback");
+            // Use user interaction-aware autoplay
+            startVideoWithUserInteraction();
+          } else {
+            console.log("⏳ Video not ready yet, retrying in 200ms");
+            // Retry with longer delay
+            startMainVideoWithDelay(200);
+          }
+        }
+      }, delay);
+    };
+
+    // Start with initial delay and user interaction awareness
+    startMainVideoWithDelay();
   } else if (!isBeginningAd) {
     console.log(
       "⏸️ Pause advert closed - video will remain paused as expected"
@@ -1355,42 +1449,6 @@ const onAdvertClose = () => {
       videoPlayerExists: !!videoPlayer.value,
       isPaused: videoPlayer.value?.paused,
     });
-  }
-
-  // Helper function to start main video
-  function startMainVideo() {
-    console.log("🚀 Calling safePlay to start main video");
-
-    // Debug: Check current state
-    console.log("🔍 Current state before starting:", {
-      videoPlayerExists: !!videoPlayer.value,
-      isPaused: videoPlayer.value?.paused,
-      playbackState,
-      isPlaying: isPlaying.value,
-      canPlay: canPlay.value,
-      isLoading: isLoading.value,
-    });
-
-    // Try safePlay first
-    safePlay(false, "high")
-      .then(() => {
-        console.log("✅ Main video started successfully after advert");
-      })
-      .catch((err) => {
-        console.error("❌ safePlay failed, trying direct play:", err);
-
-        // Fallback: try direct play
-        if (videoPlayer.value && videoPlayer.value.paused) {
-          videoPlayer.value
-            .play()
-            .then(() => {
-              console.log("✅ Main video started with direct play");
-            })
-            .catch((directError) => {
-              console.error("❌ Direct play also failed:", directError);
-            });
-        }
-      });
   }
 };
 
@@ -1623,6 +1681,9 @@ const startProactiveBufferMonitoring = () => {
       if (currentBuffer > warningThreshold + 10) {
         increaseQualityGradually();
       }
+
+      // Enhanced quality adaptation based on buffer levels
+      adaptQualityBasedOnBuffer();
     }
   }, NETWORK_OPTIMIZATION.bufferCheckInterval);
 };
@@ -1648,12 +1709,12 @@ const startBufferRebuilding = () => {
     }
   }, 500); // Check every 500ms during rebuilding
 
-  // Set a maximum rebuild time to prevent infinite waiting
+  // Set a maximum rebuild time to prevent infinite waiting - BALANCED for smooth playback
   bufferRebuildTimer = setTimeout(() => {
     clearInterval(rebuildCheckInterval);
     console.log("⚠️ Buffer rebuild timeout - resuming with available buffer");
     resumePlaybackAfterRebuild();
-  }, 8000); // Reduced from 10s to 8s for faster recovery
+  }, 12000); // Balanced at 12s for smooth playback
 };
 
 const resumePlaybackAfterRebuild = () => {
@@ -1774,7 +1835,253 @@ const increaseQualityGradually = () => {
     getCurrentBufferLength() > NETWORK_OPTIMIZATION.warningBufferThreshold + 15
   ) {
     hlsInstance.currentLevel = currentLevel + 1;
-    // Quality increased by one level - buffer stable
+    console.log(
+      `🎯 Quality increased to level ${currentLevel + 1} - buffer stable`
+    );
+  }
+};
+
+// Optimize video element for better performance
+const optimizeVideoPerformance = () => {
+  if (!videoPlayer.value) return;
+
+  // Set video properties for better performance
+  videoPlayer.value.style.transform = "translateZ(0)"; // Hardware acceleration
+  videoPlayer.value.style.backfaceVisibility = "hidden"; // Performance optimization
+  videoPlayer.value.style.perspective = "1000px"; // 3D acceleration
+
+  // Set video attributes for better performance
+  videoPlayer.value.setAttribute("playsinline", "");
+  videoPlayer.value.setAttribute("webkit-playsinline", "");
+  videoPlayer.value.setAttribute("x5-playsinline", "");
+  videoPlayer.value.setAttribute("x5-video-player-type", "h5");
+  videoPlayer.value.setAttribute("x5-video-player-fullscreen", "true");
+
+  console.log("🎯 Video performance optimizations applied");
+};
+
+// Enhanced quality adaptation based on buffer levels - Stable playback mode with segment cancellation prevention
+const adaptQualityBasedOnBuffer = () => {
+  if (
+    !NETWORK_OPTIMIZATION.enableQualityAdaptation ||
+    !hlsInstance ||
+    !hlsInstance.levels
+  ) {
+    return;
+  }
+
+  const currentBuffer = getCurrentBufferLength();
+  const totalDuration = videoPlayer.value?.duration || 0;
+
+  if (totalDuration === 0) return;
+
+  const bufferPercentage = currentBuffer / totalDuration;
+  const currentLevel = hlsInstance.currentLevel;
+  const maxLevel = hlsInstance.levels.length - 1;
+
+  // Prevent rapid quality switching that causes segment cancellations
+  const now = Date.now();
+  if (!lastQualityChangeTime || now - lastQualityChangeTime < 5000) {
+    // Wait at least 5 seconds between quality changes to prevent cancellations
+    return;
+  }
+
+  // Quality decrease when buffer is below 10 seconds (stable threshold)
+  if (currentBuffer <= 10 && currentLevel > 0) {
+    const targetLevel = Math.max(0, currentLevel - 1);
+    if (targetLevel !== currentLevel) {
+      hlsInstance.currentLevel = targetLevel;
+      lastQualityChangeTime = now;
+      console.log(
+        `🔽 Quality decreased to level ${targetLevel} - buffer at ${currentBuffer.toFixed(
+          1
+        )}s (below 10s threshold)`
+      );
+    }
+  }
+  // Quality increase when buffer is above 20 seconds (stable threshold)
+  else if (currentBuffer >= 20 && currentLevel < maxLevel) {
+    const targetLevel = Math.min(currentLevel + 1, maxLevel);
+    if (targetLevel !== currentLevel) {
+      hlsInstance.currentLevel = targetLevel;
+      lastQualityChangeTime = now;
+      console.log(
+        `🎯 Quality increased to level ${targetLevel} - buffer at ${currentBuffer.toFixed(
+          1
+        )}s (above 20s threshold)`
+      );
+    }
+  }
+
+  // Log buffer status for monitoring
+  if (currentBuffer < 15) {
+    console.log(
+      `📊 Buffer status: ${currentBuffer.toFixed(
+        1
+      )}s - Quality level: ${currentLevel}`
+    );
+  }
+};
+
+// User interaction-aware autoplay function
+const startVideoWithUserInteraction = () => {
+  if (!videoPlayer.value) return;
+
+  console.log("🎬 Attempting to start video with user interaction awareness");
+
+  // Check if user has interacted with the page
+  const hasUserInteracted =
+    document.querySelector(":focus") ||
+    document.querySelector(":hover") ||
+    window.userHasInteracted;
+
+  if (hasUserInteracted) {
+    console.log("✅ User has interacted, attempting autoplay");
+    safePlay(false, "high").catch((err) => {
+      console.warn("Autoplay failed even with user interaction:", err);
+      // Fallback: show play button or wait for user click
+      showPlayButtonFallback();
+    });
+  } else {
+    console.log("⚠️ No user interaction detected, waiting for user action");
+    // Set up event listeners for user interaction
+    setupUserInteractionListeners();
+    // Show play button as fallback
+    showPlayButtonFallback();
+  }
+};
+
+// Setup user interaction listeners
+const setupUserInteractionListeners = () => {
+  const events = ["click", "touchstart", "keydown", "scroll"];
+
+  const handleUserInteraction = () => {
+    console.log("✅ User interaction detected, enabling autoplay");
+    window.userHasInteracted = true;
+
+    // Remove all listeners
+    events.forEach((event) => {
+      document.removeEventListener(event, handleUserInteraction);
+    });
+
+    // Try to start video
+    if (videoPlayer.value && videoPlayer.value.paused) {
+      safePlay(false, "high").catch((err) => {
+        console.warn("Failed to start video after user interaction:", err);
+      });
+    }
+  };
+
+  // Add listeners
+  events.forEach((event) => {
+    document.addEventListener(event, handleUserInteraction, { once: true });
+  });
+};
+
+// Show play button fallback
+const showPlayButtonFallback = () => {
+  // Create a play button overlay if it doesn't exist
+  if (!document.querySelector(".video-play-overlay")) {
+    const overlay = document.createElement("div");
+    overlay.className = "video-play-overlay";
+    overlay.innerHTML = `
+      <div class="play-button-container">
+        <button class="play-button">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <p class="play-text">Click to play</p>
+      </div>
+    `;
+
+    // Style the overlay
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    `;
+
+    // Style the play button
+    const playButton = overlay.querySelector(".play-button");
+    playButton.style.cssText = `
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    `;
+
+    // Add proper click handler with video reference safety
+    playButton.addEventListener("click", () => {
+      console.log("🎬 Play button clicked, attempting to start video");
+
+      // Remove the overlay first
+      if (overlay.parentNode) {
+        overlay.remove();
+      }
+
+      // Try to start the video using the proper reference
+      if (videoPlayer.value && !videoPlayer.value.paused) {
+        console.log("✅ Video is already playing");
+        return;
+      }
+
+      if (videoPlayer.value && videoPlayer.value.paused) {
+        console.log("▶️ Starting video from play button");
+        safePlay(false, "high").catch((err) => {
+          console.warn("Failed to start video from play button:", err);
+          // Fallback: try direct play
+          if (videoPlayer.value && videoPlayer.value.paused) {
+            videoPlayer.value.play().catch((directError) => {
+              console.error("Direct play also failed:", directError);
+            });
+          }
+        });
+      } else {
+        console.warn("⚠️ Video player not available");
+      }
+    });
+
+    // Style the text
+    const playText = overlay.querySelector(".play-text");
+    playText.style.cssText = `
+      color: white;
+      margin-top: 16px;
+      font-size: 16px;
+      text-align: center;
+    `;
+
+    // Add hover effect
+    playButton.addEventListener("mouseenter", () => {
+      playButton.style.transform = "scale(1.1)";
+      playButton.style.background = "rgba(255,255,255,1)";
+    });
+
+    playButton.addEventListener("mouseleave", () => {
+      playButton.style.transform = "scale(1)";
+      playButton.style.background = "rgba(255,255,255,0.9)";
+    });
+
+    // Add to video container
+    const videoContainer = videoPlayer.value?.parentElement;
+    if (videoContainer) {
+      videoContainer.style.position = "relative";
+      videoContainer.appendChild(overlay);
+    }
   }
 };
 
@@ -2054,38 +2361,54 @@ const initializeHLS = (url) => {
   if (Hls.isSupported()) {
     console.log("🔧 Using HLS.js for streaming");
     hlsInstance = new Hls({
-      // Optimized for smooth playback with increased caching
-      maxBufferLength: 45, // Increased for better caching
-      maxMaxBufferLength: 90, // Increased for better caching
-      maxBufferSize: 90 * 1000 * 1000, // 90MB - increased for better caching
-      maxBufferHole: 0.05, // Tighter buffer hole tolerance for smoother playback
-      lowLatencyMode: false,
-      backBufferLength: 45, // Increased for better caching
+      // Buffer Management - Stable to prevent segment cancellation
+      maxBufferLength: 30, // Stable buffer to prevent cancellations
+      maxMaxBufferLength: 60, // Stable max buffer for smooth playback
+      maxBufferSize: 60 * 1000 * 1000, // 60MB buffer size for stable loading
+      maxBufferHole: 0.2, // More tolerant buffer holes to prevent cancellations
+      backBufferLength: 30, // Stable back buffer for performance
+      lowLatencyMode: false, // Disable low latency for stability
 
-      // Performance optimizations
+      // Performance optimizations - Maximum performance
       enableWorker: true, // Use Web Workers for better performance
-      startLevel: -1, // Auto quality selection
-
-      // Adaptive Bitrate (ABR) optimizations for smoother streaming
-      abrEwmaDefaultEstimate: 300000, // Reduced for faster adaptation
-      abrBandWidthFactor: 0.9, // More conservative bandwidth usage
-      abrBandWidthUpFactor: 0.6, // Slower quality increases to prevent buffering
-      abrBandWidthDownFactor: 0.8, // Faster quality decreases when needed
-      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
-
-      // Buffer management - optimized for smooth playback
-      maxStarvationDelay: 2, // Reduced from 4s for faster response
-      maxLoadingDelay: 2, // Reduced from 4s for faster loading
-      maxSeekHoleLength: 1, // Reduced from 2s for smoother seeking
-
-      // Additional optimizations
+      startLevel: 0, // Start with lowest quality for stability
       enableSoftwareAES: true, // Better encryption handling
       debug: false, // Disable debug logging for performance
 
-      // Network resilience - balanced for smoothness
-      maxFragLookUpTolerance: 0.1, // Reduced tolerance for better sync
-      liveSyncDurationCount: 3, // Reduced live sync for faster start
-      liveMaxLatencyDurationCount: 8, // Reduced max latency
+      // Adaptive Bitrate (ABR) - Stable to prevent segment cancellation
+      abrEwmaDefaultEstimate: 400000, // Balanced estimate for stability
+      abrBandWidthFactor: 0.9, // Conservative bandwidth usage for stability
+      abrBandWidthUpFactor: 0.7, // Slower quality increases to prevent cancellations
+      abrBandWidthDownFactor: 0.8, // Moderate quality decreases for stability
+      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
+      abrEwmaFastLive: 4.0, // Slower adaptation for live content
+      abrEwmaSlowLive: 8.0, // Slower adaptation for stability
+      abrEwmaFastVoD: 4.0, // Slower adaptation for VOD content
+      abrEwmaSlowVoD: 8.0, // Slower adaptation for stability
+
+      // Buffer Management - Ultra-aggressive for poor networks
+      maxStarvationDelay: 0.3, // Very fast response to buffer starvation
+      maxLoadingDelay: 0.3, // Very fast loading response
+      maxSeekHoleLength: 0.05, // Very tight seek holes
+      seekHoleNudgeDuration: 0.02, // Very fast seeking behavior
+
+      // Network Resilience - Optimized for poor networks
+      maxFragLookUpTolerance: 0.01, // Very tight tolerance for sync
+      liveSyncDurationCount: 1, // Fast live sync
+      liveMaxLatencyDurationCount: 2, // Very low latency
+
+      // Loading Timeouts and Retries - Stable to prevent segment cancellation
+      fragLoadingTimeOut: 8000, // Longer timeout to prevent cancellations
+      fragLoadingMaxRetry: 3, // Fewer retries to prevent duplicate requests
+      fragLoadingRetryDelay: 1500, // Longer retry delay to prevent overlapping
+
+      levelLoadingTimeOut: 8000, // Longer timeout for level loading
+      levelLoadingMaxRetry: 3, // Fewer retries for level loading
+      levelLoadingRetryDelay: 1500, // Longer retry delay for level loading
+
+      manifestLoadingTimeOut: 15000, // Longer timeout for manifest
+      manifestLoadingMaxRetry: 3, // Fewer retries for manifest loading
+      manifestLoadingRetryDelay: 1500, // Longer retry delay for manifest loading
     });
 
     hlsInstance.loadSource(url);
@@ -2097,10 +2420,13 @@ const initializeHLS = (url) => {
       startBuffering();
       // Start periodic buffering check
       startBufferingCheck();
-      // Start proactive buffer monitoring for smooth playback
+      // Start proactive buffer monitoring for stable playback
       setTimeout(() => {
         startProactiveBufferMonitoring();
-      }, 2000); // Start monitoring 2 seconds after manifest is ready
+      }, 2000); // Start monitoring 2 seconds after manifest is ready (stable monitoring)
+
+      // Optimize video performance for smoother playback
+      optimizeVideoPerformance();
 
       // Main video is paused during beginning ads - no autoplay
       // Main video paused - waiting for beginning ads to complete
@@ -2109,6 +2435,28 @@ const initializeHLS = (url) => {
     hlsInstance.on(Hls.Events.FRAG_LOADED, () => {
       // Update buffering progress when fragments are loaded
       bufferedPercent.value = calculateBufferedPercent();
+
+      // Performance monitoring for stable playback
+      console.log(
+        "📊 Fragment loaded - Buffer:",
+        getCurrentBufferLength().toFixed(1),
+        "s"
+      );
+    });
+
+    hlsInstance.on(Hls.Events.FRAG_LOADING, () => {
+      // Monitor fragment loading to prevent unnecessary cancellations
+      console.log("🔄 Fragment loading started");
+    });
+
+    hlsInstance.on(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED, () => {
+      console.warn(
+        "⚠️ Fragment loading aborted - this may cause cancellations"
+      );
+    });
+
+    hlsInstance.on(Hls.Events.FRAG_LOAD_ERROR, (event, data) => {
+      console.warn("⚠️ Fragment load error - retrying:", data);
     });
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
@@ -2182,11 +2530,6 @@ const initializeHLS = (url) => {
           handlePlaybackUpdate("AUTH_ERROR_NON_FATAL", true);
         }
       }
-    });
-
-    hlsInstance.on(Hls.Events.FRAG_LOADED, () => {
-      // Update buffering progress when fragments are loaded
-      bufferedPercent.value = calculateBufferedPercent();
     });
   } else if (videoPlayer.value.canPlayType("application/vnd.apple.mpegurl")) {
     console.log("🍎 Using native HLS support (Safari)");
@@ -2648,11 +2991,164 @@ const initializeStreaming = async () => {
 // In your component setup or mounted hook
 onMounted(() => {
   initializePlayer();
+
+  // Add keyboard event listener
+  document.addEventListener("keydown", handleKeyDown);
 });
 
 // For seeking functionality
 const handleSeek = (time) => {
-  seekTo(time);
+  if (!videoPlayer.value || isSeeking) return;
+
+  console.log(`🎯 Seeking to ${time.toFixed(2)}s`);
+
+  // Immediately hide any pause advert overlay when seeking is detected
+  if (showAdvertOverlay.value && currentAdvert.value) {
+    console.log("🎯 Hiding pause advert overlay due to programmatic seeking");
+    showAdvertOverlay.value = false;
+    currentAdvert.value = null;
+  }
+
+  // Set seeking state
+  isSeeking = true;
+  seekStartTime = Date.now();
+
+  // Clear any existing seek timeout
+  if (seekTimeout) {
+    clearTimeout(seekTimeout);
+  }
+
+  // Store current playback state
+  const wasPlaying = !videoPlayer.value.paused;
+  const currentVolume = videoPlayer.value.volume;
+  const currentPlaybackRate = videoPlayer.value.playbackRate;
+
+  // Pause video during seek to prevent stuttering
+  if (wasPlaying) {
+    videoPlayer.value.pause();
+  }
+
+  // Perform the seek
+  videoPlayer.value.currentTime = time;
+
+  // Wait for seek to complete and resume playback smoothly
+  seekTimeout = setTimeout(() => {
+    console.log("🎯 Seek completed, resuming playback");
+
+    // Reset seeking state
+    isSeeking = false;
+
+    // Set seeking cooldown to prevent ads from showing immediately after seeking
+    seekCooldown = true;
+    console.log(
+      "🎯 Setting seeking cooldown for",
+      SEEK_COOLDOWN_DURATION,
+      "ms"
+    );
+
+    // Clear any existing cooldown timer
+    if (seekCooldownTimer) {
+      clearTimeout(seekCooldownTimer);
+    }
+
+    // Set cooldown timer
+    seekCooldownTimer = setTimeout(() => {
+      seekCooldown = false;
+      console.log("🎯 Seeking cooldown expired");
+    }, SEEK_COOLDOWN_DURATION);
+
+    // Resume playback if it was playing before
+    if (wasPlaying) {
+      // Wait a bit more for buffer to stabilize
+      setTimeout(() => {
+        if (videoPlayer.value && videoPlayer.value.paused) {
+          // Check if we have sufficient buffer before resuming
+          const buffered = videoPlayer.value.buffered;
+          if (buffered.length > 0) {
+            const currentTime = videoPlayer.value.currentTime;
+            let bufferLength = 0;
+
+            for (let i = 0; i < buffered.length; i++) {
+              const start = buffered.start(i);
+              const end = buffered.end(i);
+
+              if (currentTime >= start && currentTime < end) {
+                bufferLength = end - currentTime;
+                break;
+              }
+            }
+
+            // Only resume if we have sufficient buffer
+            if (bufferLength >= MIN_BUFFER_LENGTH) {
+              console.log(
+                `🎯 Sufficient buffer (${bufferLength.toFixed(
+                  1
+                )}s), resuming playback`
+              );
+              safePlay(true, "high").catch((err) => {
+                console.warn("Failed to resume after seek:", err);
+              });
+            } else {
+              console.log(
+                `🎯 Insufficient buffer (${bufferLength.toFixed(
+                  1
+                )}s), waiting for more buffer`
+              );
+              // Wait for more buffer
+              waitForBufferAfterSeek();
+            }
+          }
+        }
+      }, 200);
+    }
+
+    // Restore settings
+    if (videoPlayer.value) {
+      videoPlayer.value.volume = currentVolume;
+      videoPlayer.value.playbackRate = currentPlaybackRate;
+    }
+  }, 100);
+};
+
+// Wait for sufficient buffer after seeking
+const waitForBufferAfterSeek = () => {
+  const checkBuffer = () => {
+    if (!videoPlayer.value || !isSeeking) return;
+
+    const buffered = videoPlayer.value.buffered;
+    if (buffered.length === 0) {
+      setTimeout(checkBuffer, 100);
+      return;
+    }
+
+    const currentTime = videoPlayer.value.currentTime;
+    let bufferLength = 0;
+
+    for (let i = 0; i < buffered.length; i++) {
+      const start = buffered.start(i);
+      const end = buffered.end(i);
+
+      if (currentTime >= start && currentTime < end) {
+        bufferLength = end - currentTime;
+        break;
+      }
+    }
+
+    if (bufferLength >= MIN_BUFFER_LENGTH) {
+      console.log(
+        `🎯 Buffer ready after seek (${bufferLength.toFixed(
+          1
+        )}s), resuming playback`
+      );
+      safePlay(true, "high").catch((err) => {
+        console.warn("Failed to resume after seek buffer ready:", err);
+      });
+    } else {
+      setTimeout(checkBuffer, 100);
+    }
+  };
+
+  checkBuffer();
 };
 
 // Watch for changes to contentId
@@ -2772,7 +3268,7 @@ onUnmounted(() => {
   }
 
   if (tokenRefreshInterval) {
-    clearInterval(tokenRefreshInterval);
+    clearTimeout(tokenRefreshInterval);
     tokenRefreshInterval = null;
   }
 
@@ -2783,6 +3279,17 @@ onUnmounted(() => {
   if (bufferRebuildTimer) {
     clearTimeout(bufferRebuildTimer);
   }
+
+  if (seekTimeout) {
+    clearTimeout(seekTimeout);
+  }
+
+  if (seekCooldownTimer) {
+    clearTimeout(seekCooldownTimer);
+  }
+
+  // Remove keyboard event listener
+  document.removeEventListener("keydown", handleKeyDown);
 
   // Reset all state variables
   playbackState = "playing";
@@ -2801,6 +3308,10 @@ onUnmounted(() => {
   bufferWarningShown = false;
   bufferCriticalShown = false;
   isBufferRebuilding = false;
+  isSeeking = false;
+  seekStartTime = 0;
+  seekCooldown = false;
+  isKeyboardEventHandling = false;
 });
 
 // Expose player methods for parent components
@@ -2809,7 +3320,7 @@ defineExpose({
   pause: () => videoPlayer.value && videoPlayer.value.pause(),
   setVolume,
   setMuted,
-  seekTo,
+  seekTo: handleSeek, // Use enhanced seeking function
   togglePlay,
   retryLoad,
   // Expose session methods
@@ -2855,7 +3366,40 @@ defineExpose({
   reduceQualityToLowest,
   reduceQualityByOne,
   increaseQualityGradually,
+  adaptQualityBasedOnBuffer,
+  // Expose seeking state
+  isSeeking: () => isSeeking,
 });
+
+// Keyboard event handling to prevent space key from auto-playing during ads
+const handleKeyDown = (event) => {
+  if (isKeyboardEventHandling) return;
+
+  // Only handle space key
+  if (event.code === "Space") {
+    event.preventDefault();
+
+    // If ads are showing, prevent any playback action
+    if (showAdvertOverlay.value) {
+      console.log("⌨️ Space key blocked - ads are currently showing");
+      return;
+    }
+
+    // If video is paused and not due to buffering/seeking, allow toggle
+    if (
+      videoPlayer.value &&
+      videoPlayer.value.paused &&
+      !isBuffering.value &&
+      !isSeeking
+    ) {
+      console.log("⌨️ Space key - toggling playback");
+      togglePlay();
+    } else if (videoPlayer.value && !videoPlayer.value.paused) {
+      console.log("⌨️ Space key - pausing video");
+      safePause("high");
+    }
+  }
+};
 </script>
 
 <style scoped>

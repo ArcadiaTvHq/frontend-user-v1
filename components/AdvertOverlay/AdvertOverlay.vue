@@ -7,7 +7,7 @@
     <div
       v-if="advert?.type === 'short_video' || advert?.type === 'long_video'"
       class="w-full h-full cursor-pointer"
-      @click="openAdvertUrl"
+      @click="handleAdvertInteraction"
       title="Click to visit advertiser"
     >
       <video
@@ -202,15 +202,283 @@ const onVideoLoaded = () => {
     }
   }
 
-  // Handle autoplay restrictions by unmuting after a delay if needed
+  // Setup user interaction listeners when advert video loads
+  setupAdvertUserInteractionListeners();
+
+  // Handle autoplay restrictions with user interaction awareness
   setTimeout(() => {
+    if (advertVideo.value && advertVideo.value.paused) {
+      // Check if user has interacted with the page
+      const hasUserInteracted =
+        document.querySelector(":focus") ||
+        document.querySelector(":hover") ||
+        window.userHasInteracted;
+
+      if (hasUserInteracted) {
+        console.log("✅ User has interacted, attempting advert autoplay");
+        advertVideo.value.muted = false;
+        advertVideo.value.play().catch((err) => {
+          console.warn(
+            "Advert autoplay failed even with user interaction:",
+            err
+          );
+          // Fallback: show play button
+          showAdvertPlayButton();
+        });
+      } else {
+        console.log(
+          "⚠️ No user interaction detected for advert, showing play button"
+        );
+        // Show play button instead of autoplay
+        showAdvertPlayButton();
+      }
+    }
+  }, 1000); // 1 second delay to check if autoplay worked
+};
+
+// Handle advert overlay interactions to enable unmuting
+const handleAdvertInteraction = () => {
+  if (
+    window.userHasInteracted &&
+    advertVideo.value &&
+    advertVideo.value.muted
+  ) {
+    console.log("🔊 Unmuting advert after overlay interaction");
+    advertVideo.value.muted = false;
+
+    // Remove unmute indicator if it exists
+    const unmuteIndicator = document.querySelector(".advert-unmute-indicator");
+    if (unmuteIndicator) {
+      unmuteIndicator.remove();
+    }
+  }
+};
+
+// Setup user interaction listeners for advert
+const setupAdvertUserInteractionListeners = () => {
+  const events = ["click", "touchstart", "keydown", "mousemove", "scroll"];
+
+  const handleUserInteraction = () => {
+    console.log("✅ User interaction detected for advert, enabling autoplay");
+    window.userHasInteracted = true;
+
+    // Remove all listeners
+    events.forEach((event) => {
+      document.removeEventListener(event, handleUserInteraction);
+    });
+
+    // Try to start advert video
     if (advertVideo.value && advertVideo.value.paused) {
       advertVideo.value.muted = false;
       advertVideo.value.play().catch((err) => {
-        // Failed to play unmuted advert
+        console.warn("Failed to start advert after user interaction:", err);
       });
     }
-  }, 1000); // 1 second delay to check if autoplay worked
+
+    // Also try to unmute if currently muted
+    if (advertVideo.value && advertVideo.value.muted) {
+      advertVideo.value.muted = false;
+      console.log("🔊 Unmuted advert after user interaction");
+    }
+  };
+
+  // Add listeners
+  events.forEach((event) => {
+    document.addEventListener(event, handleUserInteraction, { once: true });
+  });
+
+  // Also listen for video element interactions specifically
+  if (advertVideo.value) {
+    advertVideo.value.addEventListener("click", handleUserInteraction, {
+      once: true,
+    });
+    advertVideo.value.addEventListener("touchstart", handleUserInteraction, {
+      once: true,
+    });
+  }
+};
+
+// Show unmute indicator when advert is muted due to autoplay policy
+const showUnmuteIndicator = () => {
+  // Create an unmute indicator if it doesn't exist
+  if (!document.querySelector(".advert-unmute-indicator")) {
+    const indicator = document.createElement("div");
+    indicator.className = "advert-unmute-indicator";
+    indicator.innerHTML = `
+      <div class="unmute-indicator-container">
+        <button class="unmute-button" onclick="document.querySelector('.advert-unmute-indicator').remove(); document.querySelector('video').muted = false;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+        <p class="unmute-text">Click to unmute</p>
+      </div>
+    `;
+
+    // Style the indicator
+    indicator.style.cssText = `
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      border-radius: 8px;
+      padding: 12px;
+      z-index: 1002;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    `;
+
+    // Style the unmute button
+    const unmuteButton = indicator.querySelector(".unmute-button");
+    unmuteButton.style.cssText = `
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      margin: 0 auto 8px auto;
+    `;
+
+    // Style the text
+    const unmuteText = indicator.querySelector(".unmute-text");
+    unmuteText.style.cssText = `
+      color: white;
+      font-size: 12px;
+      text-align: center;
+      margin: 0;
+    `;
+
+    // Add hover effect
+    unmuteButton.addEventListener("mouseenter", () => {
+      unmuteButton.style.transform = "scale(1.1)";
+      unmuteButton.style.background = "rgba(255,255,255,1)";
+    });
+
+    unmuteButton.addEventListener("mouseleave", () => {
+      unmuteButton.style.transform = "scale(1)";
+      unmuteButton.style.background = "rgba(255,255,255,0.9)";
+    });
+
+    // Add to advert container
+    const advertContainer = advertVideo.value?.parentElement;
+    if (advertContainer) {
+      advertContainer.appendChild(indicator);
+
+      // Auto-remove after 10 seconds
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          indicator.remove();
+        }
+      }, 10000);
+    }
+  }
+};
+
+// Show play button for advert when autoplay fails
+const showAdvertPlayButton = () => {
+  // Create a play button overlay if it doesn't exist
+  if (!document.querySelector(".advert-play-overlay")) {
+    const overlay = document.createElement("div");
+    overlay.className = "advert-play-overlay";
+    overlay.innerHTML = `
+      <div class="advert-play-button-container">
+        <button class="advert-play-button">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <p class="advert-play-text">Click to play advert</p>
+      </div>
+    `;
+
+    // Style the overlay
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+      cursor: pointer;
+    `;
+
+    // Style the play button
+    const playButton = overlay.querySelector(".advert-play-button");
+    playButton.style.cssText = `
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      width: 64px;
+      height: 64px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    `;
+
+    // Style the text
+    const playText = overlay.querySelector(".advert-play-text");
+    playText.style.cssText = `
+      color: white;
+      margin-top: 12px;
+      font-size: 14px;
+      text-align: center;
+    `;
+
+    // Add hover effect
+    playButton.addEventListener("mouseenter", () => {
+      playButton.style.transform = "scale(1.1)";
+      playButton.style.background = "rgba(255,255,255,1)";
+    });
+
+    playButton.addEventListener("mouseleave", () => {
+      playButton.style.transform = "scale(1)";
+      playButton.style.background = "rgba(255,255,255,0.9)";
+    });
+
+    // Add proper click handler with video reference safety
+    playButton.addEventListener("click", () => {
+      console.log("🎬 Advert play button clicked, attempting to start advert");
+
+      // Remove the overlay first
+      if (overlay.parentNode) {
+        overlay.remove();
+      }
+
+      // Try to start the advert video using the proper reference
+      if (advertVideo.value && !advertVideo.value.paused) {
+        console.log("✅ Advert video is already playing");
+        return;
+      }
+
+      if (advertVideo.value && advertVideo.value.paused) {
+        console.log("▶️ Starting advert video from play button");
+        advertVideo.value.muted = false;
+        advertVideo.value.play().catch((err) => {
+          console.warn("Failed to start advert video from play button:", err);
+        });
+      } else {
+        console.warn("⚠️ Advert video player not available");
+      }
+    });
+
+    // Add to advert video container
+    const advertContainer = advertVideo.value?.parentElement;
+    if (advertContainer) {
+      advertContainer.style.position = "relative";
+      advertContainer.appendChild(overlay);
+    }
+  }
 };
 
 // Initialize HLS for video ads
@@ -254,32 +522,111 @@ const initializeHLS = (url) => {
     });
 
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-      // Try to play the video unmuted first
+      // Try to play the video with user interaction awareness
       if (advertVideo.value) {
-        advertVideo.value.muted = false;
+        // Check if user has interacted with the page
+        const hasUserInteracted =
+          document.querySelector(":focus") ||
+          document.querySelector(":hover") ||
+          window.userHasInteracted;
 
-        advertVideo.value
-          .play()
-          .then(() => {
-            // Video started playing successfully (unmuted)
-          })
-          .catch((error) => {
-            // Fallback: mute and try to play, then unmute after a delay
-            advertVideo.value.muted = true;
-            advertVideo.value
-              .play()
-              .then(() => {
-                // Unmute after 2 seconds
-                setTimeout(() => {
-                  if (advertVideo.value) {
-                    advertVideo.value.muted = false;
-                  }
-                }, 2000);
-              })
-              .catch((fallbackError) => {
-                // Failed to play advert video even with fallback
-              });
-          });
+        if (hasUserInteracted) {
+          console.log("✅ User has interacted, attempting advert autoplay");
+          advertVideo.value.muted = false;
+          advertVideo.value
+            .play()
+            .then(() => {
+              console.log("✅ Advert started playing successfully (unmuted)");
+            })
+            .catch((error) => {
+              console.warn(
+                "Advert autoplay failed, trying muted fallback:",
+                error
+              );
+              // Fallback: mute and try to play, then unmute after a delay
+              advertVideo.value.muted = true;
+              advertVideo.value
+                .play()
+                .then(() => {
+                  console.log(
+                    "✅ Advert started playing muted, will unmute in 2 seconds"
+                  );
+                  // Unmute after 2 seconds with user interaction check
+                  setTimeout(() => {
+                    if (advertVideo.value) {
+                      // Check if user has interacted before unmuting
+                      const hasUserInteracted =
+                        document.querySelector(":focus") ||
+                        document.querySelector(":hover") ||
+                        window.userHasInteracted;
+
+                      if (hasUserInteracted) {
+                        console.log(
+                          "✅ User interaction detected, unmuting advert"
+                        );
+                        // Try to unmute, but handle failure gracefully
+                        try {
+                          advertVideo.value.muted = false;
+                          console.log("🔊 Advert unmuted successfully");
+                        } catch (error) {
+                          console.warn(
+                            "⚠️ Unmuting failed (try/catch), showing play button:",
+                            error
+                          );
+                          showAdvertPlayButton();
+                        }
+
+                        // Also handle unmuting failure through promise rejection
+                        // Some browsers throw errors on unmuting even with user interaction
+                        if (advertVideo.value && advertVideo.value.muted) {
+                          // Double-check if unmuting actually worked
+                          setTimeout(() => {
+                            if (advertVideo.value && advertVideo.value.muted) {
+                              console.warn(
+                                "⚠️ Unmuting failed (still muted), showing play button"
+                              );
+                              showAdvertPlayButton();
+                            }
+                          }, 100);
+                        }
+
+                        // Show play button as immediate fallback for unmuting issues
+                        // This ensures user always has a way to interact with the advert
+                        setTimeout(() => {
+                          if (advertVideo.value && advertVideo.value.muted) {
+                            console.log(
+                              "🎬 Showing play button as unmuting fallback"
+                            );
+                            showAdvertPlayButton();
+                          }
+                        }, 2500); // Show after 2.5 seconds if still muted
+                      } else {
+                        console.log(
+                          "⚠️ No user interaction for unmuting, showing play button"
+                        );
+                        // Show play button immediately when no user interaction
+                        showAdvertPlayButton();
+                      }
+                    }
+                  }, 2000);
+                })
+                .catch((fallbackError) => {
+                  console.warn(
+                    "Advert fallback autoplay also failed:",
+                    fallbackError
+                  );
+                  // Show play button as final fallback
+                  showAdvertPlayButton();
+                });
+            });
+        } else {
+          console.log(
+            "⚠️ No user interaction detected for advert, showing play button"
+          );
+          // Setup user interaction listeners and show play button
+          setupAdvertUserInteractionListeners();
+          showAdvertPlayButton();
+        }
       }
     });
 
@@ -535,6 +882,9 @@ watch(
       ) {
         nextTick(() => {
           initializeHLS(newAdvert.asset_url);
+
+          // Setup user interaction listeners when advert changes
+          setupAdvertUserInteractionListeners();
         });
       }
     }

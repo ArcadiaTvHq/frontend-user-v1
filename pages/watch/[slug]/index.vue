@@ -18,11 +18,11 @@
           <!-- Gradient overlay -->
           <div class="background-overlay"></div>
 
-          <!-- Content Detail Section (mobile) -->
-          <div class="relative z-20 py-20 content-layer">
+          <!-- Content Detail Section (mobile) - allow full expansion -->
+          <div class="relative z-20 py-20 content-layer mobile-content-expand">
             <ContentDetail
               :content="content"
-              :showPosterOverlay="content.trailer_upload_status === 'ready'"
+              :showPosterOverlay="true"
               @trailer-click="handleMobileTrailerClick"
             />
           </div>
@@ -30,7 +30,6 @@
 
         <!-- Mobile Video Player (always present, shows when trailer is clicked) -->
         <div
-          v-if="content.trailer_upload_status === 'ready'"
           class="mobile-video-container"
           :class="watchingTrailer ? 'block' : 'hidden'"
         >
@@ -299,10 +298,12 @@
 <script setup>
 import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
+import { useAdvertStore } from "~/stores/adverts";
 import { useLoadingStore } from "~/stores/loading";
 import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
 import { nextTick } from "vue";
+import { useBlobImages } from "~/composables/useBlobImages";
 import Navbar from "~/components/Navbar/Navbar.vue";
 import CustomTrailerPlayer from "~/components/VideoPlayer/CustomTrailerPlayer.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
@@ -319,6 +320,7 @@ const SectionLast = defineAsyncComponent(() =>
 
 const route = useRoute();
 const authStore = useAuthStore();
+const advertStore = useAdvertStore();
 const loadingStore = useLoadingStore();
 const { setContentType } = useContentType();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
@@ -451,6 +453,28 @@ onMounted(async () => {
         setContentType("movie");
       } else if (content.value.series) {
         setContentType("series");
+      }
+
+      // Fetch adverts for this content so pause ads can work
+      if (advertStore && content.value?.id) {
+        try {
+          console.log("📺 Fetching adverts for content:", content.value.id);
+          const fetchedAdverts = await advertStore.fetchAdverts({
+            content_id: content.value.id,
+          });
+          console.log("📺 Adverts fetched successfully:", {
+            totalAdverts: fetchedAdverts?.length || 0,
+            pauseAdverts: advertStore.pauseAdverts?.length || 0,
+            beginningAdverts: advertStore.beginningAdverts?.length || 0,
+          });
+        } catch (error) {
+          console.warn("⚠️ Failed to fetch adverts:", error);
+        }
+      } else {
+        console.log("📺 Cannot fetch adverts:", {
+          hasAdvertStore: !!advertStore,
+          hasContentId: !!content.value?.id,
+        });
       }
     }
 
@@ -756,23 +780,31 @@ const goBackToDetail = async () => {
 // Desktop trailer click handler
 const handleTrailerClick = () => {
   watchingTrailer.value = true;
-  // Bypass delay and start trailer immediately when user clicks
-  delayedAutoplay.value = true;
 
-  // Video will start automatically when delayedAutoplay becomes true
+  // Start the trailer immediately when button is clicked
+  nextTick(() => {
+    if (videoPlayerRefs.value?.desktop) {
+      // Call the delayedAutoplay method with 0 delay to start immediately
+      videoPlayerRefs.value.desktop.delayedAutoplay(0);
+    }
+  });
 };
 
 // Mobile trailer click handler
 const handleMobileTrailerClick = () => {
   watchingTrailer.value = true;
-  // Bypass delay and start trailer immediately when user clicks
-  delayedAutoplay.value = true;
 
   // Prevent body scroll when trailer is open
   document.body.style.overflow = "hidden";
   document.body.classList.add("video-open");
 
-  // Video will start automatically when delayedAutoplay becomes true
+  // Start the trailer immediately when button is clicked
+  nextTick(() => {
+    if (videoPlayerRefs.value?.mobile) {
+      // Call the delayedAutoplay method with 0 delay to start immediately
+      videoPlayerRefs.value.mobile.delayedAutoplay(0);
+    }
+  });
 };
 
 // Mobile trailer close handler
@@ -975,6 +1007,15 @@ body.video-open {
   overflow: hidden;
 }
 
+/* Mobile-specific background container - allow content to expand */
+@media (max-width: 768px) {
+  .background-image-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+}
+
 /* CSS variable for navbar height */
 :root {
   --navbar-height: 80px;
@@ -1045,6 +1086,18 @@ body.video-open {
 .content-layer {
   position: relative;
   z-index: 2;
+}
+
+/* Mobile content expansion - allow content to take full height */
+.mobile-content-expand {
+  min-height: auto;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .mobile-content-expand {
+    padding-bottom: 2rem;
+  }
 }
 
 /* Content detail positioning and styling */

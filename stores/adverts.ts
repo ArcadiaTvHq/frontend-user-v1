@@ -55,24 +55,43 @@ export const useAdvertStore = defineStore("adverts", () => {
       isLoading.value = true;
       error.value = null;
 
+      console.log("📺 Starting advert fetch with request:", request);
       const response = await AdvertService.fetchAdverts(request);
+      console.log("📺 Raw response from AdvertService:", response);
 
-      // The AdvertService returns the adverts array directly
-      // So response should be an array of adverts
-
-      // Check if response is an array
-      if (Array.isArray(response)) {
-        adverts.value = response;
-      } else if (
+      // The AdvertService now returns the full response object
+      // Check if response has data property with adverts array
+      if (
         response &&
         typeof response === "object" &&
         "data" in response &&
         Array.isArray(response.data)
       ) {
         adverts.value = response.data;
+        console.log(
+          "📺 Adverts loaded successfully:",
+          response.data.length,
+          "adverts"
+        );
+      } else if (Array.isArray(response)) {
+        // Fallback: if response is directly an array
+        adverts.value = response;
+        console.log("📺 Adverts loaded directly:", response.length, "adverts");
       } else {
+        console.warn("⚠️ Unexpected advert response format:", response);
+        console.warn("⚠️ Response type:", typeof response);
+        console.warn(
+          "⚠️ Response keys:",
+          response ? Object.keys(response) : "null"
+        );
         adverts.value = [];
       }
+
+      console.log("📺 Final adverts state:", {
+        totalAdverts: adverts.value?.length || 0,
+        pauseAdverts: pauseAdverts.value?.length || 0,
+        beginningAdverts: beginningAdverts.value?.length || 0,
+      });
 
       return adverts.value;
     } catch (err) {

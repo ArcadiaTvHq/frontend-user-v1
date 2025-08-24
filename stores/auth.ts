@@ -11,6 +11,16 @@ export const useAuthStore = defineStore(
     const isAuthenticated = ref(false);
     const loading = ref(false);
 
+    // Initialize token from localStorage on store creation
+    if (process.client) {
+      const storedToken = localStorage.getItem("auth_token");
+      if (storedToken) {
+        token.value = storedToken;
+        // Note: We don't set isAuthenticated here as we need to validate the token
+        // The token will be validated on the next API call
+      }
+    }
+
     // Getters
     const currentUser = computed(() => user.value);
     const isAdmin = computed(() => user.value?.user_type === "admin");
@@ -40,6 +50,15 @@ export const useAuthStore = defineStore(
 
     function setToken(newToken: string | null) {
       token.value = newToken;
+
+      // Save token to localStorage for API client access
+      if (process.client) {
+        if (newToken) {
+          localStorage.setItem("auth_token", newToken);
+        } else {
+          localStorage.removeItem("auth_token");
+        }
+      }
     }
 
     async function login(

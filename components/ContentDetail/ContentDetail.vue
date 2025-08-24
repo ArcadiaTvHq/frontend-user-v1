@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full">
+  <div class="w-full h-auto">
     <div class="px-4 sm:px-6 md:px-9 lg:px-28">
       <div class="relative">
         <div

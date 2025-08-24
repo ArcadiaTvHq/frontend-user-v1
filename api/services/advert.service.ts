@@ -31,8 +31,25 @@ export class AdvertService {
   static async fetchAdverts(
     request: FetchAdvertsRequest = {}
   ): Promise<AdvertResponse> {
-    const response = await apiClient.post(ENDPOINTS.ADVERTS.FETCH, request);
-    return response.data;
+    try {
+      console.log("📺 Fetching adverts with request:", request);
+
+      // Check if auth token is available
+      if (process.client) {
+        const token = localStorage.getItem("auth_token");
+        console.log("📺 Auth token available:", !!token);
+      }
+
+      const response = await apiClient.post<AdvertResponse>(
+        ENDPOINTS.ADVERTS.FETCH,
+        request
+      );
+      console.log("📺 Advert response received:", response);
+      return response;
+    } catch (error) {
+      console.error("❌ Error fetching adverts:", error);
+      throw error;
+    }
   }
 
   static getAdvertsByPositionAndType(
