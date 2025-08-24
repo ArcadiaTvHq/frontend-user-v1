@@ -5,7 +5,7 @@
     <Navbar />
     <main v-if="content" class="bg-black">
       <!-- Mobile Template -->
-      <template v-if="isMobile">
+      <template v-if="isMobileComputed">
         <!-- Background Image and Content (hidden when watching trailer) -->
         <div
           v-show="!watchingTrailer"
@@ -20,11 +20,11 @@
           <!-- Gradient overlay -->
           <div class="background-overlay"></div>
 
-          <!-- Content Detail Section (mobile) -->
-          <div class="relative z-20 py-20 content-layer">
+          <!-- Content Detail Section (mobile) - allow full expansion -->
+          <div class="relative z-20 py-20 content-layer mobile-content-expand">
             <ContentDetail
               :content="content"
-              :showPosterOverlay="content.trailer_upload_status === 'ready'"
+              :showPosterOverlay="true"
               @trailer-click="handleMobileTrailerClick"
             />
           </div>
@@ -32,7 +32,6 @@
 
         <!-- Mobile Video Player (always present, shows when trailer is clicked) -->
         <div
-          v-if="content.trailer_upload_status === 'ready'"
           class="mobile-video-container"
           :class="watchingTrailer ? 'block' : 'hidden'"
         >
@@ -301,11 +300,12 @@
 <script setup>
 import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
-import { useModal } from "#imports";
+import { useAdvertStore } from "~/stores/adverts";
 import { useLoadingStore } from "~/stores/loading";
 import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
 import { nextTick } from "vue";
+import { useBlobImages } from "~/composables/useBlobImages";
 import Navbar from "~/components/Navbar/Navbar.vue";
 import CustomTrailerPlayer from "~/components/VideoPlayer/CustomTrailerPlayer.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
@@ -327,6 +327,7 @@ const SectionLast = defineAsyncComponent(() =>
 
 const route = useRoute();
 const authStore = useAuthStore();
+const advertStore = useAdvertStore();
 const loadingStore = useLoadingStore();
 const { setContentType } = useContentType();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
@@ -375,20 +376,45 @@ const { data: similarData, pending: similarPending } = await useAsyncData(
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
 
-// Better mobile detection using user agent and device capabilities
+// Better mobile detection using multiple methods for reliability
 const detectMobileDevice = () => {
-  // Check user agent for mobile devices
+  // Method 1: Check user agent for mobile devices
   const userAgent = navigator.userAgent.toLowerCase();
   const isMobileUA =
-    /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+    /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i.test(
       userAgent
     );
 
-  // Check for touch capability (more reliable than screen size)
+  // Method 2: Check for touch capability
   const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-  // Check for mobile-specific features
-  const isMobileDevice = isMobileUA || hasTouch;
+  // Method 3: Check screen dimensions (fallback for edge cases)
+  const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 768;
+
+  // Method 4: Check for mobile-specific features
+  const hasMobileFeatures =
+    "orientation" in window || "deviceOrientation" in window;
+
+  // Method 5: Check for mobile-specific CSS media queries
+  const isMobileMediaQuery = window.matchMedia("(max-width: 768px)").matches;
+
+  // Combine all methods - if any suggest mobile, treat as mobile
+  const isMobileDevice =
+    isMobileUA ||
+    hasTouch ||
+    (isSmallScreen && hasMobileFeatures) ||
+    isMobileMediaQuery;
+
+  // Debug logging
+  console.log("Mobile detection debug:", {
+    userAgent: userAgent.substring(0, 100) + "...",
+    isMobileUA,
+    hasTouch,
+    isSmallScreen,
+    hasMobileFeatures,
+    isMobileMediaQuery,
+    finalResult: isMobileDevice,
+  });
 
   return isMobileDevice;
 };
@@ -398,6 +424,24 @@ const initializeMobileDetection = () => {
   isMobile.value = detectMobileDevice();
   console.log("Device detected as:", isMobile.value ? "mobile" : "desktop");
 };
+
+// Fallback mobile detection using computed property for reliability
+const isMobileComputed = computed(() => {
+  // Use the detected mobile state, but fallback to screen size if needed
+  if (isMobile.value) return true;
+
+  // Fallback: check if screen size suggests mobile
+  const screenSizeMobile = window.innerWidth < 768;
+
+  // If screen size suggests mobile but detection didn't, log it
+  if (screenSizeMobile && !isMobile.value) {
+    console.warn(
+      "Mobile detection may have failed, using screen size fallback"
+    );
+  }
+
+  return isMobile.value || screenSizeMobile;
+});
 
 // Remove the resize listener since we're not using screen size anymore
 // const handleResize = () => { ... };
@@ -416,6 +460,28 @@ onMounted(async () => {
         setContentType("movie");
       } else if (content.value.series) {
         setContentType("series");
+      }
+
+      // Fetch adverts for this content so pause ads can work
+      if (advertStore && content.value?.id) {
+        try {
+          console.log("📺 Fetching adverts for content:", content.value.id);
+          const fetchedAdverts = await advertStore.fetchAdverts({
+            content_id: content.value.id,
+          });
+          console.log("📺 Adverts fetched successfully:", {
+            totalAdverts: fetchedAdverts?.length || 0,
+            pauseAdverts: advertStore.pauseAdverts?.length || 0,
+            beginningAdverts: advertStore.beginningAdverts?.length || 0,
+          });
+        } catch (error) {
+          console.warn("⚠️ Failed to fetch adverts:", error);
+        }
+      } else {
+        console.log("📺 Cannot fetch adverts:", {
+          hasAdvertStore: !!advertStore,
+          hasContentId: !!content.value?.id,
+        });
       }
     }
 
@@ -535,7 +601,7 @@ onUnmounted(() => {
   stopBackgroundRetry();
 
   // Restore body scroll on mobile
-  if (isMobile.value) {
+  if (isMobileComputed.value) {
     document.body.style.overflow = "";
     document.body.classList.remove("video-open");
   }
@@ -552,7 +618,7 @@ const handleVideoPaused = () => {
 const handleVideoEnded = () => {
   console.log("Video ended");
   // On mobile, close the trailer when it ends
-  if (window.innerWidth < 768) {
+  if (isMobileComputed.value) {
     watchingTrailer.value = false;
   }
 };
@@ -593,7 +659,7 @@ const handleVideoError = (error) => {
       error.message ||
       "Failed to load video. Please check your connection and try again.";
     watchingTrailer.value = false;
-    if (isMobile.value) {
+    if (isMobileComputed.value) {
       document.body.style.overflow = "";
       document.body.classList.remove("video-open");
     }
@@ -721,23 +787,31 @@ const goBackToDetail = async () => {
 // Desktop trailer click handler
 const handleTrailerClick = () => {
   watchingTrailer.value = true;
-  // Bypass delay and start trailer immediately when user clicks
-  delayedAutoplay.value = true;
 
-  // Video will start automatically when delayedAutoplay becomes true
+  // Start the trailer immediately when button is clicked
+  nextTick(() => {
+    if (videoPlayerRefs.value?.desktop) {
+      // Call the delayedAutoplay method with 0 delay to start immediately
+      videoPlayerRefs.value.desktop.delayedAutoplay(0);
+    }
+  });
 };
 
 // Mobile trailer click handler
 const handleMobileTrailerClick = () => {
   watchingTrailer.value = true;
-  // Bypass delay and start trailer immediately when user clicks
-  delayedAutoplay.value = true;
 
   // Prevent body scroll when trailer is open
   document.body.style.overflow = "hidden";
   document.body.classList.add("video-open");
 
-  // Video will start automatically when delayedAutoplay becomes true
+  // Start the trailer immediately when button is clicked
+  nextTick(() => {
+    if (videoPlayerRefs.value?.mobile) {
+      // Call the delayedAutoplay method with 0 delay to start immediately
+      videoPlayerRefs.value.mobile.delayedAutoplay(0);
+    }
+  });
 };
 
 // Mobile trailer close handler
@@ -940,6 +1014,15 @@ body.video-open {
   overflow: hidden;
 }
 
+/* Mobile-specific background container - allow content to expand */
+@media (max-width: 768px) {
+  .background-image-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+}
+
 /* CSS variable for navbar height */
 :root {
   --navbar-height: 80px;
@@ -1010,6 +1093,18 @@ body.video-open {
 .content-layer {
   position: relative;
   z-index: 2;
+}
+
+/* Mobile content expansion - allow content to take full height */
+.mobile-content-expand {
+  min-height: auto;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .mobile-content-expand {
+    padding-bottom: 2rem;
+  }
 }
 
 /* Content detail positioning and styling */

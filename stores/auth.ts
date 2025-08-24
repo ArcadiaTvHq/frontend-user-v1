@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type { User, AuthResponse } from "~/types/auth";
 import { AuthService } from "~/api/services/auth.service";
+import { LocalStorageService } from "~/src/utils/localStorage";
 
 export const useAuthStore = defineStore(
   "auth",
@@ -9,6 +10,16 @@ export const useAuthStore = defineStore(
     const token = ref<string | null>(null);
     const isAuthenticated = ref(false);
     const loading = ref(false);
+
+    // Initialize token from localStorage on store creation
+    if (process.client) {
+      const storedToken = localStorage.getItem("auth_token");
+      if (storedToken) {
+        token.value = storedToken;
+        // Note: We don't set isAuthenticated here as we need to validate the token
+        // The token will be validated on the next API call
+      }
+    }
 
     // Getters
     const currentUser = computed(() => user.value);
@@ -30,10 +41,24 @@ export const useAuthStore = defineStore(
       } else {
         useCookie("auth").value = null;
       }
+
+      // Clear cache when auth state changes for security and data consistency
+      if (process.client) {
+        clearContentCache();
+      }
     }
 
     function setToken(newToken: string | null) {
       token.value = newToken;
+
+      // Save token to localStorage for API client access
+      if (process.client) {
+        if (newToken) {
+          localStorage.setItem("auth_token", newToken);
+        } else {
+          localStorage.removeItem("auth_token");
+        }
+      }
     }
 
     async function login(
@@ -98,9 +123,25 @@ export const useAuthStore = defineStore(
       }
     }
 
+    // Function to clear content cache when auth state changes
+    function clearContentCache(): void {
+      try {
+        console.log("🧹 Clearing content cache due to auth state change...");
+        LocalStorageService.clear();
+        console.log("✅ Content cache cleared successfully");
+      } catch (error) {
+        console.error("❌ Failed to clear content cache:", error);
+      }
+    }
+
     async function logout(): Promise<void> {
       loading.value = true;
       try {
+        // Clear content cache before logout for security
+        if (process.client) {
+          clearContentCache();
+        }
+
         // await AuthService.logout();
         setUser(null);
         setToken(null);
@@ -158,6 +199,7 @@ export const useAuthStore = defineStore(
       verifyOTP,
       resendOTP,
       logout,
+      clearContentCache,
       // refreshUserSession,
       clearError,
     };
