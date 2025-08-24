@@ -156,7 +156,7 @@ const handleVideoClick = () => {
         "*"
       );
     } catch (error) {
-      console.log("Could not unmute on click:", error);
+      // Could not unmute on click
     }
   }
 };
@@ -242,7 +242,7 @@ const fetchStreamUrl = async (isRetry = false) => {
       throw new Error("No URL in response");
     }
   } catch (error) {
-    console.error(`Error fetching ${props.playerType} URL:`, error);
+    // Error fetching URL
 
     if (retryCount.value < MAX_RETRIES) {
       retryCount.value++;
@@ -289,7 +289,7 @@ watch(
       try {
         await preloadImage(newBannerImage, "size3");
       } catch (err) {
-        console.warn("Failed to preload banner image:", err);
+        // Failed to preload banner image
       }
     }
   },
@@ -332,7 +332,7 @@ watch(
               "*"
             );
           } catch (error) {
-            console.log("Could not unmute video:", error);
+            // Could not unmute video
           }
         }
       }, 300);

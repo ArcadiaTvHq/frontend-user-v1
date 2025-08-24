@@ -23,15 +23,7 @@
       </div>
     </div>
 
-    <!-- Loading overlay -->
-    <div
-      v-if="loading"
-      class="absolute inset-0 bg-black/50 flex items-center justify-center z-10"
-    >
-      <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FFD005]"
-      ></div>
-    </div>
+    <!-- Loading overlay - REMOVED: Component-level loading eliminated -->
 
     <!-- Main content -->
     <div
@@ -151,7 +143,7 @@
           :key="currentHeroContent?.id"
           :class="{ 'animate-fade-in': currentHeroContent }"
         >
-          {{ currentHeroContent?.title || "Loading..." }}
+          {{ currentHeroContent?.title }}
         </h1>
 
         <!-- Content Description with Animation -->
@@ -160,7 +152,7 @@
           :key="`desc-${currentHeroContent?.id}`"
           :class="{ 'animate-fade-in': currentHeroContent }"
         >
-          {{ currentHeroContent?.description || "Loading description..." }}
+          {{ currentHeroContent?.description }}
         </p>
 
         <!-- Content Meta Info -->
@@ -169,13 +161,30 @@
           class="flex flex-wrap justify-center gap-4 mb-6 text-sm opacity-80"
         >
           <span
-            v-if="currentHeroContent.duration"
+            v-if="
+              currentHeroContent.type === 'series' &&
+              currentHeroContent.seasonCount
+            "
+            class="flex items-center gap-1 capitalize"
+          >
+            <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
+            {{ currentHeroContent.seasonCount }} Season{{
+              currentHeroContent.seasonCount > 1 ? "s" : ""
+            }}
+          </span>
+          <span
+            v-else-if="
+              currentHeroContent.type === 'movie' && currentHeroContent.duration
+            "
             class="flex items-center gap-1"
           >
             <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
             {{ formatDuration(currentHeroContent.duration) }}
           </span>
-          <span v-if="currentHeroContent.type" class="flex items-center gap-1">
+          <span
+            v-if="currentHeroContent.type"
+            class="flex items-center gap-1 capitalize"
+          >
             <span class="w-2 h-2 bg-[#FFD005] rounded-full"></span>
             {{ currentHeroContent.type }}
           </span>
@@ -194,11 +203,10 @@
             @click="watchContent"
             class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-10 rounded-2xl flex items-center justify-center gap-3 font-medium btn-animate animate-scale-in delay-200"
           >
-            <span>Watch</span>
+            <span>View Details</span>
             <img src="../../assets/icons/play.svg" alt="Play" class="w-5 h-5" />
           </button>
           <button
-            v-if="isAuthenticated"
             @click="addToList"
             class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-10 rounded-2xl font-medium btn-animate animate-scale-in delay-300 flex items-center justify-center gap-3 group"
           >
@@ -234,10 +242,7 @@
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
-import { useAuthStore } from "~/stores/auth";
 
-const authStore = useAuthStore();
-const isAuthenticated = computed(() => authStore.isAuthenticated);
 // Props
 const props = defineProps({
   autoPlay: {
@@ -256,7 +261,6 @@ const emit = defineEmits(["watch", "addToList"]);
 // Reactive state
 const heroContent = ref([]);
 const currentIndex = ref(0);
-const loading = ref(true);
 const autoPlayTimer = ref(null);
 
 // Computed properties
@@ -295,35 +299,37 @@ const buildImageUrl = (imageId) => {
 // Methods
 const fetchHeroContent = async () => {
   try {
-    loading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 5,
-    });
+    const response = await ContentService.getFeaturedContent();
 
     // Transform the data to include image URLs
-    heroContent.value = response.data.map((content) => ({
-      id: content.id,
-      title: content.title,
-      description: content.description,
-      type: content.type,
-      duration: content.duration_in_seconds,
-      rating: content.interactions?.rating?.average || null,
-      posterImage: buildImageUrl(
-        content.poster_image_id || content.thumbnail_image_id
-      ),
-      bannerImage: buildImageUrl(
-        content.banner_image_id || content.poster_image_id
-      ),
-      slug: content.slug,
-      isPremium: content.is_premium,
-      isFree: content.is_free,
-    }));
+    heroContent.value = response.data.map((content) => {
+      // Series content structure handled
+
+      return {
+        id: content.id,
+        title: content.title,
+        description: content.description,
+        type: content.type,
+        duration: content.duration_in_seconds,
+        seasonCount:
+          content.type === "series"
+            ? content.season_count || content.seasons?.length || null
+            : null,
+        rating: content.interactions?.rating?.average || null,
+        posterImage: buildImageUrl(
+          content.poster_image_id || content.thumbnail_image_id
+        ),
+        bannerImage: buildImageUrl(
+          content.banner_image_id || content.poster_image_id
+        ),
+        slug: content.slug,
+        isPremium: content.is_premium,
+        isFree: content.is_free,
+      };
+    });
 
     // Images will be loaded directly via URLs
   } catch (error) {
-    console.error("Failed to fetch hero content:", error);
     // Fallback content
     heroContent.value = [
       {
@@ -333,6 +339,7 @@ const fetchHeroContent = async () => {
           "After the king's sudden death, Elizabeth's seemingly quiet life is rattled with personal trials and tribulations and the affairs of the state as she succeeds to the throne of the British monarchy.",
         type: "series",
         duration: 3600,
+        seasonCount: 6,
         rating: 4.5,
         posterImage: "/assets/images/preview.png",
         bannerImage: "/assets/images/Picture.png",
@@ -341,9 +348,8 @@ const fetchHeroContent = async () => {
         isFree: true,
       },
     ];
-  } finally {
-    loading.value = false;
   }
+  // No loading state to set - component-level loading eliminated
 };
 
 const nextSlide = () => {
@@ -439,7 +445,6 @@ const addToList = () => {
   if (currentHeroContent.value) {
     emit("addToList", currentHeroContent.value);
     // You can add toast notification here
-    console.log("Added to list:", currentHeroContent.value.title);
   }
 };
 

@@ -80,6 +80,20 @@
         @addToList="handleAddToList"
       />
       <SectionTwo
+        title="Recommended"
+        iconAlt="Flame icon"
+        :content="recommendedContent"
+        :showSeeMore="true"
+        :fetchContent="false"
+      />
+      <SectionTwo
+        title="Trending"
+        iconAlt="Flame icon"
+        :content="trendingContent"
+        :showSeeMore="true"
+        :fetchContent="false"
+      />
+      <SectionTwo
         title="Anticipate"
         iconAlt="Flame icon"
         :content="anticipatedContent"
@@ -181,6 +195,16 @@ const anticipatedContent = ref([]);
 const anticipatedLoading = ref(true);
 const anticipatedError = ref(null);
 
+// Recommended content state
+const recommendedContent = ref([]);
+const recommendedLoading = ref(true);
+const recommendedError = ref(null);
+
+// Trending content state
+const trendingContent = ref([]);
+const trendingLoading = ref(true);
+const trendingError = ref(null);
+
 // Update featured posters (called from SectionOne component)
 const updateFeaturedPosters = (newPosters) => {
   featuredPosters.value = newPosters;
@@ -247,6 +271,48 @@ const fetchAnticipatedContent = async () => {
   }
 };
 
+// Fetch recommended content
+const fetchRecommendedContent = async () => {
+  try {
+    recommendedLoading.value = true;
+    const response = await ContentService.getRecommendedContent();
+
+    recommendedContent.value = response.data;
+
+    // Preload all images for recommended content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some recommended images:", error);
+    }
+  } catch (err) {
+    recommendedError.value = err.message;
+  } finally {
+    recommendedLoading.value = false;
+  }
+};
+
+// Fetch trending content
+const fetchTrendingContent = async () => {
+  try {
+    trendingLoading.value = true;
+    const response = await ContentService.getTrendingContent();
+
+    trendingContent.value = response.data;
+
+    // Preload all images for trending content
+    try {
+      await preloadContentImages(response.data, "public");
+    } catch (error) {
+      console.warn("Failed to preload some trending images:", error);
+    }
+  } catch (err) {
+    trendingError.value = err.message;
+  } finally {
+    trendingLoading.value = false;
+  }
+};
+
 const handleLogout = async () => {
   try {
     await authStore.logout();
@@ -269,6 +335,11 @@ const handleAddToList = (content) => {
 
 // Fetch data when component mounts
 onMounted(async () => {
-  await Promise.all([fetchFeaturedContent(), fetchAnticipatedContent()]);
+  await Promise.all([
+    fetchFeaturedContent(),
+    fetchAnticipatedContent(),
+    fetchRecommendedContent(),
+    fetchTrendingContent(),
+  ]);
 });
 </script>

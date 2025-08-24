@@ -6,7 +6,9 @@
           class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 items-start md:items-center"
         >
           <!-- Poster Image -->
-          <div class="md:col-span-3 grid relative mb-6 md:mb-0 justify-center items-center">
+          <div
+            class="md:col-span-3 grid relative mb-6 md:mb-0 justify-center items-center"
+          >
             <img
               :src="
                 buildImageUrl(
@@ -153,9 +155,9 @@
                   class="w-4 h-4 sm:w-5 sm:h-5 opacity-50"
                 />
               </button>
-              <NuxtLink
+              <button
                 v-else-if="isAuthenticated"
-                :to="`/watch/${content.slug}/video`"
+                @click="handleWatchClick"
                 class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base"
               >
                 <span>Watch</span>
@@ -164,7 +166,7 @@
                   alt="Play"
                   class="w-4 h-4 sm:w-5 sm:h-5"
                 />
-              </NuxtLink>
+              </button>
               <NuxtLink
                 v-else
                 to="/login"
@@ -201,6 +203,7 @@ import { computed, onMounted } from "vue";
 import { useAuthStore } from "~/stores/auth";
 import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
 import { useRouter } from "vue-router";
+import { useAdvertStore } from "~/stores/adverts";
 
 const props = defineProps({
   content: {
@@ -217,6 +220,9 @@ const router = useRouter();
 const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
+// Advert store
+const advertStore = useAdvertStore();
+
 const isContentReleased = computed(() => {
   if (!props.content?.release_date) return false;
   const releaseDate = new Date(props.content.release_date);
@@ -226,6 +232,21 @@ const isContentReleased = computed(() => {
 const navigateToTrailer = () => {
   if (!props.content?.slug) return;
   emit("trailer-click");
+};
+
+const handleWatchClick = async () => {
+  if (!props.content?.id) return;
+
+  try {
+    // Fetch adverts for this content
+    await advertStore.fetchAdverts({ content_id: props.content.id });
+
+    // Navigate to video page
+    router.push(`/watch/${props.content.slug}/video`);
+  } catch (error) {
+    // Still navigate to video page even if adverts fail
+    router.push(`/watch/${props.content.slug}/video`);
+  }
 };
 
 const emit = defineEmits(["mounted", "trailer-click"]);

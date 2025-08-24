@@ -61,6 +61,10 @@ const props = defineProps({
     type: [String, Object],
     required: true,
   },
+  cross: {
+    type: Boolean,
+    default: false,
+  },
   color: String,
   priceStyling: {
     type: String,

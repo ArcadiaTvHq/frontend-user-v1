@@ -6,10 +6,15 @@
     <img
       v-for="(poster, index) in props.posters"
       :key="`bg-${poster.id}`"
-      :src="getImageUrl(poster.banner)"
+      :src="
+        getHoverImageUrl(poster) ||
+        getPrimaryImageUrl(poster) ||
+        '/assets/standard.png'
+      "
       :alt="`Background for ${poster.title}`"
       class="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-2000"
       :class="{ 'opacity-100': index === centerPosterIndex }"
+      @error="handleImageError"
     />
 
     <!-- Overlay -->
@@ -63,9 +68,10 @@
           @mouseleave="resumeRotation"
         >
           <img
-            :src="getImageUrl(poster.image)"
+            :src="getPrimaryImageUrl(poster)"
             :alt="poster.title"
             class="w-full h-full object-cover rounded-[10px]"
+            @error="handleImageError"
           />
           <!-- <div
             class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -131,7 +137,6 @@
   cursor: pointer;
 }
 
-
 .poster:hover {
   transform: scale(1.05);
   z-index: 20;
@@ -145,7 +150,7 @@
 .poster img {
   max-height: 100%;
   width: auto;
-  object-fit: fill contain;
+  object-fit: cover;
 }
 
 /* Large screens (1280px+) */
@@ -273,11 +278,11 @@ const props = defineProps({
 
 const router = useRouter();
 const modal = useModal();
-const { getImageUrl } = useBlobImages();
+const { getPrimaryImageUrl, getHoverImageUrl } = useBlobImages();
 
 const handleClick = () => {
   if (props.button === "Join the waitlist") {
-    modal.toggleWaitlist()
+    modal.toggleWaitlist();
   } else {
     navigateTo("/login");
   }
@@ -286,11 +291,11 @@ const handleClick = () => {
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
 
 let visiblePosters = computed(() => props.posters.slice(0, 5));
-console.log(visiblePosters);
+// Visible posters updated
 // Use reactive currentIndex for visiblePosters to enable rotation
 const currentIndex = ref(0);
 
- visiblePosters = computed(() => {
+visiblePosters = computed(() => {
   const posters = props.posters;
   if (!posters || posters.length === 0) return [];
 
@@ -305,7 +310,6 @@ const currentIndex = ref(0);
 
   return result;
 });
-
 
 //  let intervalId = null;
 
@@ -368,6 +372,11 @@ const onTouchEnd = (e) => {
   if (Math.abs(deltaX) > 30) {
     deltaX > 0 ? rotateBackward() : rotateForward();
   }
+};
+
+const handleImageError = (event) => {
+  // Fallback to default image if primary image fails
+  event.target.src = "/assets/standard.png";
 };
 
 onMounted(() => {

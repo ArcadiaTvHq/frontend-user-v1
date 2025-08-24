@@ -1,29 +1,13 @@
 <template>
   <div>
-    <!-- Immediate loading screen - shows before anything else -->
-    <div
-      v-show="showInitialLoading"
-      class="fixed inset-0 bg-black z-[99999] flex items-center justify-center"
-      style="display: flex !important"
-    >
-      <div class="text-center">
-        <img
-          class="w-[100px] h-[100px] object-contain animate-pulse mb-4 mx-auto"
-          src="@/assets/logo2.png"
-          alt="Logo"
-        />
-        <p class="text-white text-lg font-medium mb-6">Welcome to Arcadia</p>
-        <div class="flex flex-col items-center">
-          <div class="w-64 bg-gray-700 rounded-full h-2 mb-2">
-            <div
-              class="bg-gold h-2 rounded-full transition-all duration-300"
-              :style="{ width: loadingProgress + '%' }"
-            ></div>
-          </div>
-          <p class="text-gray-400 text-sm">{{ loadingMessage }}</p>
-        </div>
-      </div>
-    </div>
+    <!-- Standardized loading screen -->
+    <StandardLoadingScreen
+      v-if="showInitialLoading"
+      variant="auth"
+      :show-progress="true"
+      :progress="loadingProgress"
+      :progress-text="loadingMessage"
+    />
 
     <!-- Vue-level loading screen -->
     <LoadingScreen />
@@ -34,6 +18,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeMount } from "vue";
+import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
 
 const showInitialLoading = ref(true);
 const loadingProgress = ref(0);

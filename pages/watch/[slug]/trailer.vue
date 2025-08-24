@@ -1,10 +1,31 @@
 <template>
-  <div class="min-h-screen bg-black">
-    <Navbar />
+  <div class="trailer-page min-h-screen bg-black">
+    <!-- Back to Details Button -->
+    <div class="back-button-container">
+      <NuxtLink :to="`/watch/${content?.slug}`" class="back-button">
+        <div class="back-button-content">
+          <svg
+            class="w-5 h-5 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          <span class="ml-2 text-white font-medium">Back to Details</span>
+        </div>
+      </NuxtLink>
+    </div>
+
     <main class="bg-black pt-[60px] sm:pt-[75px] md:pt-[92px]">
       <div v-if="content" class="container mx-auto px-4">
         <!-- Video Player -->
-        <div v-if="content.trailer_upload_status === 'ready'">
+        <div v-if="content.trailer_upload_status === 'ready'" class="mb-8">
           <CustomVideoPlayer
             :key="content.id"
             :contentId="content.id"
@@ -14,6 +35,8 @@
             :muted="false"
             :controls="true"
             :loop="false"
+            :video-url="content.trailer_url"
+            :use-direct-url="!!content.trailer_url"
             @video-started="handleVideoStarted"
             @video-paused="handleVideoPaused"
             @video-ended="handleVideoEnded"
@@ -48,12 +71,6 @@
           />
         </div>
       </div>
-
-      <!-- Conditional Footer -->
-      <div class="mt-20 md:mt-32">
-        <HomeFoot v-if="isAuthenticated" />
-        <SectionLast v-else />
-      </div>
     </main>
   </div>
 </template>
@@ -64,12 +81,15 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
-import Navbar from "~/components/Navbar/Navbar.vue";
 import CustomVideoPlayer from "~/components/VideoPlayer/CustomVideoPlayer.vue";
 import ContentDetail from "~/components/ContentDetail/ContentDetail.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
-import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
-import SectionLast from "~/components/SectionLast/SectionLast.vue";
+
+// Set page layout
+definePageMeta({
+  layout: "video",
+  middleware: ["auth"],
+});
 
 const route = useRoute();
 const content = ref(null);
@@ -123,8 +143,43 @@ const handleVideoError = (error) => {
 const handleVideoReady = () => {
   console.log("Trailer video ready");
 };
-
-definePageMeta({
-  middleware: ["auth"],
-});
 </script>
+
+<style scoped>
+.trailer-page {
+  @apply relative;
+}
+
+/* Back Button Styles */
+.back-button-container {
+  @apply fixed top-0 left-0 z-50 p-4;
+}
+
+.back-button {
+  @apply inline-flex items-center px-4 py-2 bg-black bg-opacity-75 hover:bg-opacity-90
+         rounded-lg transition-all duration-300 backdrop-blur-sm border border-white border-opacity-20;
+}
+
+.back-button-content {
+  @apply flex items-center;
+}
+
+.back-button:hover {
+  @apply opacity-100;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .back-button-container {
+    @apply p-2;
+  }
+
+  .back-button {
+    @apply px-3 py-2;
+  }
+
+  .back-button span {
+    @apply hidden;
+  }
+}
+</style>

@@ -87,7 +87,9 @@ export interface Content {
   status: string;
   visibility: string;
   video_uid: string | null;
+  video_url: string | null; // Direct Cloudflare HLS URL that doesn't expire
   trailer_video_uid: string | null;
+  trailer_url: string | null; // Direct Cloudflare HLS URL for trailer that doesn't expire
   trailer_upload_status: "pending" | "ready" | "error" | null;
   thumbnail_image_id: string | null;
   poster_image_id: string | null;

@@ -35,10 +35,10 @@ const Links = [
     matches: (path) => path.startsWith("/new"),
   },
   {
-    name:"MY LIST",
-    pathname:"/my-list",
-    matches: (path) => path.startsWith('/my-list')
-  }
+    name: "MY LIST",
+    pathname: "/my-list",
+    matches: (path) => path.startsWith("/my-list"),
+  },
 ];
 
 const isActiveRoute = (link) => {
@@ -56,7 +56,6 @@ const handleNavClick = (link) => {
     route.path !== "/watch"
   ) {
     // Stop any existing loading states
-    loadingStore.stopRouteLoading();
     loadingStore.stopLoading();
 
     // Use router.push for more reliable navigation
@@ -156,18 +155,18 @@ watch(
 
       <!-- Desktop CTA buttons -->
       <div class="hidden md:flex items-center gap-4">
-        <nuxt-link
-          to="/signup"
-          class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-10 px-6 rounded-2xl flex items-center justify-center font-medium transition-all duration-300"
-        >
-          Sign Up
-        </nuxt-link>
-        <nuxt-link
-          to="/login"
-          class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-10 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center"
-        >
-          Log In
-        </nuxt-link>
+        <!-- Show Sign Up/Sign In on all pages except waitlist -->
+        <template v-if="route.path !== '/waitlist'">
+          <nuxt-link to="/signup" class="btn-primary"> Sign Up </nuxt-link>
+          <nuxt-link to="/login" class="btn-secondary"> Sign In </nuxt-link>
+        </template>
+
+        <!-- Show Join Waitlist on waitlist page -->
+        <template v-if="route.path === '/waitlist'">
+          <nuxt-link to="/waitlist" class="btn-primary">
+            Join the Waitlist
+          </nuxt-link>
+        </template>
       </div>
 
       <!-- Mobile menu -->
@@ -176,18 +175,22 @@ watch(
         class="absolute top-full left-0 right-0 bg-cod py-4 md:hidden border-b border-gold"
       >
         <div class="flex flex-col px-4 gap-4">
-          <nuxt-link
-            to="/signup"
-            class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-6 rounded-2xl flex items-center justify-center font-medium transition-all duration-300"
-          >
-            Sign Up
-          </nuxt-link>
-          <nuxt-link
-            to="/login"
-            class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-6 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center"
-          >
-            Log In
-          </nuxt-link>
+          <!-- Show Sign Up/Sign In on all pages except waitlist -->
+          <template v-if="route.path !== '/waitlist'">
+            <nuxt-link to="/signup" class="btn-primary btn-mobile">
+              Sign Up
+            </nuxt-link>
+            <nuxt-link to="/login" class="btn-secondary btn-mobile">
+              Sign In
+            </nuxt-link>
+          </template>
+
+          <!-- Show Join Waitlist on waitlist page -->
+          <template v-if="route.path === '/waitlist'">
+            <nuxt-link to="/waitlist" class="btn-primary btn-mobile">
+              Join the Waitlist
+            </nuxt-link>
+          </template>
         </div>
       </div>
     </template>
@@ -246,7 +249,7 @@ watch(
               src="@/assets/icons/search.svg"
               alt="Search"
               class="w-5 h-5 flex-shrink-0 group-hover:opacity-70 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
-              @error="console.log('Search icon failed to load')"
+              @error="() => {}"
             />
           </div>
         </div>
@@ -324,7 +327,10 @@ watch(
                 class="w-6 h-6"
               />
             </button>
-            <nuxt-link to="/profile" class="hover:opacity-80 transition-opacity">
+            <nuxt-link
+              to="/profile"
+              class="hover:opacity-80 transition-opacity"
+            >
               <img
                 src="../../assets/images/avatar.png"
                 class="w-10 h-10 rounded-full object-cover"
@@ -355,5 +361,18 @@ watch(
 
 .group:focus-within {
   @apply border-[#CE8F00];
+}
+
+/* Standard button styles - matching content detail buttons */
+.btn-primary {
+  @apply bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base;
+}
+
+.btn-secondary {
+  @apply border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-6 sm:px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 text-sm sm:text-base;
+}
+
+.btn-mobile {
+  @apply h-12;
 }
 </style>
