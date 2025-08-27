@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-cardgray max-w-[444px] rounded-[15px] flex justify-center flex-col items-center font-orbitron card lg:h-[700px]">
+  <div class="bg-cardgray max-w-[444px] rounded-[15px] flex justify-center flex-col items-center font-orbitron card lg:h-[600px]">
     <div class="w-4/5 h-full flex flex-col justify-center items-center">
       <div class="text-white flex justify-center items-center flex-col ">
         <img src="../../assets/images/avatar.png" class="rounded-full h-[130px] w-[130px]">

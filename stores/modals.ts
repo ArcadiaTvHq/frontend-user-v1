@@ -3,7 +3,8 @@ import { defineStore } from "pinia";
 export const useModal = defineStore('Modal', {
   state: ()=>({
     isChange: false,
-    isWaitlist: false
+    isWaitlist: false,
+    isReview: false
   }),
 
   actions: {
@@ -12,6 +13,9 @@ export const useModal = defineStore('Modal', {
     },
     toggleWaitlist(){
       this.isWaitlist = !this.isWaitlist
+    },
+    toggleReview(){
+      this.isReview = !this.isReview 
     }
   }
 })

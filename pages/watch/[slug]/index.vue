@@ -1,5 +1,7 @@
-<template>
-  <div class="min-h-screen bg-black">
+<template> 
+  <Review/>
+  <div class="min-h-screen bg-black" v-if="!review">
+    
     <Navbar />
     <main v-if="content" class="bg-black">
       <!-- Mobile Template -->
@@ -309,6 +311,11 @@ import CustomTrailerPlayer from "~/components/VideoPlayer/CustomTrailerPlayer.vu
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import { buildImageUrl } from "~/src/utils/helpers";
 import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
+
+
+//review component
+const modal = useModal()
+const review = computed(()=> modal.isReview)
 
 // Lazy load components that are not immediately visible
 const HomeFoot = defineAsyncComponent(() =>

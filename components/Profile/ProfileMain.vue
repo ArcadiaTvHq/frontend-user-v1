@@ -5,14 +5,14 @@
     <div class="flex gap-13 mt-6 items-end">
       <div class="w-1/2 flex flex-col gap-2">
         <label>Display Name</label>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :disabled="true" />
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" :placeholder="firstName + ' ' + lastName " :disabled="true" />
       </div>
       <div class="w-1/2 flex flex-col gap-2">
         <span><label>Password</label><button class="ml-5 text-gold" @click="modal.toggleChange">change </button></span>
-        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :dis />
+        <input class="w-full bg-cardgray h-13 border-minputb rounded-[8px] px-4" placeholder="*****" :disabled="true" />
       </div>
     </div>
-    <p class="text-normal mt-16">Subscription info</p>
+    <div class="flex justify-between items-center mt-16"><p class="text-normal">Subscription info</p> <button class="bg-gold btn bg-13 h-13 w-45 rounded-[8px] text-black"> Update Plan</button></div>
     <div class="display flex mt-8 justify-between gap-2 flex-col lg:flex-row items-center">
       <Card
         type="Free"
@@ -38,14 +38,14 @@
         type="Premium"
         :logo="premium"
         price="₦1000"
-        priceStyling="text-[24px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-[24px] text-white font-inter"
+        priceStyling="text-[24px] md:text-normal font-semibold mb-3 md:mb-[10px] lg:text-[24px] text-gold font-inter"
         button="hidden"
         class="slide-right w-full max-w-full"
         :benefits="premiumBenefits"
         typeclass="text-type font-medium md:text-[21px] text-gold"
       />
     </div>
-    <div class="mt-6"><p>Next payment due </p></div>
+    <!-- <div class="mt-6"><p>Next payment due </p></div> -->
   </div>
 </template>
 
@@ -82,6 +82,11 @@ const premiumBenefits = [
 
   const modal = useModal()
   const change =  computed(()=> modal.isChange)
+
+  const props = defineProps({
+    firstName: String,
+    lastName: String
+  })
 
   
 

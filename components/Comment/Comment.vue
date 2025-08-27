@@ -25,6 +25,7 @@
         <button
           v-if="isAuthenticated"
           class="bg-gold hover:bg-[#CE8F00] text-black h-10 sm:h-12 px-4 sm:px-10 rounded-2xl flex items-center justify-center gap-2 sm:gap-3 font-medium transition-all duration-300 text-sm sm:text-base"
+          @click="modal.toggleReview"
         >
           <p>Add Review</p>
           <img
@@ -98,9 +99,11 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "~/stores/auth";
+import { useModal } from "#imports";
 
 const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
+const modal = useModal()
 
 const isDropdownOpen = ref(false);
 const selectedOption = ref("Latest");
