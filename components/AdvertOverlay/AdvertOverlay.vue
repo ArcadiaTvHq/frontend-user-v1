@@ -1,12 +1,12 @@
 <template>
   <div
     v-if="show"
-    class="advert-overlay absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+    class="advert-overlay fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
   >
     <!-- Video Ad -->
     <div
       v-if="advert?.type === 'short_video' || advert?.type === 'long_video'"
-      class="w-full h-full cursor-pointer"
+      class="w-full h-full cursor-pointer relative"
       @click="handleAdvertInteraction"
       title="Click to visit advertiser"
     >
@@ -921,5 +921,12 @@ onUnmounted(() => {
 <style scoped>
 .advert-overlay {
   backdrop-filter: blur(4px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
 }
 </style>
