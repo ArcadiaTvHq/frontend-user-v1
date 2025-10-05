@@ -18,6 +18,9 @@
               :alt="content.title"
               class="w-full max-w-xs mx-auto md:mx-0 rounded-lg shadow-lg"
             />
+            <!-- Premium Badge -->
+            <PremiumBadge :is-premium="content.is_premium" />
+
             <!-- Play Icon and Label Overlay -->
             <div
               v-if="showPosterOverlay"

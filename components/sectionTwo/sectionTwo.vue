@@ -77,6 +77,9 @@
             <div
               class="img-stack relative w-full aspect-[3/4] rounded-lg overflow-hidden max-h-[480px] md:max-h-[560px] lg:max-h-[640px] xl:max-h-[720px] 2xl:max-h-[800px]"
             >
+              <!-- Premium Badge -->
+              <PremiumBadge :is-premium="content.is_premium" />
+
               <!-- Base image (poster) -->
               <img
                 class="base-img w-full h-full object-cover transition-all duration-300"
