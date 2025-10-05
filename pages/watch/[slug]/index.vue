@@ -843,6 +843,8 @@ const goBackToDetail = async () => {
 
 // Desktop trailer click handler
 const handleTrailerClick = () => {
+  if (watchingTrailer.value) return; // Prevent multiple clicks
+
   watchingTrailer.value = true;
 
   // Start the trailer immediately when button is clicked
@@ -856,6 +858,8 @@ const handleTrailerClick = () => {
 
 // Mobile trailer click handler
 const handleMobileTrailerClick = () => {
+  if (watchingTrailer.value) return; // Prevent multiple clicks
+
   watchingTrailer.value = true;
 
   // Prevent body scroll when trailer is open

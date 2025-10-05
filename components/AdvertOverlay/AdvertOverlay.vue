@@ -152,7 +152,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close", "skip"]);
+const emit = defineEmits(["close", "skip", "visit"]);
 
 // Function to open advert URL in new tab
 const openAdvertUrl = () => {
@@ -166,6 +166,8 @@ const openAdvertUrl = () => {
 
   if (advertUrl) {
     window.open(advertUrl, "_blank", "noopener,noreferrer");
+    // Emit visit event to notify parent component
+    emit("visit");
   }
 };
 

@@ -219,10 +219,20 @@
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             @click="watchContent"
-            class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-10 rounded-2xl flex items-center justify-center gap-3 font-medium btn-animate animate-scale-in delay-200"
+            :disabled="watchLoading"
+            class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 px-10 rounded-2xl flex items-center justify-center gap-3 font-medium btn-animate animate-scale-in delay-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>View Details</span>
-            <img src="../../assets/icons/play.svg" alt="Play" class="w-5 h-5" />
+            <span>{{ watchLoading ? "Loading..." : "View Details" }}</span>
+            <img
+              v-if="!watchLoading"
+              src="../../assets/icons/play.svg"
+              alt="Play"
+              class="w-5 h-5"
+            />
+            <div
+              v-else
+              class="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"
+            ></div>
           </button>
           <button
             v-if="isAuthenticated"
@@ -320,6 +330,7 @@ const { showSuccess, showError } = useToast();
 const heroContent = ref([]);
 const currentIndex = ref(0);
 const autoPlayTimer = ref(null);
+const watchLoading = ref(false);
 
 // Computed properties
 const currentHeroContent = computed(() => {
@@ -508,11 +519,18 @@ const formatDuration = (seconds) => {
   return `${minutes}m`;
 };
 
-const watchContent = () => {
-  if (currentHeroContent.value) {
-    emit("watch", currentHeroContent.value);
-    // Navigate to watch page
-    navigateTo(`/watch/${currentHeroContent.value.slug}`);
+const watchContent = async () => {
+  if (currentHeroContent.value && !watchLoading.value) {
+    try {
+      watchLoading.value = true;
+      emit("watch", currentHeroContent.value);
+      // Navigate to watch page
+      await navigateTo(`/watch/${currentHeroContent.value.slug}`);
+    } catch (error) {
+      console.error("Navigation failed:", error);
+    } finally {
+      watchLoading.value = false;
+    }
   }
 };
 

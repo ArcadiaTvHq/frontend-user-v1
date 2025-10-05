@@ -310,35 +310,7 @@ const currentAdvert = ref(null);
 const hasShownBeginningAd = ref(false);
 
 // Enhanced advert flow: show beginning ads immediately when video loads
-onMounted(() => {
-  // Small delay to ensure everything is initialized
-  setTimeout(() => {
-    console.log("🎬 onMounted: Checking for adverts and initializing video");
-
-    // Check if advert store is available and has adverts
-    if (advertStore && advertStore.adverts && advertStore.adverts.length > 0) {
-      console.log("📺 Adverts available, showing beginning advert");
-      // Video loaded, showing beginning advert immediately
-      showBeginningAdvert();
-    } else {
-      console.log("📺 No adverts available, starting main video directly");
-      // No adverts available, starting main video directly
-      // Start main video if no ads - but respect autoplay policies
-      if (videoPlayer.value && videoPlayer.value.paused) {
-        // Double-check that no advert overlay is active
-        if (!showAdvertOverlay.value) {
-          console.log("▶️ Starting main video (no ads)");
-          // Use user interaction-aware autoplay
-          startVideoWithUserInteraction();
-        } else {
-          console.log("⏸️ Advert overlay active, waiting for completion");
-        }
-      } else {
-        console.log("⚠️ Video player not ready or already playing");
-      }
-    }
-  }, 1000); // 1 second delay to ensure video player is ready
-});
+// Combined onMounted hook - moved to the end of the component
 
 // HLS instance
 let hlsInstance = null;
@@ -498,16 +470,50 @@ const handleResumeFromLastDuration = async (timeInSeconds) => {
     if (videoPlayer.value && currentSession.value) {
       showResumeToast.value = false;
 
-      // Seek to the last duration position
-      videoPlayer.value.currentTime = timeInSeconds;
+      console.log(`🔄 Attempting to resume from ${timeInSeconds}s...`);
 
-      // Play the video
-      await videoPlayer.value.play();
+      // Ensure video is loaded and ready
+      if (videoPlayer.value.readyState >= 2) {
+        // Seek to the last duration position
+        videoPlayer.value.currentTime = timeInSeconds;
 
-      console.log(`🔄 Resumed playback from ${timeInSeconds}s`);
+        // Wait a moment for seek to complete
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Play the video
+        await videoPlayer.value.play();
+
+        console.log(`✅ Successfully resumed playback from ${timeInSeconds}s`);
+      } else {
+        console.warn("⚠️ Video not ready for seeking, waiting...");
+        // Wait for video to be ready
+        const waitForReady = () => {
+          return new Promise((resolve) => {
+            const checkReady = () => {
+              if (videoPlayer.value.readyState >= 2) {
+                resolve();
+              } else {
+                setTimeout(checkReady, 100);
+              }
+            };
+            checkReady();
+          });
+        };
+
+        await waitForReady();
+        videoPlayer.value.currentTime = timeInSeconds;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await videoPlayer.value.play();
+
+        console.log(
+          `✅ Successfully resumed playback from ${timeInSeconds}s (after waiting)`
+        );
+      }
     }
   } catch (error) {
     console.error("❌ Error resuming from last duration:", error);
+    // Show error toast or fallback
+    showResumeToast.value = false;
   }
 };
 
@@ -1100,8 +1106,14 @@ const retryPlayback = async () => {
       videoPlayer.value.load();
     }
 
-    // Reinitialize streaming
-    await initializeStreaming();
+    // Reinitialize streaming only if no session is active
+    if (!isSessionActive.value) {
+      await initializeStreaming();
+    } else {
+      console.log(
+        "⚠️ Session already active, skipping streaming reinitialization"
+      );
+    }
 
     console.log("✅ Playback retry successful");
   } catch (retryError) {
@@ -1153,9 +1165,15 @@ const handleHls401Error = async () => {
       // Wait a moment for the token to be updated
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Reinitialize streaming with new token
-      console.log("🔄 Reinitializing streaming with new token...");
-      await initializeStreaming();
+      // Reinitialize streaming with new token only if no session is active
+      if (!isSessionActive.value) {
+        console.log("🔄 Reinitializing streaming with new token...");
+        await initializeStreaming();
+      } else {
+        console.log(
+          "⚠️ Session already active, skipping streaming reinitialization"
+        );
+      }
 
       console.log("✅ Successfully recovered from 401/403 error");
 
@@ -1505,6 +1523,10 @@ const onAdvertClose = () => {
     advertType === "long_video";
 
   console.log("🎯 Advert type:", advertType, "Is beginning ad:", isBeginningAd);
+  console.log(
+    "🔄 Resume toast available:",
+    currentSession.value?.lastDuration && currentSession.value.lastDuration > 0
+  );
 
   // Clean up advert state
   showAdvertOverlay.value = false;
@@ -1551,6 +1573,24 @@ const onAdvertClose = () => {
             console.log("✅ Video ready, starting playback");
             // Use user interaction-aware autoplay
             startVideoWithUserInteraction();
+
+            // Show resume toast after main video starts (if available)
+            if (
+              currentSession.value?.lastDuration &&
+              currentSession.value.lastDuration > 0
+            ) {
+              console.log("🔄 Main video started - showing resume toast");
+              console.log(
+                "🔄 Resume toast will show in 1 second, lastDuration:",
+                currentSession.value.lastDuration
+              );
+              setTimeout(() => {
+                console.log("🔄 Showing resume toast now");
+                showResumeToast.value = true;
+              }, 1000); // 1 second delay after main video starts
+            } else {
+              console.log("🔄 No resume toast - no lastDuration available");
+            }
           } else {
             console.log("⏳ Video not ready yet, retrying in 200ms");
             // Retry with longer delay
@@ -1603,6 +1643,19 @@ const onAdvertSkip = () => {
     safePlay(false, "high")
       .then(() => {
         console.log("✅ Main video started successfully after advert skip");
+
+        // Show resume toast after main video starts (if available)
+        if (
+          currentSession.value?.lastDuration &&
+          currentSession.value.lastDuration > 0
+        ) {
+          console.log(
+            "🔄 Main video started after skip - showing resume toast"
+          );
+          setTimeout(() => {
+            showResumeToast.value = true;
+          }, 1000); // 1 second delay after main video starts
+        }
       })
       .catch((err) => {
         console.error("❌ Failed to start main video after advert skip:", err);
@@ -1644,6 +1697,19 @@ const onAdvertVisit = () => {
     safePlay(false, "high")
       .then(() => {
         console.log("✅ Main video started successfully after advert visit");
+
+        // Show resume toast after main video starts (if available)
+        if (
+          currentSession.value?.lastDuration &&
+          currentSession.value.lastDuration > 0
+        ) {
+          console.log(
+            "🔄 Main video started after visit - showing resume toast"
+          );
+          setTimeout(() => {
+            showResumeToast.value = true;
+          }, 1000); // 1 second delay after main video starts
+        }
       })
       .catch((err) => {
         console.error("❌ Failed to start main video after advert visit:", err);
@@ -3121,6 +3187,12 @@ const waitForSufficientBuffer = () => {
 const initializePlaybackSession = async () => {
   if (!props.contentId) return;
 
+  // Prevent duplicate sessions
+  if (isSessionActive.value) {
+    console.log("⚠️ Playback session already active, skipping initialization");
+    return;
+  }
+
   try {
     // Loading message removed - simplified loading experience
     isLoading.value = true;
@@ -3136,6 +3208,15 @@ const initializePlaybackSession = async () => {
 
       // Attach watch tracker to playback session
       setWatchTracker(watchTracker);
+
+      // Check if we should show resume toast
+      if (session.lastDuration && session.lastDuration > 0) {
+        console.log(
+          `🔄 Resume functionality available - last duration: ${session.lastDuration}s`
+        );
+        // Don't show resume toast immediately - wait for ads to finish and main video to start
+        // The resume toast will be triggered in the main video start handlers
+      }
 
       emit("sessionStarted", session);
 
@@ -3258,6 +3339,47 @@ const handleBeforeUnload = () => {
 // In your component setup or mounted hook
 onMounted(() => {
   initializePlayer();
+
+  // Small delay to ensure everything is initialized
+  setTimeout(() => {
+    console.log("🎬 onMounted: Checking for adverts and initializing video");
+
+    // Check if advert store is available and has adverts
+    if (advertStore && advertStore.adverts && advertStore.adverts.length > 0) {
+      console.log("📺 Adverts available, showing beginning advert");
+      // Video loaded, showing beginning advert immediately
+      showBeginningAdvert();
+    } else {
+      console.log("📺 No adverts available, starting main video directly");
+      // No adverts available, starting main video directly
+      // Start main video if no ads - but respect autoplay policies
+      if (videoPlayer.value && videoPlayer.value.paused) {
+        // Double-check that no advert overlay is active
+        if (!showAdvertOverlay.value) {
+          console.log("▶️ Starting main video (no ads)");
+          // Use user interaction-aware autoplay
+          startVideoWithUserInteraction();
+
+          // Show resume toast after main video starts (if available and no ads)
+          if (
+            currentSession.value?.lastDuration &&
+            currentSession.value.lastDuration > 0
+          ) {
+            console.log(
+              "🔄 Main video started without ads - showing resume toast"
+            );
+            setTimeout(() => {
+              showResumeToast.value = true;
+            }, 2000); // 2 second delay for no-ads case
+          }
+        } else {
+          console.log("⏸️ Advert overlay active, waiting for completion");
+        }
+      } else {
+        console.log("⚠️ Video player not ready or already playing");
+      }
+    }
+  }, 1000); // 1 second delay to ensure video player is ready
 
   // Add keyboard event listener
   document.addEventListener("keydown", handleKeyDown);
@@ -3433,8 +3555,7 @@ watch(
       }
       initializePlayer();
     }
-  },
-  { immediate: true }
+  }
 );
 
 // Watch for changes to muted prop

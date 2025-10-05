@@ -166,14 +166,20 @@
               <button
                 v-else-if="isAuthenticated"
                 @click="handleWatchClick"
-                class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base"
+                :disabled="watchLoading"
+                class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Watch</span>
+                <span>{{ watchLoading ? "Loading..." : "Watch" }}</span>
                 <img
+                  v-if="!watchLoading"
                   src="../../assets/icons/play.svg"
                   alt="Play"
                   class="w-4 h-4 sm:w-5 sm:h-5"
                 />
+                <div
+                  v-else
+                  class="w-4 h-4 sm:w-5 sm:h-5 border-2 border-black border-t-transparent rounded-full animate-spin"
+                ></div>
               </button>
               <NuxtLink
                 v-else
@@ -253,6 +259,9 @@ const watchlistStore = useWatchlistStore();
 const { showSuccess, showError } = useToast();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
+// Loading states
+const watchLoading = ref(false);
+
 // Login URL with redirect parameter
 const loginUrl = computed(() => {
   const redirectPath = `/watch/${props.content.slug}/video`;
@@ -278,9 +287,11 @@ const navigateToTrailer = () => {
 };
 
 const handleWatchClick = async () => {
-  if (!props.content || !props.content.id) return;
+  if (!props.content || !props.content.id || watchLoading.value) return;
 
   try {
+    watchLoading.value = true;
+
     // Fetch adverts for this content
     await advertStore.fetchAdverts({ content_id: props.content.id });
 
@@ -289,6 +300,8 @@ const handleWatchClick = async () => {
   } catch (error) {
     // Still navigate to video page even if adverts fail
     router.push(`/watch/${props.content.slug}/video`);
+  } finally {
+    watchLoading.value = false;
   }
 };
 
