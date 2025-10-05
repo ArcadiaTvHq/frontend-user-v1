@@ -244,6 +244,7 @@
         :content="relatedContent"
         :showSeeMore="false"
         :fetchContent="false"
+        @watchlist-updated="handleSimilarContentWatchlistUpdate"
       />
 
       <!-- Conditional Footer -->
@@ -305,6 +306,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { useAdvertStore } from "~/stores/adverts";
 import { useLoadingStore } from "~/stores/loading";
+import { useWatchlistStore } from "~/stores/watchlist";
 import { useContentType } from "~/composables/useContentType";
 import { ContentService } from "~/api/services/content.service";
 import { nextTick } from "vue";
@@ -358,7 +360,23 @@ const loadingMessage = ref("Loading content...");
 // Single async data call for content
 const { data: contentData, pending: contentPending } = await useAsyncData(
   `content-${route.params.slug}`,
-  () => ContentService.getContentBySlug(route.params.slug),
+  async () => {
+    const response = await ContentService.getContentBySlug(route.params.slug);
+    // Fetch watchlist to update in_watch_list property
+    if (response?.data) {
+      try {
+        const watchlistStore = useWatchlistStore();
+        await watchlistStore.fetchWatchlist();
+        // Update the content with watchlist status
+        response.data.in_watch_list = watchlistStore.isInWatchlist(
+          response.data.id
+        );
+      } catch (error) {
+        console.error("Failed to fetch watchlist:", error);
+      }
+    }
+    return response;
+  },
   {
     server: false, // Only fetch on client to reduce server load
     lazy: true, // Don't block initial render
@@ -368,7 +386,23 @@ const { data: contentData, pending: contentPending } = await useAsyncData(
 // Single async data call for similar content
 const { data: similarData, pending: similarPending } = await useAsyncData(
   "similar-content",
-  () => ContentService.getSimilarContent(route.params.slug),
+  async () => {
+    const response = await ContentService.getSimilarContent(route.params.slug);
+    // Fetch watchlist to update in_watch_list property for similar content
+    if (response?.data) {
+      try {
+        const watchlistStore = useWatchlistStore();
+        await watchlistStore.fetchWatchlist();
+        // Update each similar content item with watchlist status
+        response.data.forEach((item) => {
+          item.in_watch_list = watchlistStore.isInWatchlist(item.id);
+        });
+      } catch (error) {
+        console.error("Failed to fetch watchlist for similar content:", error);
+      }
+    }
+    return response;
+  },
   {
     server: false,
     lazy: true,
@@ -870,6 +904,7 @@ const retryContent = async () => {
       (response) => {
         if (response?.data) {
           relatedContent.value = response.data;
+          console.log("Related content:", relatedContent.value);
         }
       }
     );
@@ -889,6 +924,16 @@ const retryContent = async () => {
       "Failed to refresh content. Please try again later.";
   } finally {
     loadingStore.stopLoading();
+  }
+};
+
+// Handle watchlist updates for similar content
+const handleSimilarContentWatchlistUpdate = (updateData) => {
+  const contentIndex = relatedContent.value.findIndex(
+    (item) => item.id === updateData.contentId
+  );
+  if (contentIndex !== -1) {
+    relatedContent.value[contentIndex].in_watch_list = updateData.newStatus;
   }
 };
 

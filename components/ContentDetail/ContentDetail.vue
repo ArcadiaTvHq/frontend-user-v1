@@ -191,7 +191,7 @@
                 class="h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 group text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                 :class="
                   isInWatchlist
-                    ? 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700'
+                    ? 'hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700'
                     : 'border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black'
                 "
               >
@@ -203,8 +203,15 @@
                     : "Add to List"
                 }}</span>
                 <img
+                  v-if="isInWatchlist"
+                  src="@/assets/icons/minus.svg"
+                  alt="remove"
+                  class="w-4 h-4 sm:w-5 sm:h-5 brightness-0 invert"
+                />
+                <img
+                  v-else
                   src="@/assets/icons/plus.svg"
-                  :alt="isInWatchlist ? 'Remove' : 'Add'"
+                  alt="add"
                   class="w-4 h-4 sm:w-5 sm:h-5 group-hover:brightness-0"
                 />
               </button>
@@ -253,9 +260,7 @@ const loginUrl = computed(() => {
 const advertStore = useAdvertStore();
 
 // Watchlist computed properties
-const isInWatchlist = computed(
-  () => props.content?.interactions?.is_in_watchlist || false
-);
+const isInWatchlist = computed(() => props.content?.in_watch_list || false);
 const watchlistLoading = computed(() => watchlistStore.loading);
 
 const isContentReleased = computed(() => {
@@ -288,12 +293,12 @@ const handleAddToListClick = async () => {
   if (!props.content || !props.content.id || !isAuthenticated.value) return;
 
   try {
-    const wasInWatchlist = props.content.interactions.is_in_watchlist;
+    const wasInWatchlist = props.content.in_watch_list;
     await watchlistStore.toggleWatchlist(props.content.id);
 
     // Update the local state to reflect the new watchlist status
     const newWatchlistStatus = !wasInWatchlist;
-    props.content.interactions.in_watch_list = newWatchlistStatus;
+    props.content.in_watch_list = newWatchlistStatus;
 
     // Show appropriate toast message
     if (wasInWatchlist) {
