@@ -105,11 +105,11 @@
         >
           <div
             v-show="showGenreDropdown"
-            class="absolute top-full left-0 mt-4 w-96 bg-white rounded-3xl shadow-2xl z-50 border border-gray-100 overflow-hidden backdrop-blur-sm"
+            class="absolute top-full left-0 mt-4 w-96 bg-cardgray rounded-3xl shadow-2xl z-50 border border-grayish overflow-hidden backdrop-blur-sm"
           >
             <!-- Header -->
             <div
-              class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200"
+              class="bg-gradient-to-r from-darkgray to-grayish px-6 py-4 border-b border-grayish"
             >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -117,10 +117,8 @@
                     <genre />
                   </div>
                   <div>
-                    <h4 class="text-lg font-bold text-gray-800">
-                      Select Genres
-                    </h4>
-                    <p class="text-sm text-gray-600">
+                    <h4 class="text-lg font-bold text-white">Select Genres</h4>
+                    <p class="text-sm text-gray-300">
                       {{ filtersStore.genres.length }} of
                       {{ filtersStore.availableGenres.length }} selected
                     </p>
@@ -128,7 +126,7 @@
                 </div>
                 <button
                   @click="filtersStore.setGenres([])"
-                  class="text-sm text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-all duration-200 flex items-center gap-2"
+                  class="text-sm text-red-400 hover:text-red-300 font-semibold px-3 py-2 rounded-lg hover:bg-red-900/20 transition-all duration-200 flex items-center gap-2"
                 >
                   <svg
                     class="w-4 h-4"
@@ -154,7 +152,7 @@
                 <label
                   v-for="genre in filtersStore.availableGenres"
                   :key="genre.value"
-                  class="group flex items-center space-x-3 cursor-pointer hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 p-4 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200 hover:shadow-md"
+                  class="group flex items-center space-x-3 cursor-pointer hover:bg-gradient-to-r hover:from-grayish hover:to-darkgray p-4 rounded-xl transition-all duration-200 border border-transparent hover:border-grayish hover:shadow-md"
                 >
                   <div class="relative">
                     <input
@@ -169,7 +167,7 @@
                       :class="
                         filtersStore.genres.includes(genre.value)
                           ? 'bg-gradient-to-r from-[#FFD005] to-[#FFA000] border-[#FFD005] shadow-lg scale-110'
-                          : 'border-gray-300 group-hover:border-gray-400 group-hover:scale-105'
+                          : 'border-grayish group-hover:border-gray-300 group-hover:scale-105'
                       "
                     >
                       <svg
@@ -187,7 +185,7 @@
                     </div>
                   </div>
                   <span
-                    class="text-sm text-gray-700 font-semibold group-hover:text-gray-900 transition-colors"
+                    class="text-sm text-gray-200 font-semibold group-hover:text-white transition-colors"
                     >{{ genre.label }}</span
                   >
                 </label>
@@ -250,11 +248,11 @@
         >
           <div
             v-show="showYearDropdown"
-            class="absolute top-full left-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl z-50 border border-gray-100 overflow-hidden backdrop-blur-sm"
+            class="absolute top-full left-0 mt-4 w-80 bg-cardgray rounded-3xl shadow-2xl z-50 border border-grayish overflow-hidden backdrop-blur-sm"
           >
             <!-- Header -->
             <div
-              class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200"
+              class="bg-gradient-to-r from-darkgray to-grayish px-6 py-4 border-b border-grayish"
             >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -262,15 +260,15 @@
                     <releaseYear />
                   </div>
                   <div>
-                    <h4 class="text-lg font-bold text-gray-800">
+                    <h4 class="text-lg font-bold text-white">
                       Release Year Range
                     </h4>
-                    <p class="text-sm text-gray-600">Filter by year range</p>
+                    <p class="text-sm text-gray-300">Filter by year range</p>
                   </div>
                 </div>
                 <button
                   @click="clearYearFilters"
-                  class="text-sm text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-all duration-200 flex items-center gap-2"
+                  class="text-sm text-red-400 hover:text-red-300 font-semibold px-3 py-2 rounded-lg hover:bg-red-900/20 transition-all duration-200 flex items-center gap-2"
                 >
                   <svg
                     class="w-4 h-4"
@@ -294,14 +292,14 @@
             <div class="p-6">
               <div class="grid grid-cols-2 gap-6">
                 <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-gray-700"
+                  <label class="block text-sm font-semibold text-gray-200"
                     >From Year</label
                   >
                   <div class="relative">
                     <select
                       v-model="selectedFromYear"
                       @change="updateYearFilters"
-                      class="w-full p-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FFD005] focus:border-[#FFD005] transition-all duration-200 appearance-none bg-white shadow-sm hover:shadow-md"
+                      class="w-full p-3 border-2 border-grayish rounded-xl text-sm focus:ring-2 focus:ring-[#FFD005] focus:border-[#FFD005] transition-all duration-200 bg-darkgray text-white shadow-sm hover:shadow-md"
                     >
                       <option value="">Any year</option>
                       <option
@@ -312,34 +310,17 @@
                         {{ year.label }}
                       </option>
                     </select>
-                    <div
-                      class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
-                    >
-                      <svg
-                        class="w-5 h-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        ></path>
-                      </svg>
-                    </div>
                   </div>
                 </div>
                 <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-gray-700"
+                  <label class="block text-sm font-semibold text-gray-200"
                     >To Year</label
                   >
                   <div class="relative">
                     <select
                       v-model="selectedToYear"
                       @change="updateYearFilters"
-                      class="w-full p-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FFD005] focus:border-[#FFD005] transition-all duration-200 appearance-none bg-white shadow-sm hover:shadow-md"
+                      class="w-full p-3 border-2 border-grayish rounded-xl text-sm focus:ring-2 focus:ring-[#FFD005] focus:border-[#FFD005] transition-all duration-200 bg-darkgray text-white shadow-sm hover:shadow-md"
                     >
                       <option value="">Any year</option>
                       <option
@@ -350,23 +331,6 @@
                         {{ year.label }}
                       </option>
                     </select>
-                    <div
-                      class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
-                    >
-                      <svg
-                        class="w-5 h-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        ></path>
-                      </svg>
-                    </div>
                   </div>
                 </div>
               </div>

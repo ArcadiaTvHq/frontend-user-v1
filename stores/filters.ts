@@ -48,7 +48,7 @@ export const useFiltersStore = defineStore("filters", () => {
     { value: "Western", label: "Western" },
   ]);
 
-  const availableYears = ref<YearOption[]>(() => {
+  const availableYears = computed(() => {
     const currentYear = new Date().getFullYear();
     const years: YearOption[] = [];
     for (let year = currentYear; year >= 1900; year--) {
