@@ -106,6 +106,7 @@
 
 .otp-input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 </style>
 
@@ -122,6 +123,7 @@ definePageMeta({
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 // OTP state
 const otpDigits = ref(["", "", "", "", "", ""]);
@@ -195,9 +197,15 @@ const verifyOTP = async () => {
     toastType.value = "success";
     showToast.value = true;
 
-    // Navigate to watch after successful verification
+    // Navigate to redirect URL or watch after successful verification
     setTimeout(() => {
-      navigateTo("/watch");
+      // Get the redirect URL from query parameter or default to /watch
+      const redirectTo = route.query["redirect-to"];
+      const redirectUrl = redirectTo
+        ? decodeURIComponent(redirectTo)
+        : "/watch";
+      // Use replace: true to prevent middleware from interfering
+      navigateTo(redirectUrl, { replace: true });
     }, 1000);
   } catch (error) {
     toastMessage.value =

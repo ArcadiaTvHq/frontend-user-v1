@@ -93,13 +93,59 @@
               />
               <!-- Hover overlay covering only the image -->
               <div
-                class="hover-overlay absolute inset-0 bg-black/60 flex flex-col justify-end p-2 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none"
+                class="hover-overlay absolute inset-0 bg-black/60 flex flex-col justify-between p-2 rounded-lg opacity-0 transition-opacity duration-300"
+                @click.stop
               >
-                <p
-                  class="text-white text-sm line-clamp-5 max-h-[50%] overflow-hidden"
-                >
-                  {{ content.description }}
-                </p>
+                <!-- Top section with Add to List button -->
+                <div class="flex justify-end">
+                  <button
+                    v-if="isAuthenticated"
+                    @click.stop.prevent="handleAddToList(content, $event)"
+                    :disabled="watchlistLoading"
+                    class="px-3 py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="
+                      isInWatchlist(content)
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-[#FFD005] hover:bg-[#CE8F00] text-black'
+                    "
+                  >
+                    <img
+                      v-if="isInWatchlist(content)"
+                      src="@/assets/icons/minus.svg"
+                      alt="remove"
+                      class="w-4 h-4 brightness-0"
+                    />
+                    <img
+                      v-else
+                      src="@/assets/icons/plus.svg"
+                      alt="add"
+                      class="w-4 h-4 brightness-0"
+                    />
+                  </button>
+                  <NuxtLink
+                    v-else
+                    :to="`/login?redirect-to=${encodeURIComponent(
+                      `/watch/${content.slug}`
+                    )}`"
+                    @click.stop
+                    class="bg-[#FFD005] hover:bg-[#CE8F00] text-black p-2 rounded-full transition-all duration-300 flex items-center justify-center"
+                  >
+                    <img
+                      src="@/assets/icons/plus.svg"
+                      alt="Sign In to Add"
+                      class="w-4 h-4 brightness-0"
+                    />
+                  </NuxtLink>
+                </div>
+
+                <!-- Bottom section with description -->
+                <div class="flex-1 flex items-end">
+                  <p
+                    class="text-white text-sm line-clamp-4 max-h-[60%] overflow-hidden"
+                  >
+                    {{ content.description }}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -215,6 +261,9 @@ import flameIcon from "~/assets/flame.svg";
 import { useRouter } from "vue-router";
 import { formatDate, formatDuration } from "~/src/utils/helpers";
 import { useBlobImages } from "~/composables/useBlobImages";
+import { useAuthStore } from "~/stores/auth";
+import { useWatchlistStore } from "~/stores/watchlist";
+import { useToast } from "~/composables/useToast";
 
 const props = defineProps({
   title: {
@@ -265,6 +314,11 @@ const loading = ref(true);
 const error = ref(null);
 const imagesLoaded = ref(false);
 
+// Stores
+const authStore = useAuthStore();
+const watchlistStore = useWatchlistStore();
+const { showSuccess, showError } = useToast();
+
 const { getPrimaryImageUrl, getHoverImageUrl, preloadContentImages } =
   useBlobImages();
 
@@ -281,6 +335,15 @@ const shouldShowLoading = computed(() => {
     loading.value || (props.fetchContent && displayContent.value.length === 0)
   );
 });
+
+// Authentication and watchlist computed properties
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const watchlistLoading = computed(() => watchlistStore.loading);
+
+// Check if content is in watchlist
+const isInWatchlist = (content) => {
+  return content?.in_watch_list || false;
+};
 
 const fetchAnticipatedContent = async () => {
   if (!props.fetchContent) {
@@ -319,7 +382,60 @@ const fetchAnticipatedContent = async () => {
 
 const router = useRouter();
 
-const emit = defineEmits(["mounted"]);
+// Handle add to list functionality
+const handleAddToList = async (content, event) => {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  if (!content || !content.id || !isAuthenticated.value) return;
+
+  try {
+    const wasInWatchlist = content.in_watch_list;
+    await watchlistStore.toggleWatchlist(content.id);
+
+    // Update the local state to reflect the new watchlist status
+    const newWatchlistStatus = !wasInWatchlist;
+
+    // Update in displayContent array (which includes both props.content and anticipatedContent)
+    const displayArray = displayContent.value;
+    const contentIndex = displayArray.findIndex(
+      (item) => item.id === content.id
+    );
+    if (contentIndex !== -1) {
+      displayArray[contentIndex].in_watch_list = newWatchlistStatus;
+    }
+
+    // Also update in anticipatedContent if it exists there
+    const anticipatedIndex = anticipatedContent.value.findIndex(
+      (item) => item.id === content.id
+    );
+    if (anticipatedIndex !== -1) {
+      anticipatedContent.value[anticipatedIndex].in_watch_list =
+        newWatchlistStatus;
+    }
+
+    // Show appropriate toast message
+    if (wasInWatchlist) {
+      showSuccess("Removed from watchlist");
+    } else {
+      showSuccess("Added to watchlist");
+    }
+
+    // Emit event to parent components
+    emit("watchlist-updated", {
+      contentId: content.id,
+      newStatus: newWatchlistStatus,
+      wasInWatchlist,
+    });
+  } catch (error) {
+    console.error("Failed to toggle watchlist:", error);
+    showError("Failed to update watchlist");
+  }
+};
+
+const emit = defineEmits(["mounted", "watchlist-updated"]);
 
 // Watch for props.content changes and preload images
 watch(
@@ -345,6 +461,16 @@ watch(
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger);
   await fetchAnticipatedContent();
+
+  // Fetch watchlist if user is authenticated
+  if (isAuthenticated.value) {
+    try {
+      await watchlistStore.fetchWatchlist();
+    } catch (error) {
+      console.error("Failed to fetch watchlist:", error);
+    }
+  }
+
   emit("mounted");
 });
 </script>

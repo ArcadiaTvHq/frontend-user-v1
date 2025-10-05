@@ -201,7 +201,6 @@ export const useAuthStore = defineStore(
       logout,
       clearContentCache,
       // refreshUserSession,
-      clearError,
     };
   },
   {

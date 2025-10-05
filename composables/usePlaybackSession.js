@@ -9,6 +9,9 @@ export function usePlaybackSession() {
   const isLoading = ref(false);
   const error = ref(null);
 
+  // Watch tracker reference - will be set by the calling component
+  let watchTracker = null;
+
   // Intervals
   let heartbeatInterval = null;
   let tokenRefreshInterval = null;
@@ -136,15 +139,48 @@ export function usePlaybackSession() {
   };
 
   // Heartbeat functionality
-  const sendHeartbeat = async (contentId) => {
+  const sendHeartbeat = async (contentId, currentVideoTime = null) => {
     if (!currentSession.value) return;
 
     try {
-      const response = await PlaybackService.sendHeartbeat(contentId);
+      // End any active stretch and get stretches for heartbeat
+      let watchStretches = [];
+      if (
+        watchTracker &&
+        typeof watchTracker.endActiveStretchAndGetNewStretches === "function"
+      ) {
+        // If no current video time provided, just get stretches without ending active one
+        if (currentVideoTime !== null && currentVideoTime >= 0) {
+          watchStretches =
+            watchTracker.endActiveStretchAndGetNewStretches(currentVideoTime);
+          console.log(
+            `💓 Ended active stretch and sending heartbeat with ${watchStretches.length} NEW watch stretches`
+          );
+        } else {
+          watchStretches = watchTracker.getWatchStretches();
+          console.log(
+            `💓 Sending heartbeat with ${watchStretches.length} watch stretches (no video time provided)`
+          );
+        }
+      }
+
+      const response = await PlaybackService.sendHeartbeat(
+        contentId,
+        watchStretches
+      );
 
       if (response.success) {
         stats.value.heartbeatCount++;
         console.log("💓 Heartbeat sent successfully");
+
+        // Mark stretches as sent to avoid resending them
+        if (
+          watchTracker &&
+          typeof watchTracker.markStretchesAsSent === "function" &&
+          watchStretches.length > 0
+        ) {
+          watchTracker.markStretchesAsSent(watchStretches);
+        }
 
         // Check if current token is about to expire (within 1 minute)
         if (isTokenExpiringSoon.value) {
@@ -249,9 +285,80 @@ export function usePlaybackSession() {
     }
   };
 
+  // End playback session functionality
+  const endPlaybackSession = async (status) => {
+    if (!currentSession.value?.contentId) return;
+
+    try {
+      // Get watch stretches from tracker if available
+      let watchStretches = [];
+      if (watchTracker && typeof watchTracker.getAllStretches === "function") {
+        watchStretches = watchTracker.getAllStretches();
+        console.log(
+          `🏁 Ending playback session with status '${status}' and ${watchStretches.length} watch stretches`
+        );
+      }
+
+      const response = await PlaybackService.endPlaybackSession(
+        currentSession.value.contentId,
+        status,
+        watchStretches
+      );
+
+      if (response.success) {
+        console.log(
+          `🏁 Playback session ended successfully with status: ${status}`
+        );
+
+        // Clear any active stretches if completed
+        if (watchTracker && typeof watchTracker.clearData === "function") {
+          watchTracker.clearData();
+        }
+
+        // Clear intervals
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        if (tokenRefreshInterval) {
+          clearInterval(tokenRefreshInterval);
+          tokenRefreshInterval = null;
+        }
+
+        // Reset session state
+        currentSession.value = null;
+        sessionStartTime.value = null;
+        isSessionActive.value = false;
+        stats.value.activeTokens = 0;
+
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to end playback session");
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Unknown error occurred";
+      console.error(
+        `❌ Error ending playback session with status '${status}':`,
+        err
+      );
+
+      // Still clear the local session state even if the API call failed
+      stopPlayback();
+
+      throw err;
+    }
+  };
+
   // Update stats
   const updateStats = () => {
     stats.value.sessionDuration = sessionDuration.value;
+  };
+
+  // Watch tracker functionality
+  const setWatchTracker = (tracker) => {
+    watchTracker = tracker;
+    console.log("📊 Watch tracker attached to playback session");
   };
 
   // Auto-update stats every second
@@ -288,11 +395,13 @@ export function usePlaybackSession() {
     startPlayback,
     updatePlayback,
     stopPlayback,
+    endPlaybackSession,
     sendHeartbeat,
     startHeartbeat,
     startTokenRefresh,
     autoUpdateVideoUrl,
     testPrivateKey,
     updateStats,
+    setWatchTracker,
   };
 }

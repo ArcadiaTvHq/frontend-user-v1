@@ -1,7 +1,6 @@
-<template> 
-  <Review/>
+<template>
+  <Review :content="content" />
   <div class="min-h-screen bg-black" v-if="!review">
-    
     <Navbar />
     <main v-if="content" class="bg-black">
       <!-- Mobile Template -->
@@ -232,7 +231,11 @@
         </div>
       </template>
 
-      <comment />
+      <Comment
+        v-if="content"
+        :content-id="content.id"
+        :interactions="content.interactions"
+      />
 
       <!-- Similar Content Section -->
       <SectionTwo
@@ -297,7 +300,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useRoute } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { useAdvertStore } from "~/stores/adverts";
@@ -312,17 +315,16 @@ import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import { buildImageUrl } from "~/src/utils/helpers";
 import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
 
-
 //review component
-const modal = useModal()
-const review = computed(()=> modal.isReview)
+const modal = useModal();
+const review = computed(() => modal.isReview);
 
 // Lazy load components that are not immediately visible
-const HomeFoot = defineAsyncComponent(() =>
-  import("~/components/HomeFoot/HomeFoot.vue")
+const HomeFoot = defineAsyncComponent(
+  () => import("~/components/HomeFoot/HomeFoot.vue")
 );
-const SectionLast = defineAsyncComponent(() =>
-  import("~/components/SectionLast/SectionLast.vue")
+const SectionLast = defineAsyncComponent(
+  () => import("~/components/SectionLast/SectionLast.vue")
 );
 
 const route = useRoute();
@@ -739,7 +741,28 @@ const retryVideo = async () => {
 
 const goBackToDetail = async () => {
   console.log("🔙 Navigating back to content listing...");
+
   try {
+    // First, try to end the playback session if there's an active video player
+    const currentPlayer = isMobile.value
+      ? videoPlayerRefs.value.mobile
+      : videoPlayerRefs.value.desktop;
+
+    if (
+      currentPlayer &&
+      typeof currentPlayer.isSessionActive === "function" &&
+      currentPlayer.isSessionActive()
+    ) {
+      console.log("🏁 Ending playback session before navigation...");
+      try {
+        await currentPlayer.endPlaybackSession("ABANDONED");
+        console.log("✅ Playback session ended successfully");
+      } catch (sessionError) {
+        console.error("❌ Failed to end playback session:", sessionError);
+        // Continue with navigation even if session end fails
+      }
+    }
+
     // Determine the appropriate listing page based on content type
     let targetRoute = "/";
 

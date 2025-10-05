@@ -1,12 +1,20 @@
 import { apiClient } from "../client";
 import { ENDPOINTS } from "../endpoints";
 
+export interface IWatchStretch {
+  start_time: Date;
+  end_time: Date;
+  start_duration: number;
+  end_duration: number;
+}
+
 export interface PlaybackSession {
   sessionId: string;
   token: string;
   nbf: number; // Not valid before (timestamp)
   exp: number; // Expires at (timestamp)
   contentId: string;
+  lastDuration?: number; // Last watched duration in seconds
 }
 
 export interface PlaybackResponse {
@@ -21,6 +29,14 @@ export interface HeartbeatResponse {
   data?: {
     sessionActive: boolean;
     tokenValid: boolean;
+  };
+}
+
+export interface EndPlaybackResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    sessionEnded: boolean;
   };
 }
 
@@ -74,13 +90,41 @@ export class PlaybackService {
   /**
    * Send heartbeat to keep session alive
    * @param contentId Content ID for the playback session
+   * @param watchStretches Array of watch stretches to record viewing activities
    * @returns Promise with heartbeat response
    */
-  static async sendHeartbeat(contentId: string): Promise<HeartbeatResponse> {
+  static async sendHeartbeat(
+    contentId: string,
+    watchStretches: IWatchStretch[] = []
+  ): Promise<HeartbeatResponse> {
     const response = await apiClient.post<HeartbeatResponse>(
       ENDPOINTS.PLAYBACK.HEARTBEAT,
       {
         contentId,
+        watchStretches,
+      }
+    );
+    return response;
+  }
+
+  /**
+   * End a playback session
+   * @param contentId Content ID for the playback session
+   * @param status Session end status: 'COMPLETED' or 'ABANDONED'
+   * @param watchStretches Array of watch stretches to record viewing activities
+   * @returns Promise with end playback response
+   */
+  static async endPlaybackSession(
+    contentId: string,
+    status: "COMPLETED" | "ABANDONED",
+    watchStretches: IWatchStretch[] = []
+  ): Promise<EndPlaybackResponse> {
+    const response = await apiClient.post<EndPlaybackResponse>(
+      ENDPOINTS.PLAYBACK.END,
+      {
+        contentId,
+        status,
+        watchStretches,
       }
     );
     return response;

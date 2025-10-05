@@ -29,10 +29,22 @@ export const ENDPOINTS = {
     START: "/playback/start-playback",
     UPDATE: "/playback/update-playback",
     HEARTBEAT: "/playback/heartbeat",
+    END: "/playback/end-playback-session",
     TEST_KEY: "/playback/test-private-key",
   },
   ADVERTS: {
     FETCH: "/adverts/public/fetch",
+  },
+  CONTENT_INTERACTION: {
+    COMMENTS: (contentId: string) =>
+      `/content-interaction/comment/${contentId}`,
+    SUBMIT_COMMENT: "/content-interaction/comment",
+    SUBMIT_REVIEW: (contentId: string) =>
+      `/content-interaction/review/${contentId}`,
+  },
+  WATCHLIST: {
+    TOGGLE: "/watchlist",
+    GET: "/watchlist",
   },
   // Add more endpoint categories as needed
 } as const;

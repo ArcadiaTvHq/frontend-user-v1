@@ -207,16 +207,48 @@
             <img src="../../assets/icons/play.svg" alt="Play" class="w-5 h-5" />
           </button>
           <button
+            v-if="isAuthenticated"
             @click="addToList"
+            :disabled="watchlistLoading"
+            class="h-12 px-10 rounded-2xl font-medium btn-animate animate-scale-in delay-300 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+            :class="
+              isInWatchlist
+                ? 'hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700'
+                : 'border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black'
+            "
+          >
+            <span>{{
+              watchlistLoading
+                ? "Loading..."
+                : isInWatchlist
+                ? "Remove from List"
+                : "Add to List"
+            }}</span>
+            <img
+              v-if="isInWatchlist"
+              src="@/assets/icons/minus.svg"
+              alt="remove"
+              class="w-5 h-5 brightness-0 invert"
+            />
+            <img
+              v-else
+              src="@/assets/icons/plus.svg"
+              alt="add"
+              class="w-5 h-5 group-hover:brightness-0"
+            />
+          </button>
+          <NuxtLink
+            v-else
+            :to="loginUrl"
             class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 px-10 rounded-2xl font-medium btn-animate animate-scale-in delay-300 flex items-center justify-center gap-3 group"
           >
-            <span>Add to List</span>
+            <span>Sign In to Add</span>
             <img
               src="../../assets/icons/plus.svg"
               alt="add"
               class="w-5 h-5 group-hover:brightness-0"
             />
-          </button>
+          </NuxtLink>
         </div>
 
         <!-- Carousel Indicators -->
@@ -242,6 +274,9 @@
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
+import { useAuthStore } from "~/stores/auth";
+import { useWatchlistStore } from "~/stores/watchlist";
+import { useToast } from "~/composables/useToast";
 
 // Props
 const props = defineProps({
@@ -257,6 +292,11 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(["watch", "addToList"]);
+
+// Stores
+const authStore = useAuthStore();
+const watchlistStore = useWatchlistStore();
+const { showSuccess, showError } = useToast();
 
 // Reactive state
 const heroContent = ref([]);
@@ -287,6 +327,21 @@ const nextContent = computed(() => {
   return heroContent.value[nextIndex];
 });
 
+// Authentication and watchlist computed properties
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const isInWatchlist = computed(
+  () => currentHeroContent.value?.in_watch_list || false
+);
+const watchlistLoading = computed(() => watchlistStore.loading);
+
+// Login URL with redirect parameter
+const loginUrl = computed(() => {
+  const redirectPath = currentHeroContent.value
+    ? `/watch/${currentHeroContent.value.slug}`
+    : "/home";
+  return `/login?redirect-to=${encodeURIComponent(redirectPath)}`;
+});
+
 // Image URL builder
 const IMAGE_DELIVERY_BASE_URL =
   "https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg";
@@ -299,7 +354,7 @@ const buildImageUrl = (imageId) => {
 // Methods
 const fetchHeroContent = async () => {
   try {
-    const response = await ContentService.getFeaturedContent();
+    const response = await ContentService.getContents({ is_featured: true });
 
     // Transform the data to include image URLs
     heroContent.value = response.data.map((content) => {
@@ -325,6 +380,7 @@ const fetchHeroContent = async () => {
         slug: content.slug,
         isPremium: content.is_premium,
         isFree: content.is_free,
+        in_watch_list: content.in_watch_list || false,
       };
     });
 
@@ -346,6 +402,7 @@ const fetchHeroContent = async () => {
         slug: "the-crown",
         isPremium: false,
         isFree: true,
+        in_watch_list: false,
       },
     ];
   }
@@ -441,10 +498,41 @@ const watchContent = () => {
   }
 };
 
-const addToList = () => {
-  if (currentHeroContent.value) {
+const addToList = async () => {
+  if (
+    !currentHeroContent.value ||
+    !currentHeroContent.value.id ||
+    !isAuthenticated.value
+  )
+    return;
+
+  try {
+    const wasInWatchlist = currentHeroContent.value.in_watch_list;
+    await watchlistStore.toggleWatchlist(currentHeroContent.value.id);
+
+    // Update the local state to reflect the new watchlist status
+    const newWatchlistStatus = !wasInWatchlist;
+    currentHeroContent.value.in_watch_list = newWatchlistStatus;
+
+    // Update the heroContent array as well
+    const contentIndex = heroContent.value.findIndex(
+      (content) => content.id === currentHeroContent.value.id
+    );
+    if (contentIndex !== -1) {
+      heroContent.value[contentIndex].in_watch_list = newWatchlistStatus;
+    }
+
+    // Show appropriate toast message
+    if (wasInWatchlist) {
+      showSuccess("Removed from watchlist");
+    } else {
+      showSuccess("Added to watchlist");
+    }
+
     emit("addToList", currentHeroContent.value);
-    // You can add toast notification here
+  } catch (error) {
+    console.error("Failed to toggle watchlist:", error);
+    showError("Failed to update watchlist");
   }
 };
 
@@ -458,6 +546,15 @@ const onImageLoad = (event) => {
 onMounted(async () => {
   await fetchHeroContent();
   startAutoPlay();
+
+  // Fetch watchlist if user is authenticated
+  if (isAuthenticated.value) {
+    try {
+      await watchlistStore.fetchWatchlist();
+    } catch (error) {
+      console.error("Failed to fetch watchlist:", error);
+    }
+  }
 });
 
 onUnmounted(() => {

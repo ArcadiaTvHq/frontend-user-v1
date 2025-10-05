@@ -10,6 +10,7 @@ definePageMeta({
 });
 
 const authStore = useAuthStore();
+const route = useRoute();
 
 const formData = reactive({
   email: "",
@@ -55,12 +56,24 @@ async function handleSubmit() {
     toastType.value = "success";
     showToast.value = true;
 
-    // Navigate based on verification status
+    // Navigate based on verification status and redirect URL
     setTimeout(() => {
       if (!authStore.isVerified) {
-        navigateTo("/otp");
+        // Pass redirect-to parameter to OTP page
+        const redirectTo = route.query["redirect-to"];
+        if (redirectTo) {
+          navigateTo(`/otp?redirect-to=${encodeURIComponent(redirectTo)}`);
+        } else {
+          navigateTo("/otp");
+        }
       } else {
-        navigateTo("/watch");
+        // Get the redirect URL from query parameter or default to /watch
+        const redirectTo = route.query["redirect-to"];
+        const redirectUrl = redirectTo
+          ? decodeURIComponent(redirectTo)
+          : "/watch";
+        // Use replace: true to prevent middleware from interfering
+        navigateTo(redirectUrl, { replace: true });
       }
     }, 1000);
   } catch (e) {

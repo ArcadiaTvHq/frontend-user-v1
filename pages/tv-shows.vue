@@ -21,57 +21,10 @@
       <template v-if="hasSearchQuery">
         <div class="pt-20">
           <!-- Filter buttons -->
-          <div class="px-4 sm:px-9 md:px-28 mb-6">
-            <div class="flex flex-wrap gap-3">
-              <!-- Genre Filter -->
-              <button
-                class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
-              >
-                <span>Genre</span>
-                <img
-                  src="@/assets/icons/chevron.svg"
-                  alt="Chevron"
-                  class="w-4 h-4 transition-transform duration-300 brightness-0"
-                />
-              </button>
-
-              <!-- Release Year Filter -->
-              <button
-                class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
-              >
-                <span>Release Year</span>
-                <img
-                  src="@/assets/icons/chevron.svg"
-                  alt="Chevron"
-                  class="w-4 h-4 transition-transform duration-300 brightness-0"
-                />
-              </button>
-
-              <!-- Content Type Filter -->
-              <button
-                class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
-              >
-                <span>Content Type</span>
-                <img
-                  src="@/assets/icons/chevron.svg"
-                  alt="Chevron"
-                  class="w-4 h-4 transition-transform duration-300 brightness-0"
-                />
-              </button>
-
-              <!-- Sort Filter -->
-              <button
-                class="bg-gold hover:bg-[#CE8F00] text-black px-4 py-2 rounded-2xl flex items-center gap-2 font-medium transition-all duration-300 text-sm"
-              >
-                <span>Sort</span>
-                <img
-                  src="@/assets/icons/chevron.svg"
-                  alt="Chevron"
-                  class="w-4 h-4 transition-transform duration-300 brightness-0"
-                />
-              </button>
-            </div>
-          </div>
+          <SearchFilters
+            @filter-click="handleFilterClick"
+            @filters-changed="handleFiltersChanged"
+          />
 
           <SectionTwo
             title="Search Results"
@@ -101,6 +54,7 @@
           :content="tvShowsContent"
           :showSeeMore="true"
           :fetchContent="false"
+          @watchlist-updated="handleWatchlistUpdate"
         />
         <div class="mt-20 md:mt-32">
           <HomeFoot />
@@ -119,6 +73,7 @@ import HeroHome from "~/components/HeroHome/HeroHome.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import HomeFoot from "~/components/HomeFoot/HomeFoot.vue";
 import ErrorView from "~/components/ErrorView/ErrorView.vue";
+import SearchFilters from "~/components/SearchFilters/SearchFilters.vue";
 import { ContentService } from "~/api/services/content.service";
 import { EContentType } from "~/src/types/content";
 import { useBlobImages } from "~/composables/useBlobImages";
@@ -317,6 +272,63 @@ const handleWatchContent = (content) => {
 const handleAddToList = (content) => {
   console.log("Added TV show to list:", content.title);
   // You can add toast notification or update user's watchlist here
+};
+
+const handleFilterClick = (filterType) => {
+  console.log("Filter clicked:", filterType);
+  // Handle filter logic here
+  switch (filterType) {
+    case "genre":
+      // Handle genre filter
+      break;
+    case "releaseYear":
+      // Handle release year filter
+      break;
+    case "contentType":
+      // Handle content type filter
+      break;
+    case "sort":
+      // Handle sort filter
+      break;
+    default:
+      console.log("Unknown filter type:", filterType);
+  }
+};
+
+const handleFiltersChanged = async (filterParams) => {
+  console.log("Filters changed:", filterParams);
+  // Apply filters to search results
+  if (hasSearchQuery.value) {
+    await fetchSearchResultsWithFilters(filterParams);
+  }
+};
+
+const fetchSearchResultsWithFilters = async (filterParams) => {
+  if (!searchQuery.value.trim()) return;
+
+  try {
+    const response = await ContentService.getContents({
+      search: searchQuery.value,
+      ...filterParams,
+      page: 1,
+    });
+
+    searchStore.searchResults = response.data || [];
+  } catch (error) {
+    console.error("Filtered search error:", error);
+    searchStore.searchError = error.message || "Search failed";
+    searchStore.searchResults = [];
+  }
+};
+
+const handleWatchlistUpdate = (updateData) => {
+  // Update the tvShowsContent array to reflect the new watchlist status
+  const contentIndex = tvShowsContent.value.findIndex(
+    (show) => show.id === updateData.contentId
+  );
+  if (contentIndex !== -1) {
+    tvShowsContent.value[contentIndex].in_watch_list = updateData.newStatus;
+  }
 };
 
 // Fetch data when component mounts

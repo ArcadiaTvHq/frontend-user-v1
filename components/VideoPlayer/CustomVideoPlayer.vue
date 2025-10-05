@@ -75,6 +75,19 @@
         </div>
       </div> -->
 
+      <!-- Resume Toast -->
+      <ResumeToast
+        v-if="
+          currentSession &&
+          currentSession.lastDuration &&
+          currentSession.lastDuration > 0
+        "
+        :show="showResumeToast"
+        :last-duration="currentSession.lastDuration"
+        @resume="handleResumeFromLastDuration"
+        @dismiss="handleDismissResumeToast"
+      />
+
       <!-- Advert Overlay -->
       <AdvertOverlay
         :show="showAdvertOverlay"
@@ -143,10 +156,12 @@
 
 <script setup>
 import { ref, onMounted, watch, nextTick, onUnmounted } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { buildImageUrl, preloadImage } from "~/src/utils/helpers";
 import { usePlaybackSession } from "~/composables/usePlaybackSession.js";
 import Hls from "hls.js";
 import AdvertOverlay from "~/components/AdvertOverlay/AdvertOverlay.vue";
+import ResumeToast from "~/components/Toast/ResumeToast.vue";
 import { useAdvertStore } from "~/stores/adverts";
 import { AdvertService } from "~/api/services/advert.service";
 
@@ -211,9 +226,28 @@ const {
   startPlayback,
   updatePlayback,
   stopPlayback,
+  endPlaybackSession,
   autoUpdateVideoUrl,
   sendHeartbeat: composableSendHeartbeat,
+  setWatchTracker,
 } = usePlaybackSession();
+
+// Watch tracker composable
+const watchTracker = useWatchTracker(props.contentId);
+
+// Handle route navigation (back button, etc.)
+onBeforeRouteLeave((to, from, next) => {
+  if (isSessionActive.value && !hasEndedPlayback.value) {
+    console.log(
+      "🏁 Route navigation detected - ending playback session as ABANDONED"
+    );
+    endPlaybackSession("ABANDONED").catch((err) => {
+      console.error("Failed to end playback session on route navigation:", err);
+    });
+  }
+  // Always proceed with navigation
+  next();
+});
 
 // Advert store
 const advertStore = useAdvertStore();
@@ -232,6 +266,17 @@ const progressPercent = ref(0);
 const bufferedPercent = ref(0);
 const lastEmittedSecond = ref(-1);
 const canPlay = ref(false);
+
+// Seek tracking variables
+const seekFromTime = ref(0);
+const seekToTime = ref(0);
+
+// Playback completion tracking
+const hasEndedPlayback = ref(false);
+const completionThreshold = 0.99; // 99% threshold
+
+// Resume toast state
+const showResumeToast = ref(false);
 
 // Buffer monitoring variables
 let lastBufferingLog = null;
@@ -445,6 +490,29 @@ const handlePlaybackUpdate = async (
   } finally {
     isHandlingError = false;
   }
+};
+
+// Resume toast handlers
+const handleResumeFromLastDuration = async (timeInSeconds) => {
+  try {
+    if (videoPlayer.value && currentSession.value) {
+      showResumeToast.value = false;
+
+      // Seek to the last duration position
+      videoPlayer.value.currentTime = timeInSeconds;
+
+      // Play the video
+      await videoPlayer.value.play();
+
+      console.log(`🔄 Resumed playback from ${timeInSeconds}s`);
+    }
+  } catch (error) {
+    console.error("❌ Error resuming from last duration:", error);
+  }
+};
+
+const handleDismissResumeToast = () => {
+  showResumeToast.value = false;
 };
 
 const resetErrorState = () => {
@@ -692,9 +760,14 @@ const sendHeartbeat = async () => {
     // Send heartbeat to keep session alive using the composable's function
     console.log("💓 Sending heartbeat for content:", props.contentId);
 
+    // Get current video time to end active watch stretch
+    const currentVideoTime = videoPlayer.value
+      ? videoPlayer.value.currentTime
+      : 0;
+
     // Call the composable's sendHeartbeat function which calls /heartbeat API
     // This keeps the session alive WITHOUT refreshing the token
-    await composableSendHeartbeat(props.contentId);
+    await composableSendHeartbeat(props.contentId, currentVideoTime);
 
     // Check if token is expiring soon and refresh if needed
     if (isTokenExpiringSoon.value) {
@@ -916,6 +989,16 @@ const onPlaying = () => {
     console.log("🔄 Resetting buffering pause flag - playback resumed");
     isPauseDueToBuffering = false;
   }
+
+  // Reset buffer stall recovery attempts when video successfully resumes
+  if (bufferStallRecoveryAttempts > 0) {
+    console.log("✅ Video resumed - resetting buffer stall recovery attempts");
+    bufferStallRecoveryAttempts = 0;
+    if (bufferStallRecoveryTimeout) {
+      clearTimeout(bufferStallRecoveryTimeout);
+      bufferStallRecoveryTimeout = null;
+    }
+  }
 };
 
 const onWaiting = () => {
@@ -1111,6 +1194,9 @@ const handlePlay = () => {
   console.log("▶️ Play event triggered");
   emit("videoStarted");
 
+  // Record play event in watch tracker
+  watchTracker.recordPlay();
+
   console.log("🎬 About to show beginning advert...");
   // Show beginning advert if not shown yet
   showBeginningAdvert();
@@ -1119,6 +1205,9 @@ const handlePlay = () => {
 const handlePause = () => {
   isPlaying.value = false;
   emit("videoPaused");
+
+  // Record pause event in watch tracker
+  watchTracker.recordPause(currentTime.value);
 
   console.log("⏸️ Pause event detected", {
     isBuffering: isBuffering.value,
@@ -1167,6 +1256,29 @@ const handleTimeUpdate = (e) => {
     console.log("🚀 Auto-playing video - canPlay:", canPlay.value);
     safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
+    });
+  }
+
+  // Record time update with watch tracker
+  watchTracker.recordTimeUpdate(current, isPlaying.value);
+
+  // Check for 99% completion - end playback session
+  if (
+    !hasEndedPlayback.value &&
+    isSessionActive.value &&
+    total > 0 &&
+    current / total >= completionThreshold
+  ) {
+    console.log(
+      `🏁 Video reached ${Math.round(
+        progressPercent.value
+      )}% - ending playback session as COMPLETED`
+    );
+    hasEndedPlayback.value = true;
+
+    // End playback session as COMPLETED
+    endPlaybackSession("COMPLETED").catch((err) => {
+      console.error("Failed to end playback session:", err);
     });
   }
 
@@ -1220,6 +1332,9 @@ const handleVideoClick = () => {
 const handleSeeking = () => {
   console.log("🎯 Seeking event detected");
 
+  // Store the current time as the "from" time for tracking
+  seekFromTime.value = currentTime.value;
+
   // Immediately hide any pause advert overlay when seeking is detected
   if (showAdvertOverlay.value && currentAdvert.value) {
     console.log("🎯 Hiding pause advert overlay due to seeking");
@@ -1234,6 +1349,13 @@ const handleSeeking = () => {
 
 const handleSeeked = () => {
   console.log("🎯 Seeked event detected");
+
+  // Store the seek target time
+  seekToTime.value = currentTime.value;
+
+  // Record seek event in watch tracker
+  watchTracker.recordSeek(seekFromTime.value, seekToTime.value);
+
   // Reset seeking state and set cooldown
   isSeeking = false;
 
@@ -1795,6 +1917,121 @@ const getCurrentBufferLength = () => {
     return bufferLength;
   } catch (error) {
     return 0;
+  }
+};
+
+// Buffer stall recovery mechanism
+let bufferStallRecoveryAttempts = 0;
+const MAX_BUFFER_STALL_RECOVERY_ATTEMPTS = 3;
+let bufferStallRecoveryTimeout = null;
+
+const handleBufferStallRecovery = (errorData) => {
+  if (bufferStallRecoveryAttempts >= MAX_BUFFER_STALL_RECOVERY_ATTEMPTS) {
+    console.log("❌ Max buffer stall recovery attempts reached");
+    return;
+  }
+
+  bufferStallRecoveryAttempts++;
+  console.log(
+    `🔄 Buffer stall recovery attempt ${bufferStallRecoveryAttempts}/${MAX_BUFFER_STALL_RECOVERY_ATTEMPTS}`
+  );
+
+  // Clear any existing recovery timeout
+  if (bufferStallRecoveryTimeout) {
+    clearTimeout(bufferStallRecoveryTimeout);
+  }
+
+  try {
+    const video = videoPlayer.value;
+    if (!video) return;
+
+    const currentTime = video.currentTime;
+    const buffered = video.buffered;
+
+    // Strategy 1: Try to find a buffered position to seek to
+    if (buffered.length > 0) {
+      for (let i = 0; i < buffered.length; i++) {
+        const start = buffered.start(i);
+        const end = buffered.end(i);
+
+        // If current time is near the end of a buffered range, seek slightly back
+        if (currentTime >= start && currentTime < end) {
+          const bufferEnd = end;
+          const timeToEnd = bufferEnd - currentTime;
+
+          // If we're very close to the end of buffer, seek back a bit
+          if (timeToEnd < 2) {
+            const seekTime = Math.max(start, currentTime - 2);
+            console.log(
+              `🔄 Seeking back from ${currentTime.toFixed(
+                2
+              )}s to ${seekTime.toFixed(2)}s to avoid buffer edge`
+            );
+            video.currentTime = seekTime;
+
+            // Try to resume playback after seeking
+            setTimeout(() => {
+              if (video.paused) {
+                console.log(
+                  "🔄 Attempting to resume playback after buffer stall recovery"
+                );
+                video
+                  .play()
+                  .catch((err) => console.warn("Resume failed:", err));
+              }
+            }, 100);
+            return;
+          }
+        }
+      }
+    }
+
+    // Strategy 2: Force HLS to reload the current fragment
+    if (hlsInstance) {
+      console.log("🔄 Forcing HLS to reload current fragment");
+      hlsInstance.startLoad();
+
+      // Also try to trigger a quality level switch to force refresh
+      const currentLevel = hlsInstance.currentLevel;
+      if (currentLevel !== undefined && currentLevel > 0) {
+        // Temporarily switch to lower quality to force reload
+        hlsInstance.currentLevel = currentLevel - 1;
+        setTimeout(() => {
+          hlsInstance.currentLevel = currentLevel;
+        }, 500);
+      }
+    }
+
+    // Strategy 3: If all else fails, try a small time jump
+    setTimeout(() => {
+      const newBufferLength = getCurrentBufferLength();
+      if (newBufferLength < 1 && video.paused) {
+        console.log("🔄 Buffer still low, attempting time jump recovery");
+        const jumpTime = currentTime + 0.1; // Jump forward 100ms
+        video.currentTime = jumpTime;
+
+        setTimeout(() => {
+          if (video.paused) {
+            video
+              .play()
+              .catch((err) => console.warn("Time jump resume failed:", err));
+          }
+        }, 100);
+      }
+    }, 1000);
+
+    // Reset recovery attempts after successful recovery or timeout
+    bufferStallRecoveryTimeout = setTimeout(() => {
+      const currentBuffer = getCurrentBufferLength();
+      if (currentBuffer > 2) {
+        console.log("✅ Buffer stall recovery successful");
+        bufferStallRecoveryAttempts = 0;
+      } else {
+        console.log("⚠️ Buffer stall recovery timeout - buffer still low");
+      }
+    }, 5000);
+  } catch (error) {
+    console.error("❌ Buffer stall recovery failed:", error);
   }
 };
 
@@ -2518,8 +2755,13 @@ const initializeHLS = (url) => {
         // Non-fatal errors - log but don't stop playback
         console.warn("⚠️ Non-fatal HLS error:", data.details);
 
+        // Handle buffer stall errors with recovery mechanism
+        if (data.details === "bufferStalledError") {
+          console.log("🚨 Buffer stall detected - attempting recovery...");
+          handleBufferStallRecovery(data);
+        }
         // Still check for 401/403 in non-fatal errors - these need immediate attention
-        if (
+        else if (
           data.details === "FRAG_LOAD_ERROR" &&
           data.response &&
           (data.response.code === 401 || data.response.code === 403)
@@ -2888,6 +3130,13 @@ const initializePlaybackSession = async () => {
 
     if (session) {
       console.log("✅ Playback session started:", session);
+
+      // Reset completion tracking for new session
+      hasEndedPlayback.value = false;
+
+      // Attach watch tracker to playback session
+      setWatchTracker(watchTracker);
+
       emit("sessionStarted", session);
 
       // Set the stream URL to the token (which is the full video URL)
@@ -2988,12 +3237,33 @@ const initializeStreaming = async () => {
   }
 };
 
+// Browser navigation handling
+const handleBeforeUnload = () => {
+  if (isSessionActive.value && !hasEndedPlayback.value) {
+    console.log(
+      "🏁 Browser beforeunload - ending playback session as ABANDONED"
+    );
+    // Use synchronous approach or send data via sendBeacon for navigation away
+    navigator.sendBeacon(
+      "/api/playback/end-playback-session",
+      JSON.stringify({
+        contentId: props.contentId,
+        status: "ABANDONED",
+        watchStretches: watchTracker.getAllStretches(),
+      })
+    );
+  }
+};
+
 // In your component setup or mounted hook
 onMounted(() => {
   initializePlayer();
 
   // Add keyboard event listener
   document.addEventListener("keydown", handleKeyDown);
+
+  // Add beforeunload listener for navigation away handling
+  window.addEventListener("beforeunload", handleBeforeUnload);
 });
 
 // For seeking functionality
@@ -3251,11 +3521,31 @@ onUnmounted(() => {
     preloadHls = null;
   }
 
-  // Stop playback session
-  if (isSessionActive.value) {
+  // End playback session
+  if (isSessionActive.value && !hasEndedPlayback.value) {
+    console.log(
+      "🏁 User navigating away - ending playback session as ABANDONED"
+    );
+    endPlaybackSession("ABANDONED").catch((err) => {
+      console.error("Failed to end playback session on navigation:", err);
+      // Fallback to old stopPlayback if needed
+      stopPlayback();
+    });
+  } else if (isSessionActive.value) {
+    // Session already ended, but still clean up if needed
     stopPlayback();
     emit("sessionStopped");
   }
+
+  // Clear buffer stall recovery timeout
+  if (bufferStallRecoveryTimeout) {
+    clearTimeout(bufferStallRecoveryTimeout);
+    bufferStallRecoveryTimeout = null;
+  }
+
+  // Remove event listeners
+  document.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("beforeunload", handleBeforeUnload);
 
   // Clear all intervals and timers
   if (bufferingCheckInterval) {
@@ -3326,6 +3616,7 @@ defineExpose({
   // Expose session methods
   startPlayback: () => initializePlaybackSession(),
   stopPlayback,
+  endPlaybackSession,
   getSessionStats: () => stats.value,
   getSessionDuration: () => sessionDuration.value,
   getTokenExpiry: () => tokenExpiresIn.value,

@@ -67,7 +67,12 @@
                 <div
                   class="text-gray-300 whitespace-nowrap text-sm sm:text-base"
                 >
-                  {{ content.interactions?.comments_count || 0 }} Comments
+                  {{ content.interactions?.comments.top_level_count || 0 }}
+                  {{
+                    (content.interactions?.comments.top_level_count || 0) === 1
+                      ? "Comment"
+                      : "Comments"
+                  }}
                 </div>
                 <div
                   v-if="content.interactions?.rating"
@@ -169,7 +174,7 @@
               </button>
               <NuxtLink
                 v-else
-                to="/login"
+                :to="loginUrl"
                 class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base"
               >
                 <span>Sign In to Watch</span>
@@ -181,12 +186,25 @@
               </NuxtLink>
               <button
                 v-if="isAuthenticated"
-                class="border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 group text-sm sm:text-base"
+                @click="handleAddToListClick"
+                :disabled="watchlistLoading"
+                class="h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center gap-3 group text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                :class="
+                  isInWatchlist
+                    ? 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700'
+                    : 'border-2 border-[#FFD005] text-white hover:bg-[#CE8F00] hover:border-[#CE8F00] hover:text-black'
+                "
               >
-                <span>Add to List</span>
+                <span>{{
+                  watchlistLoading
+                    ? "Loading..."
+                    : isInWatchlist
+                    ? "Remove from List"
+                    : "Add to List"
+                }}</span>
                 <img
-                  src="../../assets/icons/plus.svg"
-                  alt="Add"
+                  src="@/assets/icons/plus.svg"
+                  :alt="isInWatchlist ? 'Remove' : 'Add'"
                   class="w-4 h-4 sm:w-5 sm:h-5 group-hover:brightness-0"
                 />
               </button>
@@ -201,9 +219,11 @@
 <script setup>
 import { computed, onMounted } from "vue";
 import { useAuthStore } from "~/stores/auth";
+import { useWatchlistStore } from "~/stores/watchlist";
 import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAdvertStore } from "~/stores/adverts";
+import { useToast } from "~/composables/useToast";
 
 const props = defineProps({
   content: {
@@ -217,25 +237,40 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
+const watchlistStore = useWatchlistStore();
+const { showSuccess, showError } = useToast();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+// Login URL with redirect parameter
+const loginUrl = computed(() => {
+  const redirectPath = `/watch/${props.content.slug}/video`;
+  return `/login?redirect-to=${encodeURIComponent(redirectPath)}`;
+});
 
 // Advert store
 const advertStore = useAdvertStore();
 
+// Watchlist computed properties
+const isInWatchlist = computed(
+  () => props.content?.interactions?.is_in_watchlist || false
+);
+const watchlistLoading = computed(() => watchlistStore.loading);
+
 const isContentReleased = computed(() => {
-  if (!props.content?.release_date) return false;
+  if (!props.content || !props.content.release_date) return false;
   const releaseDate = new Date(props.content.release_date);
   return releaseDate <= new Date();
 });
 
 const navigateToTrailer = () => {
-  if (!props.content?.slug) return;
+  if (!props.content || !props.content.slug) return;
   emit("trailer-click");
 };
 
 const handleWatchClick = async () => {
-  if (!props.content?.id) return;
+  if (!props.content || !props.content.id) return;
 
   try {
     // Fetch adverts for this content
@@ -249,9 +284,41 @@ const handleWatchClick = async () => {
   }
 };
 
+const handleAddToListClick = async () => {
+  if (!props.content || !props.content.id || !isAuthenticated.value) return;
+
+  try {
+    const wasInWatchlist = props.content.interactions.is_in_watchlist;
+    await watchlistStore.toggleWatchlist(props.content.id);
+
+    // Update the local state to reflect the new watchlist status
+    const newWatchlistStatus = !wasInWatchlist;
+    props.content.interactions.in_watch_list = newWatchlistStatus;
+
+    // Show appropriate toast message
+    if (wasInWatchlist) {
+      showSuccess("Removed from watchlist");
+    } else {
+      showSuccess("Added to watchlist");
+    }
+  } catch (error) {
+    console.error("Failed to toggle watchlist:", error);
+    showError("Failed to update watchlist");
+  }
+};
+
 const emit = defineEmits(["mounted", "trailer-click"]);
 
-onMounted(() => {
+onMounted(async () => {
   emit("mounted");
+
+  // Fetch watchlist if user is authenticated
+  if (isAuthenticated.value) {
+    try {
+      await watchlistStore.fetchWatchlist();
+    } catch (error) {
+      console.error("Failed to fetch watchlist:", error);
+    }
+  }
 });
 </script>

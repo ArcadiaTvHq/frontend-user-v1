@@ -60,6 +60,42 @@ export interface Episode {
   episode_number: number;
 }
 
+// Comment interfaces
+export interface CommentUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface Comment {
+  id: string;
+  comment: string;
+  rating?: number;
+  review?: string;
+  type: "rating_and_comment" | "comment_only" | "rating_only";
+  user: CommentUser;
+  replies?: Comment[];
+  created_at: string;
+  is_edited: boolean;
+  edited_at: string | null;
+}
+
+export interface CommentListResponse {
+  data: Comment[];
+}
+
+export interface CommentSubmission {
+  id: string;
+  rating: number;
+  comment: string;
+  review: string;
+  type: "rating_and_comment" | "comment_only" | "rating_only";
+  submitted_at: string;
+  is_edited: boolean;
+  edited_at: string | null;
+}
+
 // Interactions interface
 export interface Interactions {
   reactions: Record<string, any>;
@@ -67,11 +103,17 @@ export interface Interactions {
     average: number;
     total: number;
   };
-  comments_count: number;
-  user: {
-    reaction: null | string;
-    rating: null | number;
+  comments: {
+    total_count: number;
+    top_level_count: number;
+    replies_count: number;
   };
+  user: {
+    reaction: string | null;
+    submission: CommentSubmission | null;
+  };
+  watched_duration: number;
+  can_comment: boolean;
 }
 
 // Content interface
@@ -116,6 +158,7 @@ export interface Content {
   trailer: null;
   advert: null;
   interactions?: Interactions;
+  in_watch_list?: boolean;
 }
 
 // Response interfaces
@@ -188,8 +231,8 @@ export interface ContentQueryParams {
   // Content filters
   types?: EContentType[];
   status?: EContentStatus[];
-  released_before?: Date;
-  released_after?: Date;
+  released_before?: Date | string;
+  released_after?: Date | string;
   is_featured?: boolean;
   is_premium?: boolean;
   is_free?: boolean;
@@ -201,4 +244,14 @@ export interface ContentQueryParams {
   uploaded_by_id?: string;
   upload_status?: EUploadStatus;
   trailer_upload_status?: EUploadStatus;
+
+  // Genre filter
+  genres?: string[];
+
+  // Watchlist filter
+  watchlist_only?: boolean;
+
+  // Sorting
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }

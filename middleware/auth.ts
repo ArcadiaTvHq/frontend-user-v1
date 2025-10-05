@@ -14,7 +14,7 @@ export default defineNuxtRouteMiddleware((to) => {
     // Static public routes
     if (publicRoutes.includes(path)) return true;
 
-    // Dynamic public routes
+    // Dynamic public routes - detail pages and trailers are public
     const watchDetailPattern = /^\/watch\/[^/]+$/;
     const watchTrailerPattern = /^\/watch\/[^/]+\/trailer$/;
 
@@ -24,9 +24,18 @@ export default defineNuxtRouteMiddleware((to) => {
   // Check if the route matches any of the protected patterns
   const isProtectedRoute = (path: string) => {
     // Static protected routes
-    if (path === "/watch") return true;
+    const protectedStaticRoutes = [
+      "/watch",
+      "/profile",
+      "/my-list",
+      "/movies",
+      "/tv-shows",
+      "/new",
+    ];
 
-    // Dynamic protected routes
+    if (protectedStaticRoutes.includes(path)) return true;
+
+    // Dynamic protected routes - only video playback is protected
     const watchVideoPattern = /^\/watch\/[^/]+\/video$/;
 
     return watchVideoPattern.test(path);
@@ -50,7 +59,8 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // If trying to access a protected route and not authenticated
   if (isProtectedRoute(to.path) && !authStore.isAuthenticated) {
-    return navigateTo("/login");
+    // Redirect to login with the intended destination as query parameter
+    return navigateTo(`/login?redirect-to=${encodeURIComponent(to.fullPath)}`);
   }
 
   // If authenticated and verified user tries to access auth pages
@@ -59,6 +69,11 @@ export default defineNuxtRouteMiddleware((to) => {
     authStore.isVerified &&
     (to.path === "/login" || to.path === "/signup" || to.path === "/otp")
   ) {
-    return navigateTo("/watch");
+    // Check if there's a redirect-to query parameter
+    const redirectTo = to.query["redirect-to"];
+    if (redirectTo) {
+      return navigateTo(decodeURIComponent(redirectTo), { replace: true });
+    }
+    return navigateTo("/watch", { replace: true });
   }
 });

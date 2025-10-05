@@ -13,12 +13,16 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+
+    <!-- Global Toast Container -->
+    <ToastContainer />
   </div>
 </template>
 
 <script setup>
 import { useLoadingStore } from "~/stores/loading";
 import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
+import ToastContainer from "~/components/Toast/ToastContainer.vue";
 
 const loadingStore = useLoadingStore();
 const route = useRoute();

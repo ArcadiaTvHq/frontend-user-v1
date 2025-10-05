@@ -113,8 +113,11 @@
 
 <script setup>
 import { ref, watch, nextTick, onUnmounted } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { ContentService } from "~/api/services/content.service";
 import { buildImageUrl, preloadImage } from "~/src/utils/helpers";
+import { usePlaybackSession } from "~/composables/usePlaybackSession.js";
+import { useWatchTracker } from "~/composables/useWatchTracker";
 import Hls from "hls.js";
 
 const props = defineProps({
@@ -155,6 +158,40 @@ const emit = defineEmits([
   "timeUpdate",
   "update:isPlaying", // For v-model support
 ]);
+
+// Playback session management (only for full videos, not trailers)
+const isFullVideo = computed(() => props.playerType === "video");
+const contentId = computed(() => props.contentId || "");
+const playbackSession = usePlaybackSession();
+const watchTracker = useWatchTracker(contentId.value);
+
+// Extract playback session methods
+const {
+  startPlayback,
+  endPlaybackSession,
+  isSessionActive,
+  setWatchTracker,
+  sendHeartbeat,
+} = playbackSession;
+
+// Handle route navigation (back button, etc.) - only for full videos
+if (isFullVideo.value) {
+  onBeforeRouteLeave((to, from, next) => {
+    if (isSessionActive.value) {
+      console.log(
+        "🏁 Route navigation detected (CustomTrailerPlayer) - ending playback session as ABANDONED"
+      );
+      endPlaybackSession("ABANDONED").catch((err) => {
+        console.error(
+          "Failed to end playback session on route navigation:",
+          err
+        );
+      });
+    }
+    // Always proceed with navigation
+    next();
+  });
+}
 
 // Reactive state
 const videoPlayer = ref(null);
@@ -302,12 +339,22 @@ const handlePlay = () => {
   isPlaying.value = true;
   emit("update:isPlaying", true); // For v-model support
   emit("videoStarted");
+
+  // Record play event for full videos only
+  if (isFullVideo.value) {
+    watchTracker.recordPlay();
+  }
 };
 
 const handlePause = () => {
   isPlaying.value = false;
   emit("update:isPlaying", false); // For v-model support
   emit("videoPaused");
+
+  // Record pause event for full videos only
+  if (isFullVideo.value) {
+    watchTracker.recordPause(currentTime.value);
+  }
 };
 
 const handleEnded = () => {
@@ -323,6 +370,11 @@ const handleTimeUpdate = (e) => {
   duration.value = total;
   progressPercent.value = total > 0 ? (current / total) * 100 : 0;
   bufferedPercent.value = calculateBufferedPercent();
+
+  // Record time update for full videos only
+  if (isFullVideo.value) {
+    watchTracker.recordTimeUpdate(current, isPlaying.value);
+  }
 
   // Auto-play when video can play and autoplay is enabled
   if (canPlay.value && !isPlaying.value && props.autoplay && !error.value) {
@@ -670,6 +722,28 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
       streamUrl.value = url;
       console.log("Final streamUrl:", streamUrl.value);
 
+      // Start playback session for full videos only
+      if (isFullVideo.value && props.contentId) {
+        try {
+          console.log(
+            "🎬 Starting playback session for full video:",
+            props.contentId
+          );
+          const session = await startPlayback(
+            props.contentId,
+            navigator.userAgent
+          );
+
+          // Attach watch tracker to playback session
+          setWatchTracker(watchTracker);
+
+          console.log("✅ Playback session started successfully:", session);
+        } catch (err) {
+          console.error("❌ Failed to start playback session:", err);
+          // Continue without session - video can still play
+        }
+      }
+
       // Initialize HLS.js immediately when URL is available
       nextTick(() => {
         if (videoPlayer.value) {
@@ -851,6 +925,16 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
+  // End playback session if active (for full videos only)
+  if (isFullVideo.value && isSessionActive.value) {
+    console.log(
+      "🏁 Component unmounting (CustomTrailerPlayer) - ending playback session as ABANDONED"
+    );
+    endPlaybackSession("ABANDONED").catch((err) => {
+      console.error("Failed to end playback session on unmount:", err);
+    });
+  }
+
   if (hlsInstance) {
     hlsInstance.destroy();
     hlsInstance = null;

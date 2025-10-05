@@ -1,9 +1,13 @@
 <template>
   <Transition name="toast">
-    <div v-show="show" :class="['toast-container', type]">
+    <div
+      v-show="show"
+      :class="['toast-container', type]"
+      @click="emit('click')"
+    >
       <div class="toast-content">
         <span class="toast-icon">
-          {{ type === "success" ? "✓" : "✕" }}
+          {{ type === "success" ? "✓" : type === "error" ? "✕" : "ℹ" }}
         </span>
         <span class="toast-message">{{ message }}</span>
       </div>
@@ -14,12 +18,16 @@
 <script setup lang="ts">
 interface Props {
   message: string;
-  type: "success" | "error";
+  type: "success" | "error" | "info";
   duration?: number;
   show: boolean;
 }
 
 defineProps<Props>();
+
+const emit = defineEmits<{
+  click: [];
+}>();
 </script>
 
 <script lang="ts">
@@ -48,6 +56,11 @@ export default {
 
 .error {
   background-color: #f44336;
+  color: white;
+}
+
+.info {
+  background-color: #2196f3;
   color: white;
 }
 

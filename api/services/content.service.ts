@@ -20,7 +20,16 @@ export class ContentService {
   ): Promise<ContentListResponse> {
     // Check if we're fetching featured content
     if (params?.is_featured) {
-      return this.getFeaturedContent();
+      // Use the main content API instead of cached featured content
+      // to ensure we get watchlist data
+      const cleanedParams = params ? cleanQueryParams(params) : {};
+      const response = await apiClient.get<ContentListResponse>(
+        ENDPOINTS.CONTENT.BASE,
+        {
+          params: cleanedParams,
+        }
+      );
+      return response;
     }
 
     // Note: released_after is used for "new content" (recently released), not anticipated content
@@ -188,6 +197,30 @@ export class ContentService {
     const response = await apiClient.get<SignedUrlResponse>(
       ENDPOINTS.CONTENT.TRAILER_URL_BY_SLUG(slug)
     );
+    return response;
+  }
+
+  /**
+   * Fetch user's watchlist content
+   * @param params Optional query parameters (page, limit, etc.)
+   * @returns Promise with content list response containing only watchlist items
+   */
+  static async getWatchlistContent(
+    params?: Omit<ContentQueryParams, "watchlist_only">
+  ): Promise<ContentListResponse> {
+    const watchlistParams: ContentQueryParams = {
+      ...params,
+      watchlist_only: true,
+    };
+
+    const cleanedParams = cleanQueryParams(watchlistParams);
+    const response = await apiClient.get<ContentListResponse>(
+      ENDPOINTS.CONTENT.BASE,
+      {
+        params: cleanedParams,
+      }
+    );
+
     return response;
   }
 }
