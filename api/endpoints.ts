@@ -8,6 +8,7 @@ export const ENDPOINTS = {
     RESEND_OTP: "/auth/verify",
   },
   USER: {
+    ME: "/user/me",
     PROFILE: "/user/profile",
     UPDATE_PROFILE: "/user/profile/update",
     CHANGE_PASSWORD: "/user/change-password",
@@ -45,6 +46,12 @@ export const ENDPOINTS = {
   WATCHLIST: {
     TOGGLE: "/watchlist",
     GET: "/watchlist",
+  },
+  SUBSCRIPTION: {
+    GET: "/subscriptions",
+    GET_CARDS: "/subscriptions/cards",
+    INITIALIZE_PAYMENT: (subscriptionId: string) =>
+      `/subscriptions/${subscriptionId}/initialize-payment`,
   },
   // Add more endpoint categories as needed
 } as const;

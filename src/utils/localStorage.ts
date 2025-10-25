@@ -62,7 +62,12 @@ export class LocalStorageService {
 
   static clear(): void {
     try {
+      // Preserve auth token when clearing cache
+      const authToken = localStorage.getItem("auth_token");
       localStorage.clear();
+      if (authToken) {
+        localStorage.setItem("auth_token", authToken);
+      }
     } catch (error) {
       console.error("Error clearing localStorage:", error);
     }

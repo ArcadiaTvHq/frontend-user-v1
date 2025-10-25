@@ -32,6 +32,7 @@ export const useAuthStore = defineStore(
 
     // Actions
     function setUser(newUser: User | null) {
+      const previousUser = user.value;
       user.value = newUser;
       isAuthenticated.value = !!newUser;
 
@@ -42,8 +43,13 @@ export const useAuthStore = defineStore(
         useCookie("auth").value = null;
       }
 
-      // Clear cache when auth state changes for security and data consistency
-      if (process.client) {
+      // Only clear cache when user actually changes (login/logout), not when refreshing data
+      const userChanged =
+        (!previousUser && newUser) ||
+        (previousUser && !newUser) ||
+        (previousUser && newUser && previousUser.id !== newUser.id);
+
+      if (userChanged && process.client) {
         clearContentCache();
       }
     }

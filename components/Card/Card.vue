@@ -12,13 +12,15 @@
       <span class="text-xs md:text-smallest opacity-75">/month</span>
     </h6>
     <button
+      v-if="showButton"
       :class="[
         button,
         'transition-all duration-300 hover:bg-[#CE8F00] disabled:bg-[#FFF487] font-orbitron font-extrabold px-6 py-3',
       ]"
     >
-      Select this plan
+      {{ buttonText || "Select this plan" }}
     </button>
+    <div v-else class="h-13 md:h-17 mb-[18px]"></div>
     <div class="flex-1 flex flex-col gap-2">
       <List
         v-for="(benefit, index) in benefits"
@@ -90,6 +92,14 @@ const props = defineProps({
   typeclass: {
     type: String,
     required: true,
+  },
+  showButton: {
+    type: Boolean,
+    default: true,
+  },
+  buttonText: {
+    type: String,
+    default: "",
   },
 });
 </script>

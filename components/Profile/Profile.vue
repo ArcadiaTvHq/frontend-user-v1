@@ -8,16 +8,16 @@
     >
       <div class="grid row-span-3 h-full items-center">
         <ProfileSide
-        class="flex h-full "
-        :firstName="user.first_name"
-        :email="user.email"
-        :lastName="user.last_name"
-        :profileimg="user.image_url"
-        :subscription="user.subscription"
-      />
+          class="flex h-full"
+          :firstName="user.first_name"
+          :email="user.email"
+          :lastName="user.last_name"
+          :profileimg="user.image_url"
+          :subscription="user.subscription"
+        />
       </div>
       <div class="grid lg:col-span-2 profile holder row-span-3 w-full">
-        <ProfileMain :firstName = 'user.first_name' :lastName="user.last_name"  />
+        <ProfileMain :firstName="user.first_name" :lastName="user.last_name" />
       </div>
     </div>
     <HomeFoot class="mt-auto" />
@@ -34,7 +34,43 @@
 
 <script setup>
 import { useAuthStore } from "#imports";
+import { useSubscriptionStore } from "~/stores/subscription";
+import { apiClient } from "~/api/client";
+import { ENDPOINTS } from "~/api/endpoints";
 
 const authStore = useAuthStore();
+const subscriptionStore = useSubscriptionStore();
 const user = computed(() => authStore.user);
+
+// Fetch fresh user data
+async function fetchUserData() {
+  try {
+    console.log("Fetching fresh user data...");
+    const response = await apiClient.get(ENDPOINTS.USER.ME);
+    if (response.status === "success") {
+      // Update the auth store with fresh user data
+      authStore.setUser(response.data);
+      console.log("User data refreshed successfully");
+    }
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+  }
+}
+
+// Watch for user changes and update subscription store
+watch(
+  () => user.value?.subscription,
+  (newSubscription) => {
+    if (newSubscription) {
+      subscriptionStore.setCurrentSubscription(newSubscription);
+    }
+  },
+  { immediate: true }
+);
+
+// Fetch fresh data when component mounts
+onMounted(async () => {
+  await fetchUserData();
+  subscriptionStore.fetchSubscriptions();
+});
 </script>

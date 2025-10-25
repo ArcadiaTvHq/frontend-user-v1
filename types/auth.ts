@@ -1,3 +1,5 @@
+import type { Subscription } from "~/api/services/subscription.service";
+
 export interface User {
   id: string;
   created_at: string;
@@ -13,7 +15,7 @@ export interface User {
   user_status: "active" | "inactive";
   location: string | null;
   subscription_id: string | null;
-  subscription: any | null; // Replace 'any' with proper subscription interface if needed
+  subscription: Subscription | null;
 }
 
 export interface AuthResponse {
