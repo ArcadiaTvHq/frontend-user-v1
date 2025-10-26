@@ -164,6 +164,26 @@
                 />
               </button>
               <button
+                v-else-if="shouldShowUpgradeButton"
+                @click="handleUpgradeClick"
+                class="bg-gradient-to-r from-[#FFD005] to-[#FFA500] hover:from-[#CE8F00] hover:to-[#FF8C00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl"
+              >
+                <span>Upgrade to Watch</span>
+                <svg
+                  class="w-4 h-4 sm:w-5 sm:h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
+                </svg>
+              </button>
+              <button
                 v-else-if="isAuthenticated"
                 @click="handleWatchClick"
                 :disabled="watchLoading"
@@ -236,6 +256,7 @@
 import { computed, onMounted } from "vue";
 import { useAuthStore } from "~/stores/auth";
 import { useWatchlistStore } from "~/stores/watchlist";
+import { useSubscriptionStore } from "~/stores/subscription";
 import { buildImageUrl, formatDate, formatDuration } from "~/src/utils/helpers";
 import { useRouter, useRoute } from "vue-router";
 import { useAdvertStore } from "~/stores/adverts";
@@ -256,6 +277,7 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const watchlistStore = useWatchlistStore();
+const subscriptionStore = useSubscriptionStore();
 const { showSuccess, showError } = useToast();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
@@ -281,6 +303,26 @@ const isContentReleased = computed(() => {
   return releaseDate <= new Date();
 });
 
+// Check if user has access to premium content
+const hasPremiumAccess = computed(() => {
+  if (!isAuthenticated.value) return false;
+
+  const user = authStore.currentUser;
+  if (!user || !user.subscription) return false;
+
+  // Check if user has a paid subscription (not free/default)
+  return !user.subscription.is_default;
+});
+
+// Check if user should see upgrade button
+const shouldShowUpgradeButton = computed(() => {
+  return (
+    isAuthenticated.value &&
+    !hasPremiumAccess.value &&
+    props.content?.is_premium === true
+  );
+});
+
 const navigateToTrailer = () => {
   if (!props.content || !props.content.slug) return;
   emit("trailer-click");
@@ -303,6 +345,11 @@ const handleWatchClick = async () => {
   } finally {
     watchLoading.value = false;
   }
+};
+
+const handleUpgradeClick = () => {
+  // Navigate to profile page where subscription plans are shown
+  router.push("/profile");
 };
 
 const handleAddToListClick = async () => {
