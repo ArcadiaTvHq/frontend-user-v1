@@ -103,11 +103,11 @@
 
             <!-- Genre -->
             <div
-              v-if="content[content.type]?.genres?.length"
+              v-if="genres.length"
               class="text-gray-300 mb-3 text-sm sm:text-base"
             >
               <span class="text-white font-semibold">Genre: </span>
-              {{ content[content.type].genres.join(", ") }}
+              {{ genres.join(", ") }}
             </div>
 
             <!-- Duration -->
@@ -118,17 +118,17 @@
 
             <!-- Cast -->
             <div
-              v-if="content[content.type]?.cast?.length"
+              v-if="cast.length"
               class="text-gray-300 mb-3 text-sm sm:text-base"
             >
               <span class="text-white font-semibold">Stars: </span>
-              {{ content[content.type].cast.join(", ") }}
+              {{ cast.join(", ") }}
             </div>
 
             <!-- Creator -->
             <div class="text-gray-300 mb-3 text-sm sm:text-base">
               <span class="text-white font-semibold">Created by: </span>
-              {{ content[content.type].creator || "N/A" }}
+              {{ creator }}
             </div>
 
             <!-- Rating Box -->
@@ -189,7 +189,7 @@
                 :disabled="watchLoading"
                 class="bg-[#FFD005] hover:bg-[#CE8F00] text-black h-12 w-full sm:w-auto px-6 sm:px-10 rounded-2xl flex items-center justify-center gap-3 font-medium transition-all duration-300 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>{{ watchLoading ? "Loading..." : "Watch" }}</span>
+                <span>{{ watchButtonText }}</span>
                 <img
                   v-if="!watchLoading"
                   src="../../assets/icons/play.svg"
@@ -293,9 +293,141 @@ const loginUrl = computed(() => {
 // Advert store
 const advertStore = useAdvertStore();
 
+// Metadata access - support both old and new structure
+const genres = computed(() => {
+  const content = props.content;
+  // New structure: metadata directly on content
+  if (content.genres && content.genres.length > 0) {
+    return content.genres;
+  }
+  // Old structure: metadata in nested object
+  if (content[content.type]?.genres) {
+    return content[content.type].genres;
+  }
+  return [];
+});
+
+const cast = computed(() => {
+  const content = props.content;
+  // New structure: metadata directly on content
+  if (content.cast && content.cast.length > 0) {
+    return content.cast;
+  }
+  // Old structure: metadata in nested object
+  if (content[content.type]?.cast) {
+    return content[content.type].cast;
+  }
+  return [];
+});
+
+const creator = computed(() => {
+  const content = props.content;
+  // New structure: metadata directly on content
+  if (content.creator) {
+    return content.creator;
+  }
+  // Old structure: metadata in nested object
+  if (content[content.type]?.creator) {
+    return content[content.type].creator;
+  }
+  return "N/A";
+});
+
 // Watchlist computed properties
 const isInWatchlist = computed(() => props.content?.in_watch_list || false);
 const watchlistLoading = computed(() => watchlistStore.loading);
+
+// Find the next episode to watch for series
+const findNextEpisode = () => {
+  if (
+    !props.content ||
+    props.content.type !== "series" ||
+    !props.content.children
+  ) {
+    return null;
+  }
+
+  // Iterate through seasons
+  for (const season of props.content.children) {
+    if (!season.children) continue;
+
+    // Iterate through episodes in season
+    for (const episode of season.children) {
+      // If episode has been watched but not completed, this is the next one
+      if (episode.has_been_watched && !episode.is_completed) {
+        return { episode, season };
+      }
+      // If episode hasn't been watched yet, this is the next one
+      if (!episode.has_been_watched) {
+        return { episode, season };
+      }
+    }
+  }
+
+  // If all episodes completed, return first episode
+  const firstSeason = props.content.children[0];
+  if (firstSeason?.children?.[0]) {
+    return { episode: firstSeason.children[0], season: firstSeason };
+  }
+
+  return null;
+};
+
+// Check if content has been partially watched
+const hasPartialProgress = computed(() => {
+  if (!props.content) return false;
+
+  // For series, check episode progress
+  if (props.content.type === "series") {
+    const nextEpisode = findNextEpisode();
+    return (
+      nextEpisode?.episode?.has_been_watched &&
+      !nextEpisode.episode.is_completed
+    );
+  }
+
+  // For movies, check watched duration from interactions
+  if (props.content.type === "movie" && props.content.interactions) {
+    const watchedDuration = props.content.interactions.watched_duration || 0;
+    const totalDuration = props.content.duration_in_seconds || 0;
+
+    // Consider it partially watched if watched at least 30 seconds and less than 90% watched
+    return (
+      watchedDuration >= 30 &&
+      totalDuration > 0 &&
+      watchedDuration / totalDuration < 0.9
+    );
+  }
+
+  return false;
+});
+
+// Computed property for watch button text
+const watchButtonText = computed(() => {
+  if (watchLoading.value) {
+    return "Loading...";
+  }
+
+  // For series, check if there's a next episode to continue
+  if (props.content?.type === "series") {
+    const nextEpisode = findNextEpisode();
+    if (
+      nextEpisode?.episode &&
+      nextEpisode.episode.has_been_watched &&
+      !nextEpisode.episode.is_completed
+    ) {
+      return `Continue S${nextEpisode.season.season_number}E${nextEpisode.episode.episode_number}`;
+    }
+    return "Watch";
+  }
+
+  // For movies, check if there's partial progress
+  if (props.content?.type === "movie" && hasPartialProgress.value) {
+    return "Continue Watching";
+  }
+
+  return "Watch";
+});
 
 const isContentReleased = computed(() => {
   if (!props.content || !props.content.release_date) return false;
@@ -334,14 +466,35 @@ const handleWatchClick = async () => {
   try {
     watchLoading.value = true;
 
+    let targetSlug = props.content.slug;
+    let targetContentId = props.content.id;
+    const nextEpisode =
+      props.content.type === "series" ? findNextEpisode() : null;
+
+    // For series, navigate to the next episode instead
+    if (props.content.type === "series" && nextEpisode?.episode) {
+      targetSlug = nextEpisode.episode.slug;
+      targetContentId = nextEpisode.episode.id;
+    }
+
     // Fetch adverts for this content
-    await advertStore.fetchAdverts({ content_id: props.content.id });
+    await advertStore.fetchAdverts({
+      content_id: targetContentId,
+    });
 
     // Navigate to video page
-    router.push(`/watch/${props.content.slug}/video`);
+    router.push(`/watch/${targetSlug}/video`);
   } catch (error) {
+    // Determine fallback slug
+    let fallbackSlug = props.content.slug;
+    if (props.content.type === "series") {
+      const nextEpisode = findNextEpisode();
+      if (nextEpisode?.episode) {
+        fallbackSlug = nextEpisode.episode.slug;
+      }
+    }
     // Still navigate to video page even if adverts fail
-    router.push(`/watch/${props.content.slug}/video`);
+    router.push(`/watch/${fallbackSlug}/video`);
   } finally {
     watchLoading.value = false;
   }

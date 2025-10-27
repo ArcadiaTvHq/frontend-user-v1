@@ -362,7 +362,7 @@ export function usePlaybackSession() {
   };
 
   // Auto-update stats every second
-  const statsInterval = setInterval(updateStats, 1000);
+  const statsInterval = setInterval(updateStats, 5000); // Changed from 1000ms to 5000ms to reduce CPU usage
 
   // Cleanup on unmount
   onUnmounted(() => {

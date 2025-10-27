@@ -3,11 +3,19 @@ export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: "2024-11-01",
   devtools: { enabled: false }, // Disable in production
+
+  // Performance optimizations
+  experimental: {
+    payloadExtraction: false, // Disable payload extraction for better performance
+    viewTransition: false, // Disable view transitions for better performance
+  },
+
   css: ["~/assets/css/main.css"],
 
   // Optimize build
   build: {
     transpile: ["pinia-plugin-persistedstate"],
+    analyze: false, // Disable bundle analysis in production
   },
 
   // Optimize Vite
@@ -21,9 +29,16 @@ export default defineNuxtConfig({
           },
         },
       },
+      chunkSizeWarningLimit: 1000, // Increase chunk size warning limit
     },
     optimizeDeps: {
       include: ["vue", "vue-router", "pinia"],
+      exclude: ["@vueuse/core"], // Exclude unused dependencies
+    },
+    server: {
+      hmr: {
+        overlay: false, // Disable HMR overlay for better performance
+      },
     },
   },
 

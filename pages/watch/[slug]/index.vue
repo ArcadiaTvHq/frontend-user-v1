@@ -231,6 +231,9 @@
         </div>
       </template>
 
+      <!-- Series Component -->
+      <Series v-if="content?.type === 'series'" :content="content" />
+
       <Comment
         v-if="content"
         :content-id="content.id"
@@ -302,7 +305,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { useAdvertStore } from "~/stores/adverts";
 import { useLoadingStore } from "~/stores/loading";
@@ -330,6 +333,7 @@ const SectionLast = defineAsyncComponent(
 );
 
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 const advertStore = useAdvertStore();
 const loadingStore = useLoadingStore();
@@ -491,6 +495,9 @@ onMounted(async () => {
     if (contentData.value?.data) {
       content.value = contentData.value.data;
 
+      // Check if trying to access episode detail page and redirect
+      checkEpisodeAccess();
+
       // Set the content type based on the content's type (movie or series)
       if (content.value.movie) {
         setContentType("movie");
@@ -564,6 +571,10 @@ onMounted(async () => {
 watchEffect(() => {
   if (contentData.value?.data && !content.value) {
     content.value = contentData.value.data;
+
+    // Check if trying to access episode detail page and redirect
+    checkEpisodeAccess();
+
     // Set the content type when content is loaded
     setContentType(content.value.type);
   }
@@ -837,6 +848,19 @@ const goBackToDetail = async () => {
     } else {
       // Last resort: redirect to home
       window.location.href = "/";
+    }
+  }
+};
+
+// Check if content is an episode and redirect if trying to access episode detail page
+const checkEpisodeAccess = () => {
+  if (content.value?.type === "episode") {
+    // Redirect to parent series detail page
+    if (content.value?.parent?.slug) {
+      router.push(`/watch/${content.value.parent.slug}`);
+    } else {
+      // If no parent, redirect to home or appropriate fallback
+      router.push("/");
     }
   }
 };

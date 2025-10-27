@@ -168,11 +168,8 @@ const updateFeaturedPosters = (newPosters) => {
 const fetchFeaturedContent = async () => {
   try {
     featuredLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 10,
-    });
+    // Use the dedicated featured content endpoint
+    const response = await ContentService.getFeaturedContent();
 
     featuredPosters.value = response.data.map((content) => ({
       id: content.id,
@@ -203,12 +200,8 @@ const { preloadContentImages } = useBlobImages();
 const fetchAnticipatedContent = async () => {
   try {
     anticipatedLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      // released_after: new Date().toISOString(),
-      limit: 12,
-      page: 1,
-    });
+    // Use the dedicated anticipated content endpoint
+    const response = await ContentService.getAnticipatedContent();
 
     anticipatedContent.value = response.data;
 

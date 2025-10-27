@@ -29,7 +29,7 @@
         :key="videoKey"
         :content-id="content.id"
         :player-type="'video'"
-        :autoplay="false"
+        :autoplay="true"
         :muted="false"
         :video-url="content.video_url"
         :use-direct-url="!!content.video_url"
@@ -138,7 +138,13 @@ const handleTouchStart = () => {
 
 // Navigation
 const goBack = () => {
-  router.push(`/watch/${route.params.slug}`);
+  // If content is an episode, navigate to its parent series
+  if (content.value?.type === "episode" && content.value?.parent?.slug) {
+    router.push(`/watch/${content.value.parent.slug}`);
+  } else {
+    // For movies and series (or if parent is not available), navigate to detail page
+    router.push(`/watch/${route.params.slug}`);
+  }
 };
 
 // Video event handlers

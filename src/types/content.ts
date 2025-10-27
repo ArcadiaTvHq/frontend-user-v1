@@ -151,10 +151,33 @@ export interface Content {
   upload_status: "pending" | "ready" | "error" | null;
   uploaded_by: User;
   approved_by: User | null;
+
+  // NEW: Direct metadata on content (preferred)
+  genres?: string[];
+  tags?: string[];
+  cast?: string[];
+  crew?: string[];
+  creator?: string | null;
+
+  // NEW: Hierarchical structure
+  parent_id?: string | null;
+  parent?: Content | null; // Optional loaded parent
+  children?: Content[]; // Optional loaded children
+  season_number?: number;
+  episode_number?: number;
+
+  // NEW: Watch progress tracking
+  has_been_watched?: boolean; // Whether this content/episode has been watched
+  last_watched_position?: number; // Last watched position in seconds
+  progress_percentage?: number; // Progress percentage (0-100)
+  is_completed?: boolean; // Whether content is fully watched
+
+  // OLD: Nested entity structure (for backward compatibility)
   series: Series | null;
   movie: Movie | null;
   season: Season | null;
   episode: Episode | null;
+
   trailer: null;
   advert: null;
   interactions?: Interactions;

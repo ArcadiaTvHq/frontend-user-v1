@@ -1,5 +1,5 @@
 <template>
-  <section class="relative h-screen">
+  <section class="relative h-screen overflow-hidden">
     <!-- Background with dynamic overlay -->
     <div class="absolute inset-0 bg-cover bg-center">
       <!-- All background images loaded, only active shown -->
@@ -32,7 +32,7 @@
       <!-- Side Movies - Desktop Only (Acting as Navigation) -->
       <div
         v-if="heroContent.length > 1"
-        class="hidden lg:flex absolute left-[2%] xl:left-[5%] translate-y-[15%]"
+        class="hidden lg:flex absolute left-[2%] xl:left-[5%] translate-y-[15%] z-10"
       >
         <button
           @click="previousSlide"
@@ -68,7 +68,7 @@
 
       <div
         v-if="heroContent.length > 1"
-        class="hidden lg:flex absolute right-[2%] xl:right-[5%] translate-y-[15%]"
+        class="hidden lg:flex absolute right-[2%] xl:right-[5%] translate-y-[15%] z-10"
       >
         <button
           @click="nextSlide"
@@ -383,7 +383,8 @@ const buildImageUrl = (imageId) => {
 // Methods
 const fetchHeroContent = async () => {
   try {
-    const response = await ContentService.getContents({ is_featured: true });
+    // Use the dedicated featured content endpoint
+    const response = await ContentService.getFeaturedContent();
 
     // Transform the data to include image URLs
     heroContent.value = response.data.map((content) => {

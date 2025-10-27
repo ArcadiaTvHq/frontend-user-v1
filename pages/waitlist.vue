@@ -48,11 +48,8 @@ const updateFeaturedPosters = (newPosters) => {
 const fetchFeaturedContent = async () => {
   return withApiLoading(async () => {
     featuredLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE, EContentType.SERIES],
-      is_featured: true,
-      limit: 10,
-    });
+    // Use the dedicated featured content endpoint
+    const response = await ContentService.getFeaturedContent();
 
     // Use full content objects for SectionOne to work with getPrimaryImageUrl
     featuredPosters.value = response.data;

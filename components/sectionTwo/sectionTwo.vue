@@ -1,6 +1,6 @@
 <template>
   <section
-    class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 mb-20 font-orbitron"
+    class="px-4 sm:px-9 md:px-28 flex flex-col gap-7 mt-20 mb-20 font-orbitron relative z-20"
   >
     <div v-if="!hideHeader" class="flex items-center gap-2 metaText w-full">
       <div class="flex items-center gap-2">
@@ -14,15 +14,13 @@
         </h6>
       </div>
       <div class="border-grayish h-0 flex-1 border-[0.85px] block"></div>
-      <div
-        class="flex items-center gap-2"
-        v-if="showSeeMore && displayContent.length > 12"
-      >
-        <p
+      <div class="flex items-center gap-2" v-if="shouldShowSeeMore">
+        <button
+          @click="toggleShowAll"
           class="text-textprimary text-smallest md:text-seemore cursor-pointer hover:text-gold transition-colors"
         >
-          See More
-        </p>
+          {{ showAll ? "See Less" : "See More" }}
+        </button>
       </div>
     </div>
     <div
@@ -69,7 +67,7 @@
         <NuxtLink
           :to="`/watch/${content.slug}`"
           class="miniplayer relative group cursor-pointer"
-          v-for="content in displayContent"
+          v-for="content in visibleContent"
           :key="content.id"
         >
           <!-- Two-image overlay container with CSS hover effect -->
@@ -255,7 +253,7 @@
 </style>
 
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ContentService } from "../../api/services/content.service";
@@ -316,6 +314,22 @@ const anticipatedContent = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const imagesLoaded = ref(false);
+const showAll = ref(false);
+
+// Calculate items per row based on screen size
+const itemsPerRow = computed(() => {
+  // This matches the grid-cols breakpoints in the template
+  // 2 cols on mobile, 3 on sm, 4 on md, 5 on lg, 6 on xl
+  if (typeof window !== "undefined") {
+    const width = window.innerWidth;
+    if (width >= 1280) return 6; // xl:grid-cols-6
+    if (width >= 1024) return 5; // lg:grid-cols-5
+    if (width >= 768) return 4; // md:grid-cols-4
+    if (width >= 640) return 3; // sm:grid-cols-3
+    return 2; // mobile: grid-cols-2
+  }
+  return 6; // Default for SSR
+});
 
 // Stores
 const authStore = useAuthStore();
@@ -347,6 +361,24 @@ const watchlistLoading = computed(() => watchlistStore.loading);
 const isInWatchlist = (content) => {
   return content?.in_watch_list || false;
 };
+
+// Computed property to check if we should show "See More" button
+const shouldShowSeeMore = computed(() => {
+  return props.showSeeMore && displayContent.value.length > itemsPerRow.value;
+});
+
+// Toggle show all content
+const toggleShowAll = () => {
+  showAll.value = !showAll.value;
+};
+
+// Get visible content based on showAll state
+const visibleContent = computed(() => {
+  if (showAll.value || displayContent.value.length <= itemsPerRow.value) {
+    return displayContent.value;
+  }
+  return displayContent.value.slice(0, itemsPerRow.value);
+});
 
 const fetchAnticipatedContent = async () => {
   if (!props.fetchContent) {
