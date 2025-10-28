@@ -483,6 +483,56 @@ const isMobileComputed = computed(() => {
   return isMobile.value || screenSizeMobile;
 });
 
+// Check if content is an episode or season and redirect if trying to access their detail pages
+const checkEpisodeAccess = () => {
+  // If content is an episode, redirect to its parent series
+  if (content.value?.type === "episode") {
+    // Find the root series (episode -> season -> series)
+    let currentContent = content.value;
+
+    // Traverse up the hierarchy until we find the series
+    while (currentContent?.parent) {
+      currentContent = currentContent.parent;
+
+      // If we reach a series (not a season), navigate to it
+      if (currentContent.type === "series") {
+        console.log(
+          `🔙 Redirecting from episode to series: ${currentContent.slug}`
+        );
+        router.push(`/watch/${currentContent.slug}`);
+        return;
+      }
+    }
+
+    // Fallback: if no series found, redirect to home
+    console.log(`🔙 No series found for episode, redirecting to home`);
+    router.push("/");
+  }
+  // If content is a season, redirect to its parent series
+  else if (content.value?.type === "season") {
+    // Find the root series (season -> series)
+    let currentContent = content.value;
+
+    // Traverse up the hierarchy until we find the series
+    while (currentContent?.parent) {
+      currentContent = currentContent.parent;
+
+      // If we reach a series, navigate to it
+      if (currentContent.type === "series") {
+        console.log(
+          `🔙 Redirecting from season to series: ${currentContent.slug}`
+        );
+        router.push(`/watch/${currentContent.slug}`);
+        return;
+      }
+    }
+
+    // Fallback: if no series found, redirect to home
+    console.log(`🔙 No series found for season, redirecting to home`);
+    router.push("/");
+  }
+};
+
 // Remove the resize listener since we're not using screen size anymore
 // const handleResize = () => { ... };
 
@@ -848,19 +898,6 @@ const goBackToDetail = async () => {
     } else {
       // Last resort: redirect to home
       window.location.href = "/";
-    }
-  }
-};
-
-// Check if content is an episode and redirect if trying to access episode detail page
-const checkEpisodeAccess = () => {
-  if (content.value?.type === "episode") {
-    // Redirect to parent series detail page
-    if (content.value?.parent?.slug) {
-      router.push(`/watch/${content.value.parent.slug}`);
-    } else {
-      // If no parent, redirect to home or appropriate fallback
-      router.push("/");
     }
   }
 };

@@ -45,13 +45,30 @@
         <HeroHome
           :autoPlay="true"
           :autoPlayInterval="10000"
+          contentType="series"
           @watch="handleWatchContent"
           @addToList="handleAddToList"
         />
         <SectionTwo
-          title="TV Shows"
-          iconAlt="TV Shows icon"
-          :content="tvShowsContent"
+          title="Recommended TV Shows"
+          iconAlt="Recommended icon"
+          :content="recommendedSeries"
+          :showSeeMore="true"
+          :fetchContent="false"
+          @watchlist-updated="handleWatchlistUpdate"
+        />
+        <SectionTwo
+          title="Trending TV Shows"
+          iconAlt="Trending icon"
+          :content="trendingSeries"
+          :showSeeMore="true"
+          :fetchContent="false"
+          @watchlist-updated="handleWatchlistUpdate"
+        />
+        <SectionTwo
+          title="Anticipated TV Shows"
+          iconAlt="Anticipated icon"
+          :content="anticipatedSeries"
           :showSeeMore="true"
           :fetchContent="false"
           @watchlist-updated="handleWatchlistUpdate"
@@ -164,6 +181,9 @@ const buildImageUrl = (imageId) => {
 
 // TV Shows content state
 const tvShowsContent = ref([]);
+const trendingSeries = ref([]);
+const anticipatedSeries = ref([]);
+const recommendedSeries = ref([]);
 const tvShowsLoading = ref(true);
 const tvShowsError = ref(null);
 
@@ -172,21 +192,29 @@ const isRefreshing = ref(false);
 
 const { preloadContentImages } = useBlobImages();
 
-// Fetch TV shows content (series only)
+// Fetch all TV shows content sections
 const fetchTVShowsContent = async () => {
   try {
     tvShowsLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.SERIES], // Only series
-      limit: 6,
-      page: 1,
-    });
 
-    tvShowsContent.value = response.data;
+    // Fetch all sections in parallel
+    const [trending, anticipated, recommended] = await Promise.all([
+      ContentService.getTrendingContent("series"),
+      ContentService.getAnticipatedContent("series"),
+      ContentService.getRecommendedContent("series"),
+    ]);
 
-    // Preload all images for TV shows content
+    trendingSeries.value = trending.data;
+    anticipatedSeries.value = anticipated.data;
+    recommendedSeries.value = recommended.data;
+
+    // Preload images for all sections
     try {
-      await preloadContentImages(response.data, "public");
+      await Promise.all([
+        preloadContentImages(trending.data, "public"),
+        preloadContentImages(anticipated.data, "public"),
+        preloadContentImages(recommended.data, "public"),
+      ]);
     } catch (error) {
       console.warn("Failed to preload some TV shows images:", error);
     }

@@ -316,6 +316,10 @@ const props = defineProps({
     type: Number,
     default: 5000,
   },
+  contentType: {
+    type: String,
+    default: null, // movie, series, or null for all types
+  },
 });
 
 // Emits
@@ -383,8 +387,15 @@ const buildImageUrl = (imageId) => {
 // Methods
 const fetchHeroContent = async () => {
   try {
-    // Use the dedicated featured content endpoint
-    const response = await ContentService.getFeaturedContent();
+    // Determine which endpoint to use based on contentType prop
+    let response;
+    if (props.contentType) {
+      // If contentType is specified, use trending content with type filter
+      response = await ContentService.getTrendingContent(props.contentType);
+    } else {
+      // If no contentType, use featured content (mixed types)
+      response = await ContentService.getFeaturedContent();
+    }
 
     // Transform the data to include image URLs
     heroContent.value = response.data.map((content) => {

@@ -138,11 +138,14 @@ const handleTouchStart = () => {
 
 // Navigation
 const goBack = () => {
-  // If content is an episode, navigate to its parent series
-  if (content.value?.type === "episode" && content.value?.parent?.slug) {
-    router.push(`/watch/${content.value.parent.slug}`);
+  // Simple approach: Use browser history if available
+  if (history.length > 1 && document.referrer) {
+    // Go back to previous page in browser history
+    console.log("🔙 Going back to previous page in browser history");
+    router.back();
   } else {
-    // For movies and series (or if parent is not available), navigate to detail page
+    // Fallback: navigate to content detail page
+    console.log(`🔙 Navigating to content detail page`);
     router.push(`/watch/${route.params.slug}`);
   }
 };
@@ -246,6 +249,18 @@ const ensureAdvertsLoaded = async () => {
 };
 
 onMounted(async () => {
+  // Prevent direct access to video page - users must come from detail page
+  if (
+    !document.referrer ||
+    !document.referrer.includes(window.location.origin)
+  ) {
+    console.log(
+      "🚫 Direct access to video page blocked - redirecting to detail page"
+    );
+    router.push(`/watch/${route.params.slug}`);
+    return;
+  }
+
   // Add event listeners
   document.addEventListener("mousemove", handleMouseMove);
   document.addEventListener("touchstart", handleTouchStart);

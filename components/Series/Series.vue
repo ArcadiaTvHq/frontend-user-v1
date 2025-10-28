@@ -125,7 +125,7 @@
             </div>
             <p
               v-if="episode.description"
-              class="text-gray-400 text-sm line-clamp-2 mt-1"
+              class="text-gray-400 text-sm line-clamp-2 mt-1 text-left"
             >
               {{ episode.description }}
             </p>

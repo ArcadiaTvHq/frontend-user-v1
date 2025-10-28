@@ -45,13 +45,30 @@
         <HeroHome
           :autoPlay="true"
           :autoPlayInterval="10000"
+          contentType="movie"
           @watch="handleWatchContent"
           @addToList="handleAddToList"
         />
         <SectionTwo
-          title="Movies"
-          iconAlt="Movies icon"
-          :content="moviesContent"
+          title="Recommended Movies"
+          iconAlt="Recommended icon"
+          :content="recommendedMovies"
+          :showSeeMore="true"
+          :fetchContent="false"
+          @watchlist-updated="handleWatchlistUpdate"
+        />
+        <SectionTwo
+          title="Trending Movies"
+          iconAlt="Trending icon"
+          :content="trendingMovies"
+          :showSeeMore="true"
+          :fetchContent="false"
+          @watchlist-updated="handleWatchlistUpdate"
+        />
+        <SectionTwo
+          title="Anticipated Movies"
+          iconAlt="Anticipated icon"
+          :content="anticipatedMovies"
           :showSeeMore="true"
           :fetchContent="false"
           @watchlist-updated="handleWatchlistUpdate"
@@ -164,6 +181,9 @@ const buildImageUrl = (imageId) => {
 
 // Movies content state
 const moviesContent = ref([]);
+const trendingMovies = ref([]);
+const anticipatedMovies = ref([]);
+const recommendedMovies = ref([]);
 const moviesLoading = ref(true);
 const moviesError = ref(null);
 
@@ -172,21 +192,29 @@ const isRefreshing = ref(false);
 
 const { preloadContentImages } = useBlobImages();
 
-// Fetch movies content (movies only)
+// Fetch all movies content sections
 const fetchMoviesContent = async () => {
   try {
     moviesLoading.value = true;
-    const response = await ContentService.getContents({
-      types: [EContentType.MOVIE], // Only movies
-      limit: 6,
-      page: 1,
-    });
 
-    moviesContent.value = response.data;
+    // Fetch all sections in parallel
+    const [trending, anticipated, recommended] = await Promise.all([
+      ContentService.getTrendingContent("movie"),
+      ContentService.getAnticipatedContent("movie"),
+      ContentService.getRecommendedContent("movie"),
+    ]);
 
-    // Preload all images for movies content
+    trendingMovies.value = trending.data;
+    anticipatedMovies.value = anticipated.data;
+    recommendedMovies.value = recommended.data;
+
+    // Preload images for all sections
     try {
-      await preloadContentImages(response.data, "public");
+      await Promise.all([
+        preloadContentImages(trending.data, "public"),
+        preloadContentImages(anticipated.data, "public"),
+        preloadContentImages(recommended.data, "public"),
+      ]);
     } catch (error) {
       console.warn("Failed to preload some movies images:", error);
     }

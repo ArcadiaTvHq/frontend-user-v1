@@ -114,21 +114,30 @@ export class ContentService {
 
   /**
    * Fetch anticipated content
+   * @param type Optional content type filter (movie, series, etc.)
    * @returns Promise with content list response
    */
-  static async getAnticipatedContent(): Promise<ContentListResponse> {
-    // Check cache first
-    const cachedAnticipated = LocalStorageService.getAnticipatedContent();
-    if (cachedAnticipated) {
-      return cachedAnticipated;
+  static async getAnticipatedContent(
+    type?: string
+  ): Promise<ContentListResponse> {
+    // Check cache first (only if no type filter)
+    if (!type) {
+      const cachedAnticipated = LocalStorageService.getAnticipatedContent();
+      if (cachedAnticipated) {
+        return cachedAnticipated;
+      }
     }
 
+    const params = type ? { type } : {};
     const response = await apiClient.get<ContentListResponse>(
-      ENDPOINTS.CONTENT.ANTICIPATED
+      ENDPOINTS.CONTENT.ANTICIPATED,
+      { params }
     );
 
-    // Cache the response
-    LocalStorageService.setAnticipatedContent(response);
+    // Cache the response (only if no type filter)
+    if (!type) {
+      LocalStorageService.setAnticipatedContent(response);
+    }
 
     return response;
   }
@@ -156,22 +165,30 @@ export class ContentService {
 
   /**
    * Fetch recommended content
+   * @param type Optional content type filter (movie, series, etc.)
    * @returns Promise with content list response
    */
-  static async getRecommendedContent(): Promise<ContentListResponse> {
+  static async getRecommendedContent(
+    type?: string
+  ): Promise<ContentListResponse> {
+    const params = type ? { type } : {};
     const response = await apiClient.get<ContentListResponse>(
-      ENDPOINTS.CONTENT.RECOMMENDED
+      ENDPOINTS.CONTENT.RECOMMENDED,
+      { params }
     );
     return response;
   }
 
   /**
    * Fetch trending content
+   * @param type Optional content type filter (movie, series, etc.)
    * @returns Promise with content list response
    */
-  static async getTrendingContent(): Promise<ContentListResponse> {
+  static async getTrendingContent(type?: string): Promise<ContentListResponse> {
+    const params = type ? { type } : {};
     const response = await apiClient.get<ContentListResponse>(
-      ENDPOINTS.CONTENT.TRENDING
+      ENDPOINTS.CONTENT.TRENDING,
+      { params }
     );
     return response;
   }

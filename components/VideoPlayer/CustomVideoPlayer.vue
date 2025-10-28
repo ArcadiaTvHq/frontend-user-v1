@@ -976,10 +976,14 @@ const onCanPlay = () => {
   }
 
   // Auto-play immediately when video can play using coordinated system
-  if (props.autoplay && !isPlaying.value) {
+  // BUT: Don't autoplay if ads are showing (main video should wait for ads to finish)
+  if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
+    console.log("🚀 Auto-playing main video (no ads active)");
     safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
     });
+  } else if (showAdvertOverlay.value) {
+    console.log("📺 Ads are showing - main video will wait until ads complete");
   }
 
   emit("ready");
@@ -1431,17 +1435,29 @@ const showBeginningAdvert = () => {
   if (beginningAdvert) {
     // Ensure main video is paused before showing ads
     if (videoPlayer.value && !videoPlayer.value.paused) {
-      // Pausing main video for beginning advert
+      console.log("⏸️ Pausing main video for beginning advert");
       videoPlayer.value.pause();
+      isPlaying.value = false;
+      playbackState = "paused";
     }
 
     currentAdvert.value = beginningAdvert;
     showAdvertOverlay.value = true;
     hasShownBeginningAd.value = true;
 
-    // Beginning advert overlay shown - main video paused in background
+    console.log("📺 Beginning advert overlay shown - main video paused");
+
+    // Double-check video is paused after a small delay
+    setTimeout(() => {
+      if (videoPlayer.value && !videoPlayer.value.paused) {
+        console.log("⏸️ Force pausing main video after advert overlay shown");
+        videoPlayer.value.pause();
+        isPlaying.value = false;
+        playbackState = "paused";
+      }
+    }, 100);
   } else {
-    // No beginning advert available
+    console.log("📺 No beginning advert available");
   }
 };
 
@@ -2639,11 +2655,14 @@ const initializeDirectVideo = (url) => {
   startBuffering();
   startBufferingCheck();
 
-  // Auto-play if enabled
-  if (props.autoplay && !isPlaying.value) {
+  // Auto-play if enabled - but don't start if ads are showing
+  if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
+    console.log("🚀 Auto-playing main video (direct video, no ads active)");
     safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
     });
+  } else if (showAdvertOverlay.value) {
+    console.log("📺 Ads are showing - main video will wait until ads complete");
   }
 
   isLoading.value = false;
@@ -2842,11 +2861,16 @@ const initializeHLS = (url) => {
   } else if (videoPlayer.value.canPlayType("application/vnd.apple.mpegurl")) {
     console.log("🍎 Using native HLS support (Safari)");
     videoPlayer.value.src = url;
-    // Auto-play immediately for native HLS using coordinated system
-    if (props.autoplay && !isPlaying.value) {
+    // Auto-play immediately for native HLS - but don't start if ads are showing
+    if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
+      console.log("🚀 Auto-playing main video (native HLS, no ads active)");
       safePlay(false, "high").catch((err) => {
         console.warn("Auto-play failed:", err);
       });
+    } else if (showAdvertOverlay.value) {
+      console.log(
+        "📺 Ads are showing - main video will wait until ads complete"
+      );
     }
   } else {
     console.log("⚠️ HLS not supported, using URL directly");
@@ -2854,11 +2878,16 @@ const initializeHLS = (url) => {
     if (videoPlayer.value && typeof Hls === "undefined") {
       videoPlayer.value.src = url;
       console.log("✅ Set video src for fallback:", url);
-      // Auto-play immediately for fallback using coordinated system
-      if (props.autoplay && !isPlaying.value) {
+      // Auto-play immediately for fallback - but don't start if ads are showing
+      if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
+        console.log("🚀 Auto-playing main video (fallback, no ads active)");
         safePlay(false, "high").catch((err) => {
           console.warn("Auto-play failed:", err);
         });
+      } else if (showAdvertOverlay.value) {
+        console.log(
+          "📺 Ads are showing - main video will wait until ads complete"
+        );
       }
     } else {
       console.log("⏳ Waiting for HLS.js to load before setting video src");
@@ -3610,6 +3639,18 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// Watch for ad overlay state - ensure video is paused when ads are showing
+watch(
+  () => showAdvertOverlay.value,
+  (isShowingAds) => {
+    if (isShowingAds && videoPlayer.value && !videoPlayer.value.paused) {
+      console.log("⏸️ Pausing main video because ads are showing");
+      videoPlayer.value.pause();
+      isPlaying.value = false;
+    }
+  }
 );
 
 // Periodic buffering check to ensure accurate progress tracking

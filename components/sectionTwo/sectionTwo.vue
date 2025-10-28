@@ -163,8 +163,17 @@
                 class="flex items-center gap-2 text-[11px] text-gray-400 mt-2"
               >
                 <span>{{ formatDate(content.release_date) }}</span>
+                <!-- Show season count for series, duration for movies -->
                 <span
-                  v-if="content.duration_in_seconds"
+                  v-if="content.type === 'series' && content.children?.length"
+                  class="flex items-center"
+                >
+                  <span class="w-1 h-1 rounded-full bg-gray-400 mx-1"></span>
+                  {{ content.children.length }}
+                  {{ content.children.length === 1 ? "Season" : "Seasons" }}
+                </span>
+                <span
+                  v-else-if="content.duration_in_seconds"
                   class="flex items-center"
                 >
                   <span class="w-1 h-1 rounded-full bg-gray-400 mx-1"></span>
