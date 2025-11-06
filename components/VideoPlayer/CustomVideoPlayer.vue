@@ -8,7 +8,6 @@
         ref="videoPlayer"
         :src="useDirectUrl ? videoUrl : null"
         :poster="poster"
-        :autoplay="autoplay"
         :muted="muted"
         :controls="controls"
         :preload="preload"
@@ -23,6 +22,7 @@
         @canplay="onCanPlay"
         @playing="onPlaying"
         @waiting="onWaiting"
+        @stalled="onWaiting"
         @error="onError"
         @play="handlePlay"
         @pause="handlePause"
@@ -241,7 +241,7 @@ onBeforeRouteLeave((to, from, next) => {
     console.log(
       "🏁 Route navigation detected - ending playback session as ABANDONED"
     );
-    endPlaybackSession("ABANDONED").catch((err) => {
+    endPlaybackSession("abandoned").catch((err) => {
       console.error("Failed to end playback session on route navigation:", err);
     });
   }
@@ -680,6 +680,12 @@ const processPlaybackQueue = async () => {
 const executePlaybackAction = async (action) => {
   switch (action.type) {
     case "play":
+      // CRITICAL: Don't play if ads are showing
+      if (showAdvertOverlay.value) {
+        console.log("⏸️ Play action blocked - ads are showing");
+        return Promise.resolve();
+      }
+
       if (playbackState === "resuming" || resumeCooldown) {
         console.log(
           "⏸️ Playback resumption already in progress, skipping duplicate request"
@@ -975,21 +981,66 @@ const onCanPlay = () => {
     }
   }
 
+  // CRITICAL: Check for ads BEFORE attempting any autoplay
+  // Check if we have ads that haven't been shown yet
+  const hasAds =
+    advertStore &&
+    advertStore.adverts &&
+    advertStore.adverts.length > 0 &&
+    !hasShownBeginningAd.value;
+
+  if (hasAds || showAdvertOverlay.value) {
+    console.log(
+      "⏸️ Video ready but pausing for ads - ads are/should be showing"
+    );
+    if (videoPlayer.value && !videoPlayer.value.paused) {
+      videoPlayer.value.pause();
+    }
+    isPlaying.value = false;
+    playbackState = "paused";
+
+    // If beginning ads exist and haven't been shown, show them now
+    // BUT: Only show if advert overlay is not already showing
+    if (hasAds && !showAdvertOverlay.value && !hasShownBeginningAd.value) {
+      console.log("📺 Video ready - showing beginning advert");
+      // Use nextTick to ensure the pause is complete before showing ads
+      nextTick(() => {
+        showBeginningAdvert();
+      });
+    }
+  }
+
   // Auto-play immediately when video can play using coordinated system
   // BUT: Don't autoplay if ads are showing (main video should wait for ads to finish)
-  if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
+  if (
+    props.autoplay &&
+    !isPlaying.value &&
+    !showAdvertOverlay.value &&
+    !hasAds
+  ) {
     console.log("🚀 Auto-playing main video (no ads active)");
     safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
     });
-  } else if (showAdvertOverlay.value) {
-    console.log("📺 Ads are showing - main video will wait until ads complete");
+  } else if (showAdvertOverlay.value || hasAds) {
+    console.log(
+      "📺 Ads are showing or will show - main video will wait until ads complete"
+    );
   }
 
   emit("ready");
 };
 
 const onPlaying = () => {
+  // CRITICAL: If ads are showing, pause immediately and return
+  if (showAdvertOverlay.value) {
+    console.log("⏸️ Playing event fired but ads are showing - pausing video");
+    videoPlayer.value?.pause();
+    isPlaying.value = false;
+    playbackState = "paused";
+    return;
+  }
+
   console.log("▶️ Video is playing");
   isPlaying.value = true;
   isBuffering.value = false;
@@ -1019,6 +1070,22 @@ const onWaiting = () => {
     lastBufferingLog = now;
   }
   isBuffering.value = true;
+  // Attempt to jump over buffered gaps when stalling
+  try {
+    const video = videoPlayer.value;
+    if (video && video.buffered && video.buffered.length > 0) {
+      const t = video.currentTime;
+      const b = video.buffered;
+      for (let i = 0; i < b.length; i++) {
+        const start = b.start(i);
+        const end = b.end(i);
+        if (t < start && start - t > 0.05) {
+          video.currentTime = start + 0.01;
+          break;
+        }
+      }
+    }
+  } catch (e) {}
 };
 
 const onError = (e) => {
@@ -1212,16 +1279,40 @@ const handleHls401Error = async () => {
 };
 
 const handlePlay = () => {
+  // CRITICAL: If ads are showing or will show, pause the video immediately
+  if (showAdvertOverlay.value) {
+    console.log("⏸️ Preventing video playback - ads are showing");
+    videoPlayer.value?.pause();
+    isPlaying.value = false;
+    playbackState = "paused";
+    return;
+  }
+
+  // CRITICAL: Check if beginning ads need to be shown
+  const hasBeginningAds =
+    advertStore &&
+    advertStore.adverts &&
+    advertStore.adverts.length > 0 &&
+    !hasShownBeginningAd.value;
+
+  if (hasBeginningAds && !showAdvertOverlay.value) {
+    console.log(
+      "📺 Play event triggered but beginning ads need to show first - pausing video"
+    );
+    videoPlayer.value?.pause();
+    isPlaying.value = false;
+    playbackState = "paused";
+    // Trigger beginning ads
+    showBeginningAdvert();
+    return;
+  }
+
   isPlaying.value = true;
   console.log("▶️ Play event triggered");
   emit("videoStarted");
 
   // Record play event in watch tracker
   watchTracker.recordPlay();
-
-  console.log("🎬 About to show beginning advert...");
-  // Show beginning advert if not shown yet
-  showBeginningAdvert();
 };
 
 const handlePause = () => {
@@ -1241,6 +1332,19 @@ const handlePause = () => {
     advertStoreAvailable: !!advertStore,
     advertCount: advertStore?.adverts?.length || 0,
   });
+
+  // Check if this pause is for beginning ads (programmatic pause)
+  // If beginning ads haven't been shown yet, don't show pause ads
+  const hasBeginningAds =
+    advertStore &&
+    advertStore.adverts &&
+    advertStore.adverts.length > 0 &&
+    !hasShownBeginningAd.value;
+
+  if (hasBeginningAds) {
+    console.log("⏸️ Skipping pause advert - video paused for beginning ads");
+    return;
+  }
 
   // Check if pause is due to buffering, seeking, or seeking cooldown
   if (isBuffering.value || isPauseDueToBuffering || isSeeking || seekCooldown) {
@@ -1274,7 +1378,13 @@ const handleTimeUpdate = (e) => {
   bufferedPercent.value = calculateBufferedPercent();
 
   // Auto-play when video can play and autoplay is enabled using coordinated system
-  if (canPlay.value && !isPlaying.value && props.autoplay) {
+  // BUT: Don't autoplay if ads are showing
+  if (
+    canPlay.value &&
+    !isPlaying.value &&
+    props.autoplay &&
+    !showAdvertOverlay.value
+  ) {
     console.log("🚀 Auto-playing video - canPlay:", canPlay.value);
     safePlay(false, "high").catch((err) => {
       console.warn("Auto-play failed:", err);
@@ -1299,7 +1409,7 @@ const handleTimeUpdate = (e) => {
     hasEndedPlayback.value = true;
 
     // End playback session as COMPLETED
-    endPlaybackSession("COMPLETED").catch((err) => {
+    endPlaybackSession("completed").catch((err) => {
       console.error("Failed to end playback session:", err);
     });
   }
@@ -2694,6 +2804,7 @@ const initializeHLS = (url) => {
       // Performance optimizations - Maximum performance
       enableWorker: true, // Use Web Workers for better performance
       startLevel: 0, // Start with lowest quality for stability
+      capLevelOnFPSDrop: true,
       enableSoftwareAES: true, // Better encryption handling
       debug: false, // Disable debug logging for performance
 
@@ -2784,9 +2895,19 @@ const initializeHLS = (url) => {
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
       console.error("HLS.js error:", data);
 
-      // Smart error management based on error type and response code
+      // Smart error management with self-recovery to avoid endless buffering
       if (data.fatal) {
         console.error("❌ Fatal HLS error:", data.details);
+
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          try {
+            hlsInstance.startLoad();
+          } catch (e) {}
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          try {
+            hlsInstance.recoverMediaError();
+          } catch (e) {}
+        }
 
         // Handle different error types with appropriate recovery strategies
         if (data.details === "FRAG_LOAD_ERROR" && data.response) {
@@ -3374,7 +3495,14 @@ onMounted(() => {
     console.log("🎬 onMounted: Checking for adverts and initializing video");
 
     // Check if advert store is available and has adverts
-    if (advertStore && advertStore.adverts && advertStore.adverts.length > 0) {
+    // Also check if beginning ads haven't already been shown
+    if (
+      advertStore &&
+      advertStore.adverts &&
+      advertStore.adverts.length > 0 &&
+      !hasShownBeginningAd.value &&
+      !showAdvertOverlay.value
+    ) {
       console.log("📺 Adverts available, showing beginning advert");
       // Video loaded, showing beginning advert immediately
       showBeginningAdvert();
@@ -3649,8 +3777,10 @@ watch(
       console.log("⏸️ Pausing main video because ads are showing");
       videoPlayer.value.pause();
       isPlaying.value = false;
+      playbackState = "paused";
     }
-  }
+  },
+  { immediate: true } // Check immediately when watcher is set up
 );
 
 // Periodic buffering check to ensure accurate progress tracking
@@ -3688,7 +3818,7 @@ onUnmounted(() => {
     console.log(
       "🏁 User navigating away - ending playback session as ABANDONED"
     );
-    endPlaybackSession("ABANDONED").catch((err) => {
+    endPlaybackSession("abandoned").catch((err) => {
       console.error("Failed to end playback session on navigation:", err);
       // Fallback to old stopPlayback if needed
       stopPlayback();

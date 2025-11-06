@@ -850,7 +850,7 @@ const goBackToDetail = async () => {
     ) {
       console.log("🏁 Ending playback session before navigation...");
       try {
-        await currentPlayer.endPlaybackSession("ABANDONED");
+        await currentPlayer.endPlaybackSession("abandoned");
         console.log("✅ Playback session ended successfully");
       } catch (sessionError) {
         console.error("❌ Failed to end playback session:", sessionError);

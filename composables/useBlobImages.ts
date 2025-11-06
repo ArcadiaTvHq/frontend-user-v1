@@ -10,9 +10,9 @@ export const useBlobImages = () => {
    */
   const getImageUrl = (
     imageId: string | null | undefined,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ): string => {
-    if (!imageId) return fallbackUrl;
+    if (!imageId || imageId.trim() === "") return fallbackUrl;
 
     const blobUrl = blobStore.getBlob(imageId);
     return blobUrl || fallbackUrl;
@@ -24,9 +24,9 @@ export const useBlobImages = () => {
    */
   const getImageUrlWithTracking = (
     imageId: string | null | undefined,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ): string => {
-    if (!imageId) return fallbackUrl;
+    if (!imageId || imageId.trim() === "") return fallbackUrl;
 
     const blobUrl = blobStore.getBlobAndTrack(imageId);
     return blobUrl || fallbackUrl;
@@ -37,7 +37,7 @@ export const useBlobImages = () => {
    */
   const getPrimaryImageUrl = (
     content: any,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ): string => {
     const imageId = getPrimaryImageId(content);
     if (!imageId) return fallbackUrl;
@@ -57,7 +57,7 @@ export const useBlobImages = () => {
    */
   const getHoverImageUrl = (
     content: any,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ): string => {
     const imageId = getHoverImageId(content);
     if (!imageId) return fallbackUrl;
@@ -76,7 +76,7 @@ export const useBlobImages = () => {
    * Check if image is loading
    */
   const isImageLoading = (imageId: string | null | undefined): boolean => {
-    if (!imageId) return false;
+    if (!imageId || imageId.trim() === "") return false;
     return blobStore.isLoading(imageId);
   };
 
@@ -84,7 +84,7 @@ export const useBlobImages = () => {
    * Check if image has error
    */
   const getImageError = (imageId: string | null | undefined): string | null => {
-    if (!imageId) return null;
+    if (!imageId || imageId.trim() === "") return null;
     return blobStore.getError(imageId);
   };
 
@@ -92,7 +92,7 @@ export const useBlobImages = () => {
    * Get retry state for an image
    */
   const getImageRetryState = (imageId: string | null | undefined) => {
-    if (!imageId) return null;
+    if (!imageId || imageId.trim() === "") return null;
     return blobStore.getRetryState(imageId);
   };
 
@@ -100,7 +100,7 @@ export const useBlobImages = () => {
    * Check if image can be retried
    */
   const canRetryImage = (imageId: string | null | undefined): boolean => {
-    if (!imageId) return false;
+    if (!imageId || imageId.trim() === "") return false;
     const retryState = blobStore.getRetryState(imageId);
     if (!retryState) return true; // No retry state means it can be retried
 
@@ -115,7 +115,7 @@ export const useBlobImages = () => {
     imageId: string | null | undefined,
     size: string = "public"
   ): Promise<string | null> => {
-    if (!imageId) return null;
+    if (!imageId || imageId.trim() === "") return null;
 
     try {
       // Clear any existing error state
@@ -128,7 +128,15 @@ export const useBlobImages = () => {
 
       return await blobStore.fetchWithRetry(imageId, size);
     } catch (error) {
-      console.warn(`Failed to retry image ${imageId}:`, error);
+      // Don't log warnings for permanent failures
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        !errorMessage.includes("Permanent failure") &&
+        !errorMessage.includes("null or empty")
+      ) {
+        console.warn(`Failed to retry image ${imageId}:`, error);
+      }
       return null;
     }
   };
@@ -153,7 +161,7 @@ export const useBlobImages = () => {
    */
   const useComputedImageUrl = (
     imageId: string | null | undefined,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ) => {
     return computed(() => getImageUrl(imageId, fallbackUrl));
   };
@@ -163,7 +171,7 @@ export const useBlobImages = () => {
    */
   const useComputedPrimaryImageUrl = (
     content: any,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ) => {
     return computed(() => getPrimaryImageUrl(content, fallbackUrl));
   };
@@ -173,7 +181,7 @@ export const useBlobImages = () => {
    */
   const useComputedHoverImageUrl = (
     content: any,
-    fallbackUrl: string = "/images/default-poster.jpg"
+    fallbackUrl: string = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E"
   ) => {
     return computed(() => getHoverImageUrl(content, fallbackUrl));
   };

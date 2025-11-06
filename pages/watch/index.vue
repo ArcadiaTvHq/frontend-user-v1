@@ -135,7 +135,8 @@ const IMAGE_DELIVERY_BASE_URL =
   "https://imagedelivery.net/DsjSNgDb-WbLxvpVXBuSVg";
 
 const buildImageUrl = (imageId) => {
-  if (!imageId) return "/images/default-poster.jpg";
+  if (!imageId)
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
   return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/public`;
 };
 
@@ -181,14 +182,8 @@ const fetchFeaturedContent = async () => {
     }));
   } catch (err) {
     featuredError.value = err.message;
-    // Fallback to default images if API fails
-    featuredPosters.value = [
-      { id: 1, image: "/images/default-poster-1.jpg" },
-      { id: 2, image: "/images/default-poster-2.jpg" },
-      { id: 3, image: "/images/default-poster-3.jpg" },
-      { id: 4, image: "/images/default-poster-4.jpg" },
-      { id: 5, image: "/images/default-poster-5.jpg" },
-    ];
+    // Fallback to empty array if API fails
+    featuredPosters.value = [];
   } finally {
     featuredLoading.value = false;
   }

@@ -116,7 +116,7 @@ export class PlaybackService {
    */
   static async endPlaybackSession(
     contentId: string,
-    status: "COMPLETED" | "ABANDONED",
+    status: "completed" | "abandoned",
     watchStretches: IWatchStretch[] = []
   ): Promise<EndPlaybackResponse> {
     const response = await apiClient.post<EndPlaybackResponse>(

@@ -42,7 +42,9 @@ export const buildImageUrl = (
   size: string = "public",
   options: { cache?: boolean } = {}
 ): string => {
-  if (!imageId) return "/images/default-poster.jpg";
+  if (!imageId || imageId.trim() === "") {
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect fill='%23111111' width='400' height='600'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666' font-family='Arial' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
+  }
 
   // Check if we're in a browser environment
   if (typeof window !== "undefined") {
@@ -64,7 +66,15 @@ export const buildImageUrl = (
         try {
           await blobStore.fetchAndStoreBlob(imageId, size);
         } catch (error) {
-          console.warn(`Failed to cache image: ${imageId}`, error);
+          // Don't log warnings for permanent failures (404, null IDs) - they're expected
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          if (
+            !errorMessage.includes("Permanent failure") &&
+            !errorMessage.includes("null or empty")
+          ) {
+            console.warn(`Failed to cache image: ${imageId}`, error);
+          }
         }
       }, 0);
     }
@@ -86,12 +96,28 @@ export const preloadImage = async (
   imageId: string | undefined | null,
   size: string = "public"
 ): Promise<string> => {
-  if (!imageId || typeof window === "undefined") {
+  // Return fallback for null/empty image IDs or server-side rendering
+  if (!imageId || imageId.trim() === "" || typeof window === "undefined") {
     return buildImageUrl(imageId, size);
   }
 
   const blobStore = useBlobStore();
-  return await blobStore.fetchAndStoreBlob(imageId, size);
+
+  try {
+    return await blobStore.fetchAndStoreBlob(imageId, size);
+  } catch (error) {
+    // If fetch fails, return the direct URL as fallback
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("Permanent failure") ||
+      errorMessage.includes("null or empty")
+    ) {
+      console.debug(
+        `Returning fallback URL for permanently failed image: ${imageId}`
+      );
+    }
+    return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/${size}`;
+  }
 };
 
 /**

@@ -26,6 +26,7 @@
     <!-- Video Player -->
     <div v-if="content && !error" class="video-container">
       <CustomVideoPlayer
+        ref="videoPlayer"
         :key="videoKey"
         :content-id="content.id"
         :player-type="'video'"
@@ -67,7 +68,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import { usePageError } from "~/composables/usePageError";
@@ -103,6 +104,12 @@ const showBackButton = ref(false);
 const backButtonTimeout = ref(null);
 const isMobile = ref(false);
 
+// Video player ref
+const videoPlayer = ref(null);
+
+// Flag to track if we've already ended the session (prevents double-ending)
+const hasEndedSession = ref(false);
+
 // Loading state
 const loadingProgress = ref(0);
 
@@ -137,7 +144,38 @@ const handleTouchStart = () => {
 };
 
 // Navigation
-const goBack = () => {
+const goBack = async () => {
+  console.log("🔍 goBack called, videoPlayer:", !!videoPlayer.value);
+
+  // End playback session before navigating
+  if (
+    videoPlayer.value &&
+    typeof videoPlayer.value.isSessionActive === "function"
+  ) {
+    const isActive = videoPlayer.value.isSessionActive();
+    console.log("🔍 Session is active:", isActive);
+    console.log("🔍 Already ended session:", hasEndedSession.value);
+
+    if (isActive && !hasEndedSession.value) {
+      console.log(
+        "🏁 Back button pressed - ending playback session before navigation"
+      );
+      hasEndedSession.value = true; // Prevent double-ending
+      try {
+        console.log("📞 Calling endPlaybackSession...");
+        await videoPlayer.value.endPlaybackSession("abandoned");
+        console.log("✅ Playback session ended successfully");
+      } catch (err) {
+        console.error("❌ Failed to end playback session:", err);
+        // Continue with navigation even if session end fails
+      }
+    } else {
+      console.log("⏭️ Skipping session end - already ended or not active");
+    }
+  } else {
+    console.log("⏭️ No video player or isSessionActive not available");
+  }
+
   // Simple approach: Use browser history if available
   if (history.length > 1 && document.referrer) {
     // Go back to previous page in browser history
@@ -274,6 +312,26 @@ onMounted(async () => {
 
   // Then ensure adverts are loaded
   await ensureAdvertsLoaded();
+});
+
+onBeforeUnmount(async () => {
+  // End playback session before component unmounts
+  if (
+    videoPlayer.value &&
+    typeof videoPlayer.value.isSessionActive === "function"
+  ) {
+    const isActive = videoPlayer.value.isSessionActive();
+    if (isActive) {
+      console.log("🏁 Page unmounting - ending playback session");
+      hasEndedSession.value = true; // Prevent double-ending
+      try {
+        await videoPlayer.value.endPlaybackSession("abandoned");
+        console.log("✅ Playback session ended successfully on page exit");
+      } catch (err) {
+        console.error("❌ Failed to end playback session on page exit:", err);
+      }
+    }
+  }
 });
 
 onUnmounted(() => {

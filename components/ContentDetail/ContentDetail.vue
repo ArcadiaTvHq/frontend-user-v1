@@ -387,8 +387,9 @@ const hasPartialProgress = computed(() => {
   }
 
   // For movies, check watched duration from interactions
-  if (props.content.type === "movie" && props.content.interactions) {
-    const watchedDuration = props.content.interactions.watched_duration || 0;
+  if (props.content.type === "movie") {
+    // Get watched duration from interactions.watch_duration
+    const watchedDuration = props.content.interactions?.watch_duration || 0;
     const totalDuration = props.content.duration_in_seconds || 0;
 
     // Consider it partially watched if watched at least 30 seconds and less than 90% watched

@@ -56,7 +56,10 @@ export function usePlaybackSession() {
       );
 
       if (response.success && response.data) {
-        currentSession.value = response.data;
+        currentSession.value = {
+          ...response.data,
+          contentId: contentId, // Add contentId to session for later use
+        };
         sessionStartTime.value = Date.now();
         isSessionActive.value = true;
         stats.value.activeTokens = 1;
@@ -287,7 +290,16 @@ export function usePlaybackSession() {
 
   // End playback session functionality
   const endPlaybackSession = async (status) => {
-    if (!currentSession.value?.contentId) return;
+    console.log("🔍 endPlaybackSession called with status:", status);
+    console.log("🔍 currentSession.value:", currentSession.value);
+    console.log("🔍 contentId:", currentSession.value?.contentId);
+
+    if (!currentSession.value?.contentId) {
+      console.warn(
+        "⚠️ Cannot end session - no contentId found in currentSession"
+      );
+      return;
+    }
 
     try {
       // Get watch stretches from tracker if available

@@ -17,6 +17,7 @@
         @canplay="onCanPlay"
         @playing="onPlaying"
         @waiting="onWaiting"
+        @stalled="onStalled"
         @error="onError"
         @play="handlePlay"
         @pause="handlePause"
@@ -179,9 +180,9 @@ if (isFullVideo.value) {
   onBeforeRouteLeave((to, from, next) => {
     if (isSessionActive.value) {
       console.log(
-        "🏁 Route navigation detected (CustomTrailerPlayer) - ending playback session as ABANDONED"
+        "🏁 Route navigation detected (CustomTrailerPlayer) - ending playback session as abandoned"
       );
-      endPlaybackSession("ABANDONED").catch((err) => {
+      endPlaybackSession("abandoned").catch((err) => {
         console.error(
           "Failed to end playback session on route navigation:",
           err
@@ -427,6 +428,38 @@ const onProgress = () => {
   // Buffering progress
 };
 
+// Gap jump on stalls to avoid infinite buffering when currentTime sits in a hole
+const tryJumpOverGap = () => {
+  const video = videoPlayer.value;
+  if (!video) return;
+  try {
+    const t = video.currentTime;
+    const b = video.buffered;
+    for (let i = 0; i < b.length; i++) {
+      const start = b.start(i);
+      const end = b.end(i);
+      if (t < start && start - t > 0.05) {
+        video.currentTime = start + 0.01;
+        break;
+      }
+      if (t >= start && t <= end) {
+        // Already inside a buffered range
+        break;
+      }
+    }
+  } catch (e) {}
+};
+
+// Attempt to recover when stalled
+const onStalled = () => {
+  tryJumpOverGap();
+  if (hlsInstance) {
+    try {
+      hlsInstance.startLoad();
+    } catch (e) {}
+  }
+};
+
 const handleVideoClick = () => {
   if (!props.controls) {
     togglePlay();
@@ -539,6 +572,14 @@ const initializeHLS = (url) => {
       debug: false,
       enableWorker: true,
       lowLatencyMode: false,
+      capLevelOnFPSDrop: true,
+      startLevel: 0,
+      // Add light cache-busting to avoid serving stale tokened segments
+      xhrSetup: (xhr) => {
+        try {
+          xhr.setRequestHeader("Cache-Control", "no-cache");
+        } catch (e) {}
+      },
     });
 
     hlsInstance.loadSource(url);
@@ -570,6 +611,29 @@ const initializeHLS = (url) => {
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
       console.error("HLS.js error:", data);
+
+      // Try self-recovery for fatal errors to avoid endless buffering
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            // try to recover network error
+            try {
+              hlsInstance.startLoad();
+            } catch (e) {}
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            // try to recover media error
+            try {
+              hlsInstance.recoverMediaError();
+            } catch (e) {}
+            break;
+          default:
+            try {
+              hlsInstance.destroy();
+            } catch (e) {}
+            hlsInstance = null;
+        }
+      }
 
       let errorMessage = "HLS streaming error occurred.";
       let errorType = "HLS_ERROR";
