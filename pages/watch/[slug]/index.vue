@@ -1,5 +1,5 @@
 <template>
-  <Review :content="content" />
+  <Review v-if="content" :content="content" />
   <div class="min-h-screen bg-black" v-if="!review">
     <Navbar />
     <main v-if="content" class="bg-black">
