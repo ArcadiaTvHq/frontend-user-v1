@@ -255,13 +255,13 @@ watch(
         </div>
 
         <div class="flex items-center gap-4">
-          <button class="relative hover:opacity-80 transition-opacity">
+          <!-- <button class="relative hover:opacity-80 transition-opacity">
             <img
               src="../../assets/icons/notification.svg"
               alt="Notifications"
               class="w-6 h-6 brightness-0 invert sepia saturate-[1000%] hue-rotate-[0deg] brightness-[1.2]"
             />
-          </button>
+          </button> -->
           <nuxt-link to="/profile" class="hover:opacity-80 transition-opacity">
             <img
               src="../../assets/images/avatar.png"

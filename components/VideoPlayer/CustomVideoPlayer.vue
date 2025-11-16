@@ -1070,18 +1070,38 @@ const onWaiting = () => {
     lastBufferingLog = now;
   }
   isBuffering.value = true;
-  // Attempt to jump over buffered gaps when stalling
+  // Attempt to jump over buffered gaps when stalling and ensure HLS keeps loading
   try {
     const video = videoPlayer.value;
-    if (video && video.buffered && video.buffered.length > 0) {
+    if (video && video.buffered) {
       const t = video.currentTime;
       const b = video.buffered;
+      let jumped = false;
+
       for (let i = 0; i < b.length; i++) {
         const start = b.start(i);
         const end = b.end(i);
-        if (t < start && start - t > 0.05) {
+        // If we're before a buffered range, jump into it
+        if (t < start && start - t > 0.1) {
+          console.log("⏩ Jumping over gap to buffered start:", start);
           video.currentTime = start + 0.01;
+          jumped = true;
           break;
+        }
+        // If we are inside a buffered range, nothing to do
+        if (t >= start && t <= end) {
+          jumped = true;
+          break;
+        }
+      }
+
+      // If we didn't find any buffered range, ask HLS to resume loading
+      if (!jumped && hlsInstance) {
+        console.log("📡 No buffered ranges found during waiting - restarting HLS load");
+        try {
+          hlsInstance.startLoad();
+        } catch (e) {
+          console.warn("Failed to restart HLS load on waiting:", e);
         }
       }
     }
@@ -2797,7 +2817,7 @@ const initializeHLS = (url) => {
       maxBufferLength: 30, // Stable buffer to prevent cancellations
       maxMaxBufferLength: 60, // Stable max buffer for smooth playback
       maxBufferSize: 60 * 1000 * 1000, // 60MB buffer size for stable loading
-      maxBufferHole: 0.2, // More tolerant buffer holes to prevent cancellations
+      maxBufferHole: 0.5, // Allow small gaps without stalling
       backBufferLength: 30, // Stable back buffer for performance
       lowLatencyMode: false, // Disable low latency for stability
 
@@ -2818,17 +2838,6 @@ const initializeHLS = (url) => {
       abrEwmaSlowLive: 8.0, // Slower adaptation for stability
       abrEwmaFastVoD: 4.0, // Slower adaptation for VOD content
       abrEwmaSlowVoD: 8.0, // Slower adaptation for stability
-
-      // Buffer Management - Ultra-aggressive for poor networks
-      maxStarvationDelay: 0.3, // Very fast response to buffer starvation
-      maxLoadingDelay: 0.3, // Very fast loading response
-      maxSeekHoleLength: 0.05, // Very tight seek holes
-      seekHoleNudgeDuration: 0.02, // Very fast seeking behavior
-
-      // Network Resilience - Optimized for poor networks
-      maxFragLookUpTolerance: 0.01, // Very tight tolerance for sync
-      liveSyncDurationCount: 1, // Fast live sync
-      liveMaxLatencyDurationCount: 2, // Very low latency
 
       // Loading Timeouts and Retries - Stable to prevent segment cancellation
       fragLoadingTimeOut: 8000, // Longer timeout to prevent cancellations

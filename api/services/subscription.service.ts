@@ -75,4 +75,24 @@ export class SubscriptionService {
     console.log("Cards response:", response);
     return response;
   }
+
+  /**
+   * Delete a saved payment card for the authenticated user
+   * @param cardId Card identifier
+   */
+  static async deleteCard(cardId: string): Promise<any> {
+    const response = await apiClient.delete(
+      ENDPOINTS.SUBSCRIPTION.DELETE_CARD(cardId)
+    );
+    return response;
+  }
+
+  /**
+   * Cancel the current user's subscription
+   * @returns Promise with API response (status/message and possibly updated user)
+   */
+  static async cancelSubscription(): Promise<any> {
+    const response = await apiClient.post(ENDPOINTS.SUBSCRIPTION.CANCEL);
+    return response;
+  }
 }

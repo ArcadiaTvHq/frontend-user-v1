@@ -2,6 +2,15 @@ import { defineStore } from "pinia";
 import type { User, AuthResponse } from "~/types/auth";
 import { AuthService } from "~/api/services/auth.service";
 import { LocalStorageService } from "~/src/utils/localStorage";
+import { useWatchlistStore } from "~/stores/watchlist";
+import { useSubscriptionStore } from "~/stores/subscription";
+import { useSearchStore } from "~/stores/search";
+import { useFiltersStore } from "~/stores/filters";
+import { useAdvertStore } from "~/stores/adverts";
+import { useBlobStore } from "~/stores/blobStore";
+import { useLoadingStore } from "~/stores/loading";
+import { useModal } from "~/stores/modals";
+import { useToastStore } from "~/stores/toast";
 
 export const useAuthStore = defineStore(
   "auth",
@@ -158,6 +167,39 @@ export const useAuthStore = defineStore(
         if (process.client) {
           localStorage.removeItem("auth_token");
         }
+
+        // Reset other Pinia stores to clear all user-related state
+        try {
+          const watchlistStore = useWatchlistStore();
+          const subscriptionStore = useSubscriptionStore();
+          const searchStore = useSearchStore();
+          const filtersStore = useFiltersStore();
+          const advertStore = useAdvertStore();
+          const blobStore = useBlobStore();
+          const loadingStore = useLoadingStore();
+          const modalStore = useModal();
+          const toastStore = useToastStore();
+
+          watchlistStore.$reset();
+          subscriptionStore.$reset();
+          searchStore.$reset();
+          filtersStore.$reset();
+          advertStore.clearAdverts();
+          // blobStore has clearAll helper to release blobs and state
+          if (blobStore.clearAll) {
+            blobStore.clearAll();
+          }
+          loadingStore.startLoading();
+          // Close any modals
+          modalStore.isChange = false;
+          modalStore.isWaitlist = false;
+          modalStore.isReview = false;
+          // Clear toasts
+          toastStore.clearAllToasts();
+        } catch (e) {
+          console.error("Error resetting stores on logout:", e);
+        }
+
         // Navigate to login page
         navigateTo("/login");
       } catch (err: any) {

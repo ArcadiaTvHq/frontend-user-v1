@@ -61,9 +61,8 @@ async function fetchUserData() {
 watch(
   () => user.value?.subscription,
   (newSubscription) => {
-    if (newSubscription) {
-      subscriptionStore.setCurrentSubscription(newSubscription);
-    }
+    // Always sync the store, even when subscription becomes null
+    subscriptionStore.setCurrentSubscription(newSubscription || null);
   },
   { immediate: true }
 );

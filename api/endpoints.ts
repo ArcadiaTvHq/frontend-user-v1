@@ -52,6 +52,8 @@ export const ENDPOINTS = {
     GET_CARDS: "/subscriptions/cards",
     INITIALIZE_PAYMENT: (subscriptionId: string) =>
       `/subscriptions/${subscriptionId}/initialize-payment`,
+    CANCEL: "/subscriptions/cancel-subscription",
+    DELETE_CARD: (cardId: string) => `/subscriptions/cards/${cardId}`,
   },
   // Add more endpoint categories as needed
 } as const;

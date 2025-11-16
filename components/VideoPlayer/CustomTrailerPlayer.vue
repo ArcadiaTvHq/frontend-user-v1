@@ -278,6 +278,43 @@ const onPlaying = () => {
 
 const onWaiting = () => {
   isBuffering.value = true;
+  // Try to keep playback moving if we stall
+  const video = videoPlayer.value;
+  if (!video) return;
+  try {
+    const t = video.currentTime;
+    const b = video.buffered;
+    let jumped = false;
+    if (b && b.length > 0) {
+      for (let i = 0; i < b.length; i++) {
+        const start = b.start(i);
+        const end = b.end(i);
+        if (t < start && start - t > 0.1) {
+          console.log(
+            "⏩ [Trailer] Jumping over gap to buffered start:",
+            start
+          );
+          video.currentTime = start + 0.01;
+          jumped = true;
+          break;
+        }
+        if (t >= start && t <= end) {
+          jumped = true;
+          break;
+        }
+      }
+    }
+    if (!jumped && hlsInstance) {
+      console.log(
+        "📡 [Trailer] No buffered ranges on waiting - restarting HLS load"
+      );
+      try {
+        hlsInstance.startLoad();
+      } catch (e) {
+        console.warn("Failed to restart HLS load for trailer:", e);
+      }
+    }
+  } catch (e) {}
 };
 
 const onError = (e) => {

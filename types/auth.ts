@@ -15,6 +15,9 @@ export interface User {
   user_status: "active" | "inactive";
   location: string | null;
   subscription_id: string | null;
+  last_subscription_date?: string | null;
+  next_subscription_date?: string | null;
+  cancel_subscription_at_period_end?: boolean;
   subscription: Subscription | null;
 }
 

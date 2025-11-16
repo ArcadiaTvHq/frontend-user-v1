@@ -139,25 +139,76 @@
     <div v-if="hasPaidSubscription" class="w-4/5 mb-4">
       <div class="bg-red-900/20 rounded-lg p-3 border border-red-600">
         <h3 class="text-white font-semibold mb-2 text-sm">
-          Cancel Subscription
+          {{
+            cancelAtPeriodEnd ? "Cancellation Scheduled" : "Cancel Subscription"
+          }}
         </h3>
-        <p class="text-gray-400 text-xs mb-2">
+        <p class="text-gray-400 text-xs mb-2" v-if="!cancelAtPeriodEnd">
           Cancel your
           {{ currentSubscription && currentSubscription.name }}
           subscription. You'll lose access to premium features at the end of
           your billing period.
         </p>
+        <p class="text-gray-400 text-xs mb-2" v-else>
+          Your
+          {{ currentSubscription && currentSubscription.name }}
+          subscription will end on
+          <span class="text-red-300 font-semibold">
+            {{ formattedCancellationDate }} </span
+          >. You will retain access until this date.
+        </p>
         <button
-          class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs transition-colors w-full"
+          class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs transition-colors w-full disabled:opacity-60 disabled:cursor-not-allowed"
           @click="handleCancelSubscription"
+          :disabled="isCancelling || cancelAtPeriodEnd"
         >
-          Cancel Subscription
+          {{
+            cancelAtPeriodEnd
+              ? "Cancellation Scheduled"
+              : isCancelling
+              ? "Cancelling..."
+              : "Cancel Subscription"
+          }}
         </button>
       </div>
     </div>
 
+    <!-- Generic confirmation modal for destructive actions -->
     <div
-      class="mt-auto flex w-4/5 justify-start text-white gap-4 items-center mb-4"
+      v-if="confirmModal.visible"
+      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-4"
+    >
+      <div
+        class="bg-darkgray rounded-[12px] p-6 w-full max-w-[420px] shadow-xl border border-gray-700"
+      >
+        <h3 class="text-white font-semibold text-base mb-3">
+          {{ confirmModal.title }}
+        </h3>
+        <p class="text-gray-300 text-sm mb-5">
+          {{ confirmModal.message }}
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 rounded text-xs border border-gray-600 text-gray-200 hover:bg-gray-700 transition-colors"
+            @click="closeConfirmModal"
+            :disabled="confirmModal.loading"
+          >
+            {{ confirmModal.cancelLabel || "Close" }}
+          </button>
+          <button
+            class="px-4 py-2 rounded text-xs bg-red-600 hover:bg-red-700 text-white disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            @click="confirmModalConfirm"
+            :disabled="confirmModal.loading"
+          >
+            {{ confirmModal.confirmLabel || "Continue" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="mt-auto flex w-4/5 justify-start text-white gap-4 items-center mb-4 cursor-pointer hover:text-gold transition-colors"
+      @click="handleLogout"
     >
       <LazyIconsLogouticon />
       <p class="text-sm">Logout</p>
@@ -198,9 +249,13 @@
 
 <script setup>
 import { useSubscriptionStore } from "~/stores/subscription";
+import { useAuthStore } from "~/stores/auth";
+import { apiClient } from "~/api/client";
+import { ENDPOINTS } from "~/api/endpoints";
 import { SubscriptionService } from "~/api/services/subscription.service";
 
 const subscriptionStore = useSubscriptionStore();
+const authStore = useAuthStore();
 
 const props = defineProps({
   firstName: { type: String },
@@ -228,14 +283,78 @@ const subscriptionButtonText = computed(() => {
 
 // Computed property for current subscription
 const currentSubscription = computed(() => subscriptionStore.currentPlan);
+const user = computed(() => authStore.currentUser);
 
 // Computed property to check if user has a paid subscription
 const hasPaidSubscription = computed(() => {
   return currentSubscription.value && !currentSubscription.value.is_default;
 });
 
+// Whether user has scheduled cancellation at period end
+const cancelAtPeriodEnd = computed(
+  () => user.value?.cancel_subscription_at_period_end === true
+);
+
+const formattedCancellationDate = computed(() => {
+  const dateStr = user.value?.next_subscription_date;
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+});
+
+// Local loading state for cancel action
+const isCancelling = ref(false);
+
 // Payment cards data - fetched from API
 const paymentCards = ref([]);
+
+// Generic confirm modal state
+const confirmModal = ref({
+  visible: false,
+  title: "",
+  message: "",
+  confirmLabel: "",
+  cancelLabel: "Close",
+  loading: false,
+  // action to run on confirm
+  onConfirm: null,
+});
+
+function openConfirmModal(config) {
+  confirmModal.value.visible = true;
+  confirmModal.value.title = config.title;
+  confirmModal.value.message = config.message;
+  confirmModal.value.confirmLabel = config.confirmLabel || "Yes";
+  confirmModal.value.cancelLabel = config.cancelLabel || "Close";
+  confirmModal.value.onConfirm = config.onConfirm;
+  confirmModal.value.loading = false;
+}
+
+function closeConfirmModal() {
+  confirmModal.value.visible = false;
+  confirmModal.value.loading = false;
+  confirmModal.value.onConfirm = null;
+}
+
+async function confirmModalConfirm() {
+  if (!confirmModal.value.onConfirm) {
+    closeConfirmModal();
+    return;
+  }
+  try {
+    confirmModal.value.loading = true;
+    await confirmModal.value.onConfirm();
+  } finally {
+    closeConfirmModal();
+  }
+}
 
 // Fetch cards from API
 async function fetchCards() {
@@ -291,30 +410,39 @@ async function setDefaultCard(cardId) {
 }
 
 async function removeCard(cardId) {
-  if (confirm("Are you sure you want to remove this payment method?")) {
-    try {
-      const cardIndex = paymentCards.value.findIndex((c) => c.id === cardId);
-      if (cardIndex > -1) {
+  openConfirmModal({
+    title: "Remove Payment Method",
+    message:
+      "Are you sure you want to remove this payment method? You might need to add another card to keep your subscription active.",
+    confirmLabel: "Remove Card",
+    onConfirm: async () => {
+      try {
+        const cardIndex = paymentCards.value.findIndex((c) => c.id === cardId);
+        if (cardIndex === -1) return;
+
         const card = paymentCards.value[cardIndex];
-        // Don't allow removing the default card if it's the only card
-        if (card.isDefault && paymentCards.value.length === 1) {
-          alert(
-            "Cannot remove the only payment method. Please add another card first."
-          );
-          return;
-        }
+
+        // Call API to delete card on the backend
+        await SubscriptionService.deleteCard(cardId);
+
+        // Remove from local list
         paymentCards.value.splice(cardIndex, 1);
+
         // If we removed the default card, make the first remaining card default
         if (card.isDefault && paymentCards.value.length > 0) {
           paymentCards.value[0].isDefault = true;
         }
+      } catch (error) {
+        console.error("Error removing card:", error);
+        openConfirmModal({
+          title: "Failed to Remove Card",
+          message: "We couldn't remove this payment method. Please try again.",
+          confirmLabel: "OK",
+          onConfirm: () => {},
+        });
       }
-      // TODO: Implement API call to remove card
-      console.log("Removing card:", cardId);
-    } catch (error) {
-      console.error("Error removing card:", error);
-    }
-  }
+    },
+  });
 }
 
 function addNewCard() {
@@ -322,15 +450,83 @@ function addNewCard() {
   console.log("Adding new card");
 }
 
-function handleCancelSubscription() {
-  if (
-    confirm(
-      `Are you sure you want to cancel your ${currentSubscription.value?.name} subscription?`
-    )
-  ) {
-    // TODO: Implement cancel subscription logic
-    console.log("Cancelling subscription");
+async function handleCancelSubscription() {
+  if (!currentSubscription.value || currentSubscription.value.is_default) {
+    return;
   }
+
+  const planName = currentSubscription.value.name;
+
+  openConfirmModal({
+    title: "Cancel Subscription",
+    message: `Are you sure you want to cancel your ${planName} subscription? You will lose access to premium features at the end of your billing period.`,
+    confirmLabel: "Cancel Subscription",
+    cancelLabel: "Keep Subscription",
+    onConfirm: async () => {
+      try {
+        isCancelling.value = true;
+
+        const response = await SubscriptionService.cancelSubscription();
+
+        if (response.status === "success") {
+          // Refresh user data so subscription info stays in sync
+          try {
+            const meResponse = await apiClient.get(ENDPOINTS.USER.ME);
+            if (meResponse.status === "success") {
+              authStore.setUser(meResponse.data);
+              // Update subscription store with new subscription state
+              subscriptionStore.setCurrentSubscription(
+                meResponse.data.subscription
+              );
+            }
+          } catch (e) {
+            console.error("Error refreshing user after cancellation:", e);
+          }
+
+          // Show informational modal instead of alert
+          openConfirmModal({
+            title: "Cancellation Scheduled",
+            message:
+              "Your subscription has been cancelled and will end at the close of your current billing period.",
+            confirmLabel: "OK",
+            onConfirm: () => {},
+          });
+        } else {
+          openConfirmModal({
+            title: "Cancellation Failed",
+            message:
+              response.message ||
+              "Failed to cancel subscription. Please try again.",
+            confirmLabel: "OK",
+            onConfirm: () => {},
+          });
+        }
+      } catch (error) {
+        console.error("Error cancelling subscription:", error);
+        openConfirmModal({
+          title: "Cancellation Failed",
+          message: "Failed to cancel subscription. Please try again.",
+          confirmLabel: "OK",
+          onConfirm: () => {},
+        });
+      } finally {
+        isCancelling.value = false;
+      }
+    },
+  });
+}
+
+// Logout handler using the same confirm modal
+function handleLogout() {
+  openConfirmModal({
+    title: "Logout",
+    message: "Are you sure you want to log out of your account?",
+    confirmLabel: "Logout",
+    cancelLabel: "Stay Logged In",
+    onConfirm: () => {
+      return authStore.logout();
+    },
+  });
 }
 
 // Watch for subscription changes and update store
