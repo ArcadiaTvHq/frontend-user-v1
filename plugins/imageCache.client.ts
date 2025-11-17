@@ -5,7 +5,6 @@ export default defineNuxtPlugin(() => {
   if (process.client) {
     // Wait for app to be fully mounted before starting monitoring
     const startMonitoring = () => {
-      console.log("🚀 Starting image cache monitoring...");
       imageCacheManager.startMonitoring(60000); // Check every minute
 
       // Log initial stats
@@ -16,14 +15,11 @@ export default defineNuxtPlugin(() => {
     try {
       startMonitoring();
     } catch (error) {
-      console.log("⏳ Waiting for Pinia to initialize...");
       // Retry after a longer delay
       setTimeout(() => {
         try {
           startMonitoring();
-        } catch (error) {
-          console.warn("Failed to start image cache monitoring:", error);
-        }
+        } catch (error) {}
       }, 5000);
     }
 
@@ -35,7 +31,7 @@ export default defineNuxtPlugin(() => {
     // Expose cache manager to global scope for debugging
     if (process.dev) {
       (window as any).imageCacheManager = imageCacheManager;
-      console.log(
+      debugLog(
         "🔧 Image cache manager available as window.imageCacheManager (dev only)"
       );
     }

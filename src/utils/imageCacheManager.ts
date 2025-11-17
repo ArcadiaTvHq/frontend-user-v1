@@ -22,7 +22,6 @@ export class ImageCacheManager {
       try {
         this.blobStore = useBlobStore();
       } catch (error) {
-        console.warn("Pinia not ready yet, retrying...");
         return null;
       }
     }
@@ -69,7 +68,7 @@ export class ImageCacheManager {
         ? Math.round((stats.totalMemory / (1024 * 1024)) * 100) / 100
         : 0;
 
-    console.log("📊 Image Cache Stats:", {
+    debugLog("📊 Image Cache Stats:", {
       totalImages: stats.totalBlobs,
       memoryUsage: `${memoryUsageMB} MB`,
       averageAccessCount: stats.averageAccessCount,
@@ -88,14 +87,8 @@ export class ImageCacheManager {
       const memoryUsage = memory.usedJSHeapSize / memory.jsHeapSizeLimit;
 
       if (memoryUsage > 0.85) {
-        console.warn(
-          "⚠️ High memory pressure detected, triggering aggressive cleanup"
-        );
         this.aggressiveCleanup();
       } else if (memoryUsage > 0.7) {
-        console.warn(
-          "⚠️ Moderate memory pressure detected, triggering cleanup"
-        );
         this.cleanup();
       }
     }
@@ -116,8 +109,6 @@ export class ImageCacheManager {
     leastUsed.forEach(({ id }: { id: string }) => {
       store.removeBlob(id);
     });
-
-    console.log(`🧹 Aggressive cleanup: Removed ${leastUsed.length} images`);
   }
 
   /**
@@ -135,8 +126,6 @@ export class ImageCacheManager {
     leastUsed.forEach(({ id }: { id: string }) => {
       store.removeBlob(id);
     });
-
-    console.log(`🧹 Normal cleanup: Removed ${leastUsed.length} images`);
   }
 
   /**
@@ -190,7 +179,6 @@ export class ImageCacheManager {
     const store = this.getBlobStore();
     if (store) {
       store.clearAll();
-      console.log("🗑️ Cache cleared manually");
     }
   }
 
@@ -213,9 +201,6 @@ export class ImageCacheManager {
       }
     });
 
-    console.log(
-      `🗑️ Removed ${removedCount} images matching pattern: ${pattern}`
-    );
     return removedCount;
   }
 
@@ -238,7 +223,6 @@ export class ImageCacheManager {
       }
     });
 
-    console.log(`🗑️ Removed ${removedCount} images older than ${maxAgeMs}ms`);
     return removedCount;
   }
 
@@ -262,10 +246,6 @@ export class ImageCacheManager {
     toRemove.forEach(({ id }: { id: string }) => {
       store.removeBlob(id);
     });
-
-    console.log(
-      `⚡ Cache optimization: Removed ${toRemove.length} low-priority images`
-    );
   }
 }
 

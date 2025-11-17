@@ -29,9 +29,7 @@ export class LocalStorageService {
         timestamp: Date.now(),
       };
       localStorage.setItem(key, JSON.stringify(cacheItem));
-    } catch (error) {
-      console.error("Error saving to localStorage:", error);
-    }
+    } catch (error) {}
   }
 
   static get<T>(key: string): T | null {
@@ -47,7 +45,6 @@ export class LocalStorageService {
 
       return cacheItem.data;
     } catch (error) {
-      console.error("Error reading from localStorage:", error);
       return null;
     }
   }
@@ -55,9 +52,7 @@ export class LocalStorageService {
   static remove(key: string): void {
     try {
       localStorage.removeItem(key);
-    } catch (error) {
-      console.error("Error removing from localStorage:", error);
-    }
+    } catch (error) {}
   }
 
   static clear(): void {
@@ -68,9 +63,7 @@ export class LocalStorageService {
       if (authToken) {
         localStorage.setItem("auth_token", authToken);
       }
-    } catch (error) {
-      console.error("Error clearing localStorage:", error);
-    }
+    } catch (error) {}
   }
 
   // Content-specific methods

@@ -65,17 +65,7 @@ export const buildImageUrl = (
       setTimeout(async () => {
         try {
           await blobStore.fetchAndStoreBlob(imageId, size);
-        } catch (error) {
-          // Don't log warnings for permanent failures (404, null IDs) - they're expected
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (
-            !errorMessage.includes("Permanent failure") &&
-            !errorMessage.includes("null or empty")
-          ) {
-            console.warn(`Failed to cache image: ${imageId}`, error);
-          }
-        }
+        } catch (error) {}
       }, 0);
     }
 
@@ -107,15 +97,6 @@ export const preloadImage = async (
     return await blobStore.fetchAndStoreBlob(imageId, size);
   } catch (error) {
     // If fetch fails, return the direct URL as fallback
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (
-      errorMessage.includes("Permanent failure") ||
-      errorMessage.includes("null or empty")
-    ) {
-      console.debug(
-        `Returning fallback URL for permanently failed image: ${imageId}`
-      );
-    }
     return `${IMAGE_DELIVERY_BASE_URL}/${imageId}/${size}`;
   }
 };

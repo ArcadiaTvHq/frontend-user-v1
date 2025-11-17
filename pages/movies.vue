@@ -136,7 +136,6 @@ searchStore.performSearch = async (query) => {
 
     searchStore.searchResults = response.data || [];
   } catch (error) {
-    console.error("Movies search error:", error);
     searchStore.searchError = error.message || "Search failed";
     searchStore.searchResults = [];
   } finally {
@@ -216,17 +215,13 @@ const fetchMoviesContent = async () => {
         preloadContentImages(anticipated.data, "public"),
         preloadContentImages(recommended.data, "public"),
       ]);
-    } catch (error) {
-      console.warn("Failed to preload some movies images:", error);
-    }
+    } catch (error) {}
 
     // Clear any previous errors on success
     if (error.value) {
-      console.log("Clearing error after successful movies content load");
       clearError();
     }
   } catch (err) {
-    console.error("Error loading movies content:", err);
     handleApiError(err);
   } finally {
     moviesLoading.value = false;
@@ -236,16 +231,11 @@ const fetchMoviesContent = async () => {
 // Retry content loading
 const retryContent = async () => {
   try {
-    console.log("Retrying movies content...");
-
     // Clear error state before retrying
     clearError();
 
     await fetchMoviesContent();
-
-    console.log("Movies content retry successful");
   } catch (err) {
-    console.error("Retry failed:", err);
     // Error will be handled by the error view
   }
 };
@@ -253,7 +243,6 @@ const retryContent = async () => {
 // Refresh page - improved version that doesn't require full page reload
 const refreshPage = async () => {
   try {
-    console.log("Refreshing movies page...");
     isRefreshing.value = true;
 
     // Clear error state
@@ -268,15 +257,11 @@ const refreshPage = async () => {
     // Reload content
     await fetchMoviesContent();
 
-    console.log("Movies page refresh successful");
-
     // Ensure error is cleared after successful refresh
     if (error.value) {
-      console.log("Force clearing error after successful refresh");
       clearError();
     }
   } catch (err) {
-    console.error("Movies page refresh failed:", err);
     // Error will be handled by the error view
   } finally {
     isRefreshing.value = false;
@@ -287,24 +272,19 @@ const handleLogout = async () => {
   try {
     await authStore.logout();
     navigateTo("/login");
-  } catch (error) {
-    console.error("Logout failed:", error);
-  }
+  } catch (error) {}
 };
 
 // HeroHome event handlers
 const handleWatchContent = (content) => {
-  console.log("Watching movie:", content.title);
   navigateTo(`/watch/${content.slug}`);
 };
 
 const handleAddToList = (content) => {
-  console.log("Added movie to list:", content.title);
   // You can add toast notification or update user's watchlist here
 };
 
 const handleFilterClick = (filterType) => {
-  console.log("Filter clicked:", filterType);
   // Handle filter logic here
   switch (filterType) {
     case "genre":
@@ -320,12 +300,10 @@ const handleFilterClick = (filterType) => {
       // Handle sort filter
       break;
     default:
-      console.log("Unknown filter type:", filterType);
   }
 };
 
 const handleFiltersChanged = async (filterParams) => {
-  console.log("Filters changed:", filterParams);
   // Apply filters to search results
   if (hasSearchQuery.value) {
     await fetchSearchResultsWithFilters(filterParams);
@@ -344,7 +322,6 @@ const fetchSearchResultsWithFilters = async (filterParams) => {
 
     searchStore.searchResults = response.data || [];
   } catch (error) {
-    console.error("Filtered search error:", error);
     searchStore.searchError = error.message || "Search failed";
     searchStore.searchResults = [];
   }

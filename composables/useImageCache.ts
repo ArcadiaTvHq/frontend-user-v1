@@ -85,7 +85,6 @@ export const useImageCache = () => {
    */
   const forceCleanup = () => {
     if (isUnderMemoryPressure()) {
-      console.warn("🧹 Forcing cache cleanup due to memory pressure");
       imageCacheManager.optimizeCache();
       return true;
     }

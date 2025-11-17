@@ -141,12 +141,8 @@ export const useAuthStore = defineStore(
     // Function to clear content cache when auth state changes
     function clearContentCache(): void {
       try {
-        console.log("🧹 Clearing content cache due to auth state change...");
         LocalStorageService.clear();
-        console.log("✅ Content cache cleared successfully");
-      } catch (error) {
-        console.error("❌ Failed to clear content cache:", error);
-      }
+      } catch (error) {}
     }
 
     async function logout(): Promise<void> {
@@ -196,9 +192,7 @@ export const useAuthStore = defineStore(
           modalStore.isReview = false;
           // Clear toasts
           toastStore.clearAllToasts();
-        } catch (e) {
-          console.error("Error resetting stores on logout:", e);
-        }
+        } catch (e) {}
 
         // Navigate to login page
         navigateTo("/login");

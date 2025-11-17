@@ -72,7 +72,6 @@ export class SubscriptionService {
     const response = await apiClient.get<CardsResponse>(
       ENDPOINTS.SUBSCRIPTION.GET_CARDS
     );
-    console.log("Cards response:", response);
     return response;
   }
 

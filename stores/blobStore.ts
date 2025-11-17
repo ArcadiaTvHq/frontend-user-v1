@@ -101,9 +101,6 @@ export const useBlobStore = defineStore("blobStore", () => {
 
     // Don't retry if it's a permanent failure (404, null image ID, etc.)
     if (retryState.permanentFailure) {
-      console.log(
-        `BlobStore: Skipping retry for ${imageId} - permanent failure (404/null)`
-      );
       return false;
     }
 
@@ -238,12 +235,6 @@ export const useBlobStore = defineStore("blobStore", () => {
     toRemove.forEach(({ id }) => {
       removeBlob(id);
     });
-
-    console.log(
-      `Smart cleanup: Removed ${toRemove.length} blobs, kept ${
-        blobCount - toRemove.length
-      }`
-    );
   };
 
   /**
@@ -255,26 +246,19 @@ export const useBlobStore = defineStore("blobStore", () => {
   ): Promise<string> => {
     // Check for null or undefined image ID
     if (!imageId || imageId.trim() === "") {
-      console.warn(`BlobStore: Image ID is null or empty, skipping fetch`);
       throw new Error("Image ID is null or empty");
     }
-
-    console.log(`BlobStore: Fetching image ${imageId} with size ${size}`);
 
     // If already cached, return the blob URL and update access
     if (blobs[imageId]) {
       const blob = blobs[imageId];
       blob.lastAccessed = Date.now();
       blob.accessCount++;
-      console.log(
-        `BlobStore: Image ${imageId} already cached, returning URL: ${blob.url}`
-      );
       return blob.url;
     }
 
     // If already loading, wait for it to complete
     if (loading[imageId]) {
-      console.log(`BlobStore: Image ${imageId} already loading, waiting...`);
       return new Promise((resolve, reject) => {
         const checkLoading = () => {
           if (!loading[imageId]) {
@@ -298,9 +282,6 @@ export const useBlobStore = defineStore("blobStore", () => {
     if (!shouldRetry(imageId)) {
       const retryState = retryStates[imageId];
       if (retryState?.permanentFailure) {
-        console.log(
-          `BlobStore: Image ${imageId} has permanent failure (404/null), not retrying`
-        );
         throw new Error("Permanent failure: image not found or invalid");
       }
       const timeUntilRetry = retryState.nextRetryTime - Date.now();
@@ -314,19 +295,14 @@ export const useBlobStore = defineStore("blobStore", () => {
     // Start loading
     loading[imageId] = true;
     delete errors[imageId];
-    console.log(`BlobStore: Starting to fetch image ${imageId}`);
 
     try {
       const url = `${IMAGE_DELIVERY_BASE_URL}/${imageId}/${size}`;
-      console.log(`BlobStore: Fetching from URL: ${url}`);
 
       const response = await fetch(url);
 
       // Check for 404 - mark as permanent failure
       if (response.status === 404) {
-        console.warn(
-          `BlobStore: Image ${imageId} returned 404 - marking as permanent failure`
-        );
         const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         errors[imageId] = errorMessage;
         updateRetryState(imageId, false, true); // permanentFailure = true
@@ -339,9 +315,6 @@ export const useBlobStore = defineStore("blobStore", () => {
 
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-      console.log(
-        `BlobStore: Successfully fetched image ${imageId}, blob size: ${blob.size}, URL: ${blobUrl}`
-      );
 
       // Calculate priority for this image
       const priority = getImagePriority(imageId, size);
@@ -376,10 +349,6 @@ export const useBlobStore = defineStore("blobStore", () => {
       // Update retry state (will only mark as permanent if it's a 404)
       updateRetryState(imageId, false, isPermanentFailure);
 
-      console.error(
-        `BlobStore: Failed to fetch blob for image ${imageId}:`,
-        errorMessage
-      );
       throw error;
     } finally {
       loading[imageId] = false;
@@ -395,18 +364,12 @@ export const useBlobStore = defineStore("blobStore", () => {
   ): Promise<string> => {
     // Check for null or empty image ID
     if (!imageId || imageId.trim() === "") {
-      console.warn(
-        `BlobStore: Image ID is null or empty, skipping retry logic`
-      );
       throw new Error("Image ID is null or empty");
     }
 
     // Check if this image has a permanent failure (404, etc.)
     const retryState = retryStates[imageId];
     if (retryState?.permanentFailure) {
-      console.log(
-        `BlobStore: Image ${imageId} has permanent failure, not retrying`
-      );
       throw new Error("Permanent failure: image not found or invalid");
     }
 
@@ -425,17 +388,11 @@ export const useBlobStore = defineStore("blobStore", () => {
           errorMessage.includes("404") ||
           errorMessage.includes("Permanent failure")
         ) {
-          console.log(
-            `BlobStore: Permanent failure detected for ${imageId}, stopping retries`
-          );
           break;
         }
 
         if (attempt < MAX_RETRY_ATTEMPTS) {
           const delay = getRetryDelay(attempt);
-          console.log(
-            `Retrying image ${imageId} in ${delay}ms (attempt ${attempt}/${MAX_RETRY_ATTEMPTS})`
-          );
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
@@ -456,7 +413,6 @@ export const useBlobStore = defineStore("blobStore", () => {
       .filter((id) => {
         // Skip null, undefined, or empty strings
         if (!id || id.trim() === "") {
-          console.debug(`BlobStore: Skipping null/empty image ID in preload`);
           return false;
         }
         // Skip already cached or loading images
@@ -466,7 +422,6 @@ export const useBlobStore = defineStore("blobStore", () => {
         // Skip permanent failures
         const retryState = retryStates[id];
         if (retryState?.permanentFailure) {
-          console.debug(`BlobStore: Skipping permanently failed image ${id}`);
           return false;
         }
         return true;
@@ -480,12 +435,7 @@ export const useBlobStore = defineStore("blobStore", () => {
     const promises = sortedImageIds.map(async (imageId) => {
       try {
         await fetchWithRetry(imageId, size);
-      } catch (error) {
-        console.warn(
-          `Failed to preload image ${imageId} after retries:`,
-          error
-        );
-      }
+      } catch (error) {}
     });
 
     await Promise.allSettled(promises);

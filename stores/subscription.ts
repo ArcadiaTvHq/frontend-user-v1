@@ -38,7 +38,6 @@ export const useSubscriptionStore = defineStore(
         subscriptions.value = response.data;
       } catch (err: any) {
         error.value = err.message || "Failed to fetch subscriptions";
-        console.error("Error fetching subscriptions:", err);
       } finally {
         loading.value = false;
       }

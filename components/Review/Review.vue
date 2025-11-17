@@ -200,7 +200,6 @@ const handleSubmit = async () => {
     handleCancel();
 
     // You could add a success toast here
-    console.log("Review submitted successfully!");
   } catch (error) {
     console.error("Failed to submit review:", error);
     // You could add an error toast here

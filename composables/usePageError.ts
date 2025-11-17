@@ -39,8 +39,6 @@ export const usePageError = () => {
       await retryFunction();
       clearError(); // Clear error on successful retry
     } catch (retryError) {
-      console.error("Retry failed:", retryError);
-
       // Set new error or update existing one
       if (typeof retryError === "string") {
         setError(retryError);
@@ -64,8 +62,6 @@ export const usePageError = () => {
   };
 
   const handleApiError = (apiError) => {
-    console.error("API Error:", apiError);
-
     let errorInfo = {
       timestamp: new Date().toISOString(),
     };
@@ -135,8 +131,6 @@ export const usePageError = () => {
   };
 
   const handleNetworkError = (networkError) => {
-    console.error("Network Error:", networkError);
-
     setError({
       type: "NETWORK_ERROR",
       message:
@@ -147,8 +141,6 @@ export const usePageError = () => {
   };
 
   const handleValidationError = (validationError) => {
-    console.error("Validation Error:", validationError);
-
     setError({
       type: "VALIDATION_ERROR",
       message: "Please check your input and try again.",

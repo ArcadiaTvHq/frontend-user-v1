@@ -179,9 +179,6 @@ const {
 if (isFullVideo.value) {
   onBeforeRouteLeave((to, from, next) => {
     if (isSessionActive.value) {
-      console.log(
-        "🏁 Route navigation detected (CustomTrailerPlayer) - ending playback session as abandoned"
-      );
       endPlaybackSession("abandoned").catch((err) => {
         console.error(
           "Failed to end playback session on route navigation:",
@@ -290,10 +287,6 @@ const onWaiting = () => {
         const start = b.start(i);
         const end = b.end(i);
         if (t < start && start - t > 0.1) {
-          console.log(
-            "⏩ [Trailer] Jumping over gap to buffered start:",
-            start
-          );
           video.currentTime = start + 0.01;
           jumped = true;
           break;
@@ -305,9 +298,6 @@ const onWaiting = () => {
       }
     }
     if (!jumped && hlsInstance) {
-      console.log(
-        "📡 [Trailer] No buffered ranges on waiting - restarting HLS load"
-      );
       try {
         hlsInstance.startLoad();
       } catch (e) {
@@ -595,8 +585,6 @@ const retryLoad = () => {
 const initializeHLS = (url) => {
   if (!url || !videoPlayer.value) return;
 
-  console.log("🎬 Initializing HLS with URL:", url);
-
   // Clean up existing HLS instance
   if (hlsInstance) {
     hlsInstance.destroy();
@@ -604,7 +592,6 @@ const initializeHLS = (url) => {
   }
 
   if (Hls.isSupported()) {
-    console.log("🔧 Using HLS.js for streaming");
     hlsInstance = new Hls({
       debug: false,
       enableWorker: true,
@@ -623,7 +610,6 @@ const initializeHLS = (url) => {
     hlsInstance.attachMedia(videoPlayer.value);
 
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-      console.log("✅ HLS manifest loaded successfully");
       // Auto-play immediately when manifest is ready, but only if not interrupted
       if (props.autoplay && !isPlaying.value && !error.value) {
         // Small delay to ensure the manifest is fully processed
@@ -638,7 +624,6 @@ const initializeHLS = (url) => {
               if (err.name !== "AbortError") {
                 console.warn("Auto-play failed:", err);
               } else {
-                console.log("Auto-play was interrupted (likely due to retry)");
               }
             });
           }
@@ -647,8 +632,6 @@ const initializeHLS = (url) => {
     });
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-      console.error("HLS.js error:", data);
-
       // Try self-recovery for fatal errors to avoid endless buffering
       if (data.fatal) {
         switch (data.type) {
@@ -722,7 +705,6 @@ const initializeHLS = (url) => {
       bufferedPercent.value = calculateBufferedPercent();
     });
   } else if (videoPlayer.value.canPlayType("application/vnd.apple.mpegurl")) {
-    console.log("🍎 Using native HLS support (Safari)");
     videoPlayer.value.src = url;
     // Auto-play immediately for native HLS, but only if not interrupted
     if (props.autoplay && !isPlaying.value && !error.value) {
@@ -733,18 +715,15 @@ const initializeHLS = (url) => {
             if (err.name !== "AbortError") {
               console.warn("Auto-play failed:", err);
             } else {
-              console.log("Auto-play was interrupted (likely due to retry)");
             }
           });
         }
       }, 100);
     }
   } else {
-    console.log("⚠️ HLS not supported, using URL directly");
     // Only set src directly if HLS.js is definitely not available
     if (videoPlayer.value && typeof Hls === "undefined") {
       videoPlayer.value.src = url;
-      console.log("✅ Set video src for fallback:", url);
       // Auto-play immediately for fallback, but only if not interrupted
       if (props.autoplay && !isPlaying.value && !error.value) {
         // Small delay to ensure the source is set
@@ -754,14 +733,12 @@ const initializeHLS = (url) => {
               if (err.name !== "AbortError") {
                 console.warn("Auto-play failed:", err);
               } else {
-                console.log("Auto-play was interrupted (likely due to retry)");
               }
             });
           }
         }, 100);
       }
     } else {
-      console.log("⏳ Waiting for HLS.js to load before setting video src");
     }
   }
 };
@@ -799,11 +776,8 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
       response = await ContentService.getVideoSignedUrl(props.contentId);
     }
 
-    console.log("API Response:", response);
-
     if (response?.data?.signed_url) {
       let url = response.data.signed_url;
-      console.log("Original URL:", url);
 
       // Convert iframe URL to direct video URL
       if (url.includes("cloudflarestream.com") && url.includes("/iframe")) {
@@ -816,20 +790,14 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
           const customerCode =
             url.match(/customer-([^.]+)\.cloudflarestream\.com/)?.[1] || "";
           url = `https://customer-${customerCode}.cloudflarestream.com/${videoId}/${signedToken}/manifest/video.m3u8`;
-          console.log("Converted HLS URL:", url);
         }
       }
 
       streamUrl.value = url;
-      console.log("Final streamUrl:", streamUrl.value);
 
       // Start playback session for full videos only
       if (isFullVideo.value && props.contentId) {
         try {
-          console.log(
-            "🎬 Starting playback session for full video:",
-            props.contentId
-          );
           const session = await startPlayback(
             props.contentId,
             navigator.userAgent
@@ -837,10 +805,7 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
 
           // Attach watch tracker to playback session
           setWatchTracker(watchTracker);
-
-          console.log("✅ Playback session started successfully:", session);
         } catch (err) {
-          console.error("❌ Failed to start playback session:", err);
           // Continue without session - video can still play
         }
       }
@@ -850,7 +815,6 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
         if (videoPlayer.value) {
           initializeHLS(url);
         } else {
-          console.log("Video player not found");
         }
       });
 
@@ -861,21 +825,12 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
       throw new Error("No URL in response");
     }
   } catch (error) {
-    console.error(`Error fetching ${props.playerType} URL:`, error);
-
     if (retryCount < MAX_RETRIES) {
       const delay = getRetryDelay(retryCount + 1);
-      console.log(
-        `Retrying video fetch in ${delay}ms (attempt ${
-          retryCount + 1
-        }/${MAX_RETRIES})`
-      );
-
       setTimeout(() => {
         fetchStreamUrl(true, retryCount + 1);
       }, delay);
     } else {
-      console.error(`Failed to fetch video after ${MAX_RETRIES} attempts`);
       loadingMessage.value = "Unable to load video. Please try again later.";
       isLoading.value = false;
 
@@ -990,9 +945,7 @@ watch(
   (newIsPlaying) => {
     if (newIsPlaying !== null && videoPlayer.value && canPlay.value) {
       if (newIsPlaying && !isPlaying.value) {
-        videoPlayer.value.play().catch((err) => {
-          console.warn("Failed to play video:", err);
-        });
+        videoPlayer.value.play().catch((err) => {});
       } else if (!newIsPlaying && isPlaying.value) {
         videoPlayer.value.pause();
       }
@@ -1028,12 +981,7 @@ watch(
 onUnmounted(() => {
   // End playback session if active (for full videos only)
   if (isFullVideo.value && isSessionActive.value) {
-    console.log(
-      "🏁 Component unmounting (CustomTrailerPlayer) - ending playback session as ABANDONED"
-    );
-    endPlaybackSession("ABANDONED").catch((err) => {
-      console.error("Failed to end playback session on unmount:", err);
-    });
+    endPlaybackSession("ABANDONED").catch((err) => {});
   }
 
   if (hlsInstance) {
@@ -1058,7 +1006,6 @@ defineExpose({
   togglePlay,
   retryLoad,
   refreshUrl: () => {
-    console.log("🔄 Manual URL refresh requested");
     fetchStreamUrl();
   },
   getStreamUrl: () => streamUrl.value,
@@ -1095,29 +1042,17 @@ defineExpose({
   // Delayed autoplay method for external control
   delayedAutoplay: (delay = 5000) => {
     try {
-      console.log("🎬 delayedAutoplay called with delay:", delay);
-
       if (autoStartTimer.value) {
         clearTimeout(autoStartTimer.value);
       }
 
       autoStartTimer.value = setTimeout(() => {
         if (canPlay.value && !isPlaying.value && !error.value) {
-          console.log("🎬 Starting delayed autoplay");
           emit("update:isPlaying", true);
         } else {
-          console.log("🎬 Cannot start delayed autoplay:", {
-            canPlay: canPlay.value,
-            isPlaying: isPlaying.value,
-            hasError: !!error.value,
-          });
         }
       }, delay);
-
-      console.log("🎬 Delayed autoplay timer set for", delay, "ms");
-    } catch (error) {
-      console.error("🎬 Error in delayedAutoplay:", error);
-    }
+    } catch (error) {}
   },
 
   // Debug method to check available methods
@@ -1136,7 +1071,6 @@ defineExpose({
 
   // Safe delayed autoplay with fallback
   safeDelayedAutoplay: (delay = 5000) => {
-    console.warn("🎬 Using safeDelayedAutoplay fallback");
     // Fallback: directly emit after delay
     setTimeout(() => {
       if (canPlay.value && !isPlaying.value && !error.value) {

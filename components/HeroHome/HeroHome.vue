@@ -539,7 +539,6 @@ const watchContent = async () => {
       // Navigate to watch page
       await navigateTo(`/watch/${currentHeroContent.value.slug}`);
     } catch (error) {
-      console.error("Navigation failed:", error);
     } finally {
       watchLoading.value = false;
     }

@@ -135,7 +135,6 @@ export const useBlobImages = () => {
         !errorMessage.includes("Permanent failure") &&
         !errorMessage.includes("null or empty")
       ) {
-        console.warn(`Failed to retry image ${imageId}:`, error);
       }
       return null;
     }

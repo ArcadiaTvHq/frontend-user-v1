@@ -20,11 +20,24 @@ export interface Advert {
 export interface AdvertResponse {
   status: string;
   message: string;
-  data: Advert[];
+  data: {
+    start: Advert[];
+    middle: Advert[];
+    end: Advert[];
+    pause: Advert[];
+  };
 }
 
 export interface FetchAdvertsRequest {
   content_id?: string;
+}
+
+export interface AdvertActivityRequest {
+  advert_id: string;
+  content_id: string;
+  clicked: boolean;
+  skipped: boolean;
+  duration_watched: number;
 }
 
 export class AdvertService {
@@ -32,19 +45,21 @@ export class AdvertService {
     request: FetchAdvertsRequest = {}
   ): Promise<AdvertResponse> {
     try {
-      console.log("📺 Fetching adverts with request:", request);
-
       // Check if auth token is available
       if (process.client) {
         const token = localStorage.getItem("auth_token");
-        console.log("📺 Auth token available:", !!token);
       }
 
-      const response = await apiClient.post<AdvertResponse>(
-        ENDPOINTS.ADVERTS.FETCH,
-        request
-      );
-      console.log("📺 Advert response received:", response);
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (request.content_id) {
+        params.append("content_id", request.content_id);
+      }
+
+      const url = `${ENDPOINTS.ADVERTS.FETCH}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      const response = await apiClient.get<AdvertResponse>(url);
       return response;
     } catch (error) {
       console.error("❌ Error fetching adverts:", error);
@@ -115,5 +130,16 @@ export class AdvertService {
     }
     const randomIndex = Math.floor(Math.random() * adverts.length);
     return adverts[randomIndex];
+  }
+
+  static async trackAdvertActivity(
+    request: AdvertActivityRequest
+  ): Promise<void> {
+    try {
+      await apiClient.post(ENDPOINTS.ADVERTS.ACTIVITY, request);
+    } catch (error) {
+      console.error("❌ Error tracking advert activity:", error);
+      // Don't throw - we don't want to break the user experience if tracking fails
+    }
   }
 }

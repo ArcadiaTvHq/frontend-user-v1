@@ -31,8 +31,6 @@ export function useWatchTracker(contentId: string) {
    * Start a new watch stretch (on play)
    */
   const startStretch = (duration: number) => {
-    console.log(`📖 Starting watch stretch at ${duration.toFixed(2)}s`);
-
     // End current stretch if exists
     if (currentStretch.value) {
       endStretch(duration);
@@ -58,8 +56,6 @@ export function useWatchTracker(contentId: string) {
   const endStretch = (duration: number) => {
     if (!currentStretch.value) return;
 
-    console.log(`📖 Ending watch stretch at ${duration.toFixed(2)}s`);
-
     // Update the end values
     currentStretch.value.end_time = new Date();
     currentStretch.value.end_duration = duration;
@@ -74,10 +70,7 @@ export function useWatchTracker(contentId: string) {
         timestamp: new Date(),
         duration,
       });
-
-      console.log(`📖 Added watch stretch: ${stretchDuration.toFixed(2)}s`);
     } else {
-      console.log(`📖 Discarded short stretch: ${stretchDuration.toFixed(2)}s`);
     }
 
     currentStretch.value = null;
@@ -87,10 +80,6 @@ export function useWatchTracker(contentId: string) {
    * Handle seeking within video
    */
   const handleSeek = (fromDuration: number, toDuration: number) => {
-    console.log(
-      `📖 Seeking from ${fromDuration.toFixed(2)}s to ${toDuration.toFixed(2)}s`
-    );
-
     // End current stretch at seek position
     if (currentStretch.value) {
       endStretch(fromDuration);
@@ -112,7 +101,6 @@ export function useWatchTracker(contentId: string) {
    * Record a play event - starts a new stretch or resumes current
    */
   const recordPlay = () => {
-    console.log("📖 Recording play event");
     // Note: Duration will be provided by video player's timeupdate event
   };
 
@@ -156,12 +144,6 @@ export function useWatchTracker(contentId: string) {
     currentVideoTime: number
   ): IWatchStretch[] => {
     if (currentStretch.value) {
-      console.log(
-        `📖 Ending active stretch at ${currentVideoTime.toFixed(
-          2
-        )}s for heartbeat`
-      );
-
       // End the current stretch with the current video time
       currentStretch.value.end_time = new Date();
       currentStretch.value.end_duration = currentVideoTime;
@@ -196,9 +178,6 @@ export function useWatchTracker(contentId: string) {
   const markStretchesAsSent = (sentStretchesList: IWatchStretch[]) => {
     // Add the sent stretches to our sent list
     sentStretches.value.push(...sentStretchesList);
-    console.log(
-      `📖 Marked ${sentStretchesList.length} stretches as sent. Total sent: ${sentStretches.value.length}`
-    );
   };
 
   /**
@@ -222,7 +201,6 @@ export function useWatchTracker(contentId: string) {
    * Clear all recorded data
    */
   const clearData = () => {
-    console.log("📖 Clearing watch tracking data");
     watchStretches.value = [];
     sentStretches.value = [];
     currentStretch.value = null;
@@ -234,7 +212,6 @@ export function useWatchTracker(contentId: string) {
    */
   const reset = () => {
     clearData();
-    console.log(`📖 Watch tracker reset for content: ${contentId}`);
   };
 
   /**

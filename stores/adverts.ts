@@ -13,14 +13,20 @@ export const useAdvertStore = defineStore("adverts", () => {
   const beginningAdverts = computed(() => {
     if (!adverts.value) return [];
 
-    // Get adverts with "beginning" position AND video types only
-    const beginningVideoAdverts = AdvertService.getAdvertsByPositionAndType(
+    // Get adverts with "start" or "beginning" position AND video types only
+    const startAdverts = AdvertService.getAdvertsByPositionAndType(
+      adverts.value,
+      "start",
+      ["short_video", "long_video"]
+    );
+    const beginningAdverts = AdvertService.getAdvertsByPositionAndType(
       adverts.value,
       "beginning",
       ["short_video", "long_video"]
     );
 
-    return beginningVideoAdverts;
+    // Combine both (in case backend uses either)
+    return [...startAdverts, ...beginningAdverts];
   });
 
   const pauseAdverts = computed(() => {
@@ -28,8 +34,10 @@ export const useAdvertStore = defineStore("adverts", () => {
       return [];
     }
 
-    // For pause, use ANY image advert regardless of position
-    return AdvertService.getImageAdverts(adverts.value);
+    // For pause, use adverts with "pause" position
+    return AdvertService.getAdvertsByPositionAndType(adverts.value, "pause", [
+      "image",
+    ]);
   });
 
   const middleAdverts = computed(() =>
@@ -55,49 +63,36 @@ export const useAdvertStore = defineStore("adverts", () => {
       isLoading.value = true;
       error.value = null;
 
-      console.log("📺 Starting advert fetch with request:", request);
       const response = await AdvertService.fetchAdverts(request);
-      console.log("📺 Raw response from AdvertService:", response);
 
-      // The AdvertService now returns the full response object
-      // Check if response has data property with adverts array
+      // The response now has data.start, data.middle, data.end, data.pause arrays
       if (
         response &&
         typeof response === "object" &&
         "data" in response &&
-        Array.isArray(response.data)
+        response.data &&
+        typeof response.data === "object"
       ) {
-        adverts.value = response.data;
-        console.log(
-          "📺 Adverts loaded successfully:",
-          response.data.length,
-          "adverts"
-        );
+        // Flatten all adverts from all positions into a single array
+        const allAdverts: Advert[] = [
+          ...(response.data.start || []),
+          ...(response.data.middle || []),
+          ...(response.data.end || []),
+          ...(response.data.pause || []),
+        ];
+
+        adverts.value = allAdverts;
       } else if (Array.isArray(response)) {
-        // Fallback: if response is directly an array
+        // Fallback: if response is directly an array (old format)
         adverts.value = response;
-        console.log("📺 Adverts loaded directly:", response.length, "adverts");
       } else {
-        console.warn("⚠️ Unexpected advert response format:", response);
-        console.warn("⚠️ Response type:", typeof response);
-        console.warn(
-          "⚠️ Response keys:",
-          response ? Object.keys(response) : "null"
-        );
         adverts.value = [];
       }
-
-      console.log("📺 Final adverts state:", {
-        totalAdverts: adverts.value?.length || 0,
-        pauseAdverts: pauseAdverts.value?.length || 0,
-        beginningAdverts: beginningAdverts.value?.length || 0,
-      });
 
       return adverts.value;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch adverts";
-      console.error("❌ Error fetching adverts:", err);
       return [];
     } finally {
       isLoading.value = false;
@@ -111,12 +106,18 @@ export const useAdvertStore = defineStore("adverts", () => {
 
     let selectedAdverts: Advert[] = [];
 
-    if (position === "beginning") {
+    if (position === "beginning" || position === "start") {
       // Use the pre-filtered beginning adverts (already filtered for video types)
       selectedAdverts = beginningAdverts.value;
     } else if (position === "pause") {
       // Use the pre-filtered pause adverts (already filtered for image types)
       selectedAdverts = pauseAdverts.value;
+    } else if (position === "middle") {
+      // Use the pre-filtered middle adverts
+      selectedAdverts = middleAdverts.value;
+    } else if (position === "end") {
+      // Use the pre-filtered end adverts
+      selectedAdverts = endAdverts.value;
     } else {
       // For other positions, use the original logic
       selectedAdverts = AdvertService.getAdvertsByPositionAndType(

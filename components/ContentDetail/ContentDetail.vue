@@ -524,7 +524,6 @@ const handleAddToListClick = async () => {
       showSuccess("Added to watchlist");
     }
   } catch (error) {
-    console.error("Failed to toggle watchlist:", error);
     showError("Failed to update watchlist");
   }
 };
@@ -538,9 +537,7 @@ onMounted(async () => {
   if (isAuthenticated.value) {
     try {
       await watchlistStore.fetchWatchlist();
-    } catch (error) {
-      console.error("Failed to fetch watchlist:", error);
-    }
+    } catch (error) {}
   }
 });
 </script>

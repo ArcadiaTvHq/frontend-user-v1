@@ -45,12 +45,10 @@ const user = computed(() => authStore.user);
 // Fetch fresh user data
 async function fetchUserData() {
   try {
-    console.log("Fetching fresh user data...");
     const response = await apiClient.get(ENDPOINTS.USER.ME);
     if (response.status === "success") {
       // Update the auth store with fresh user data
       authStore.setUser(response.data);
-      console.log("User data refreshed successfully");
     }
   } catch (error) {
     console.error("Error fetching user data:", error);

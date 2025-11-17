@@ -193,7 +193,6 @@ const loadWatchlistContent = async () => {
     await watchlistStore.fetchWatchlistContent();
     watchlistContent.value = watchlistStore.getWatchlistContentItems;
   } catch (error) {
-    console.error("Failed to load watchlist content:", error);
   } finally {
     loading.value = false;
   }

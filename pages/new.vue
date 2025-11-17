@@ -122,7 +122,6 @@ searchStore.performSearch = async (query) => {
 
     searchStore.searchResults = response.data || [];
   } catch (error) {
-    console.error("New search error:", error);
     searchStore.searchError = error.message || "Search failed";
     searchStore.searchResults = [];
   } finally {
@@ -194,17 +193,13 @@ const fetchNewContent = async () => {
     // Preload all images for new content
     try {
       await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some new content images:", error);
-    }
+    } catch (error) {}
 
     // Clear any previous errors on success
     if (error.value) {
-      console.log("Clearing error after successful new content load");
       clearError();
     }
   } catch (err) {
-    console.error("Error loading new content:", err);
     handleApiError(err);
   } finally {
     newContentLoading.value = false;
@@ -214,16 +209,11 @@ const fetchNewContent = async () => {
 // Retry content loading
 const retryContent = async () => {
   try {
-    console.log("Retrying new content...");
-
     // Clear error state before retrying
     clearError();
 
     await fetchNewContent();
-
-    console.log("New content retry successful");
   } catch (err) {
-    console.error("Retry failed:", err);
     // Error will be handled by the error view
   }
 };
@@ -231,7 +221,6 @@ const retryContent = async () => {
 // Refresh page - improved version that doesn't require full page reload
 const refreshPage = async () => {
   try {
-    console.log("Refreshing new page...");
     isRefreshing.value = true;
 
     // Clear error state
@@ -246,15 +235,11 @@ const refreshPage = async () => {
     // Reload content
     await fetchNewContent();
 
-    console.log("New page refresh successful");
-
     // Ensure error is cleared after successful refresh
     if (error.value) {
-      console.log("Force clearing error after successful refresh");
       clearError();
     }
   } catch (err) {
-    console.error("New page refresh failed:", err);
     // Error will be handled by the error view
   } finally {
     isRefreshing.value = false;
@@ -265,24 +250,19 @@ const handleLogout = async () => {
   try {
     await authStore.logout();
     navigateTo("/login");
-  } catch (error) {
-    console.error("Logout failed:", error);
-  }
+  } catch (error) {}
 };
 
 // HeroHome event handlers
 const handleWatchContent = (content) => {
-  console.log("Watching new content:", content.title);
   navigateTo(`/watch/${content.slug}`);
 };
 
 const handleAddToList = (content) => {
-  console.log("Added new content to list:", content.title);
   // You can add toast notification or update user's watchlist here
 };
 
 const handleFilterClick = (filterType) => {
-  console.log("Filter clicked:", filterType);
   // Handle filter logic here
   switch (filterType) {
     case "genre":
@@ -298,12 +278,10 @@ const handleFilterClick = (filterType) => {
       // Handle sort filter
       break;
     default:
-      console.log("Unknown filter type:", filterType);
   }
 };
 
 const handleFiltersChanged = async (filterParams) => {
-  console.log("Filters changed:", filterParams);
   // Apply filters to search results
   if (hasSearchQuery.value) {
     await fetchSearchResultsWithFilters(filterParams);
@@ -322,7 +300,6 @@ const fetchSearchResultsWithFilters = async (filterParams) => {
 
     searchStore.searchResults = response.data || [];
   } catch (error) {
-    console.error("Filtered search error:", error);
     searchStore.searchError = error.message || "Search failed";
     searchStore.searchResults = [];
   }

@@ -474,7 +474,6 @@ const handleAddToList = async (content, event) => {
       wasInWatchlist,
     });
   } catch (error) {
-    console.error("Failed to toggle watchlist:", error);
     showError("Failed to update watchlist");
   }
 };

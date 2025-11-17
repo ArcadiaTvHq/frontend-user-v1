@@ -154,6 +154,11 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "skip", "visit"]);
 
+// Track duration watched for video ads and image ads
+const durationWatched = ref(0);
+const videoStartTime = ref(0);
+const imageStartTime = ref(0);
+
 // Function to open advert URL in new tab
 const openAdvertUrl = () => {
   // Try to find the URL from various possible property names
@@ -166,8 +171,8 @@ const openAdvertUrl = () => {
 
   if (advertUrl) {
     window.open(advertUrl, "_blank", "noopener,noreferrer");
-    // Emit visit event to notify parent component
-    emit("visit");
+    // Emit visit event to notify parent component with duration watched
+    emit("visit", getDurationWatched());
   }
 };
 
@@ -194,6 +199,10 @@ const onVideoLoaded = () => {
     props.advert?.type === "short_video" ||
     props.advert?.type === "long_video"
   ) {
+    // Reset duration watched when video loads
+    durationWatched.value = 0;
+    videoStartTime.value = Date.now();
+
     // Start advert countdown for video ads
     startAdvertCountdown();
 
@@ -217,20 +226,12 @@ const onVideoLoaded = () => {
         window.userHasInteracted;
 
       if (hasUserInteracted) {
-        console.log("✅ User has interacted, attempting advert autoplay");
         advertVideo.value.muted = false;
         advertVideo.value.play().catch((err) => {
-          console.warn(
-            "Advert autoplay failed even with user interaction:",
-            err
-          );
           // Fallback: show play button
           showAdvertPlayButton();
         });
       } else {
-        console.log(
-          "⚠️ No user interaction detected for advert, showing play button"
-        );
         // Show play button instead of autoplay
         showAdvertPlayButton();
       }
@@ -245,7 +246,6 @@ const handleAdvertInteraction = () => {
     advertVideo.value &&
     advertVideo.value.muted
   ) {
-    console.log("🔊 Unmuting advert after overlay interaction");
     advertVideo.value.muted = false;
 
     // Remove unmute indicator if it exists
@@ -261,7 +261,6 @@ const setupAdvertUserInteractionListeners = () => {
   const events = ["click", "touchstart", "keydown", "mousemove", "scroll"];
 
   const handleUserInteraction = () => {
-    console.log("✅ User interaction detected for advert, enabling autoplay");
     window.userHasInteracted = true;
 
     // Remove all listeners
@@ -272,15 +271,12 @@ const setupAdvertUserInteractionListeners = () => {
     // Try to start advert video
     if (advertVideo.value && advertVideo.value.paused) {
       advertVideo.value.muted = false;
-      advertVideo.value.play().catch((err) => {
-        console.warn("Failed to start advert after user interaction:", err);
-      });
+      advertVideo.value.play().catch((err) => {});
     }
 
     // Also try to unmute if currently muted
     if (advertVideo.value && advertVideo.value.muted) {
       advertVideo.value.muted = false;
-      console.log("🔊 Unmuted advert after user interaction");
     }
   };
 
@@ -450,8 +446,6 @@ const showAdvertPlayButton = () => {
 
     // Add proper click handler with video reference safety
     playButton.addEventListener("click", () => {
-      console.log("🎬 Advert play button clicked, attempting to start advert");
-
       // Remove the overlay first
       if (overlay.parentNode) {
         overlay.remove();
@@ -459,18 +453,13 @@ const showAdvertPlayButton = () => {
 
       // Try to start the advert video using the proper reference
       if (advertVideo.value && !advertVideo.value.paused) {
-        console.log("✅ Advert video is already playing");
         return;
       }
 
       if (advertVideo.value && advertVideo.value.paused) {
-        console.log("▶️ Starting advert video from play button");
         advertVideo.value.muted = false;
-        advertVideo.value.play().catch((err) => {
-          console.warn("Failed to start advert video from play button:", err);
-        });
+        advertVideo.value.play().catch((err) => {});
       } else {
-        console.warn("⚠️ Advert video player not available");
       }
     });
 
@@ -533,24 +522,18 @@ const initializeHLS = (url) => {
           window.userHasInteracted;
 
         if (hasUserInteracted) {
-          console.log("✅ User has interacted, attempting advert autoplay");
+          debugLog("✅ User has interacted, attempting advert autoplay");
           advertVideo.value.muted = false;
           advertVideo.value
             .play()
-            .then(() => {
-              console.log("✅ Advert started playing successfully (unmuted)");
-            })
+            .then(() => {})
             .catch((error) => {
-              console.warn(
-                "Advert autoplay failed, trying muted fallback:",
-                error
-              );
               // Fallback: mute and try to play, then unmute after a delay
               advertVideo.value.muted = true;
               advertVideo.value
                 .play()
                 .then(() => {
-                  console.log(
+                  debugLog(
                     "✅ Advert started playing muted, will unmute in 2 seconds"
                   );
                   // Unmute after 2 seconds with user interaction check
@@ -563,18 +546,10 @@ const initializeHLS = (url) => {
                         window.userHasInteracted;
 
                       if (hasUserInteracted) {
-                        console.log(
-                          "✅ User interaction detected, unmuting advert"
-                        );
                         // Try to unmute, but handle failure gracefully
                         try {
                           advertVideo.value.muted = false;
-                          console.log("🔊 Advert unmuted successfully");
                         } catch (error) {
-                          console.warn(
-                            "⚠️ Unmuting failed (try/catch), showing play button:",
-                            error
-                          );
                           showAdvertPlayButton();
                         }
 
@@ -584,9 +559,6 @@ const initializeHLS = (url) => {
                           // Double-check if unmuting actually worked
                           setTimeout(() => {
                             if (advertVideo.value && advertVideo.value.muted) {
-                              console.warn(
-                                "⚠️ Unmuting failed (still muted), showing play button"
-                              );
                               showAdvertPlayButton();
                             }
                           }, 100);
@@ -596,16 +568,10 @@ const initializeHLS = (url) => {
                         // This ensures user always has a way to interact with the advert
                         setTimeout(() => {
                           if (advertVideo.value && advertVideo.value.muted) {
-                            console.log(
-                              "🎬 Showing play button as unmuting fallback"
-                            );
                             showAdvertPlayButton();
                           }
                         }, 2500); // Show after 2.5 seconds if still muted
                       } else {
-                        console.log(
-                          "⚠️ No user interaction for unmuting, showing play button"
-                        );
                         // Show play button immediately when no user interaction
                         showAdvertPlayButton();
                       }
@@ -613,18 +579,11 @@ const initializeHLS = (url) => {
                   }, 2000);
                 })
                 .catch((fallbackError) => {
-                  console.warn(
-                    "Advert fallback autoplay also failed:",
-                    fallbackError
-                  );
                   // Show play button as final fallback
                   showAdvertPlayButton();
                 });
             });
         } else {
-          console.log(
-            "⚠️ No user interaction detected for advert, showing play button"
-          );
           // Setup user interaction listeners and show play button
           setupAdvertUserInteractionListeners();
           showAdvertPlayButton();
@@ -646,8 +605,8 @@ const initializeHLS = (url) => {
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
-        // For fatal errors, close the ad
-        emit("close");
+        // For fatal errors, close the ad - still track duration watched
+        emit("close", getDurationWatched());
       }
     });
   } else if (advertVideo.value.canPlayType("application/vnd.apple.mpegurl")) {
@@ -655,12 +614,19 @@ const initializeHLS = (url) => {
     advertVideo.value.src = url;
   } else {
     // HLS not supported for advert video
-    emit("close");
+    emit("close", getDurationWatched());
   }
 };
 
 const onTimeUpdate = () => {
-  // Handle video time updates if needed
+  // Track duration watched for video ads
+  if (
+    advertVideo.value &&
+    (props.advert?.type === "short_video" ||
+      props.advert?.type === "long_video")
+  ) {
+    durationWatched.value = Math.floor(advertVideo.value.currentTime || 0);
+  }
 };
 
 const onCanPlay = () => {
@@ -676,12 +642,13 @@ const onWaiting = () => {
 };
 
 const onAdEnded = () => {
-  emit("close");
+  // When ad ends naturally, use the full duration watched
+  emit("close", getDurationWatched());
 };
 
 const onAdError = (error) => {
-  // Advert video error
-  emit("close");
+  // Advert video error - still track duration watched up to error
+  emit("close", getDurationWatched());
 };
 
 const startAdvertCountdown = () => {
@@ -699,7 +666,7 @@ const startAdvertCountdown = () => {
       if (countdown.value <= 0) {
         clearInterval(advertCountdownInterval.value);
         advertCountdownInterval.value = null;
-        emit("close");
+        emit("close", getDurationWatched());
       }
     }, 1000);
   }
@@ -778,17 +745,35 @@ const startSkipCountdown = () => {
   }, 1000);
 };
 
+const getDurationWatched = () => {
+  // For video ads, use the video's currentTime
+  if (
+    props.advert?.type === "short_video" ||
+    props.advert?.type === "long_video"
+  ) {
+    return durationWatched.value;
+  }
+  // For image ads, calculate time since image was shown
+  if (props.advert?.type === "image" && imageStartTime.value > 0) {
+    return Math.floor((Date.now() - imageStartTime.value) / 1000);
+  }
+  return 0;
+};
+
 const skipAd = () => {
-  emit("skip");
+  emit("skip", getDurationWatched());
 };
 
 const closeAd = () => {
-  emit("close");
+  emit("close", getDurationWatched());
 };
 
 const resetCountdown = () => {
   canSkip.value = false;
   skipCountdown.value = props.skipDelay;
+  durationWatched.value = 0; // Reset duration watched when ad changes
+  videoStartTime.value = 0;
+  imageStartTime.value = 0;
 
   // Reset advert countdown based on type
   if (props.advert?.type === "image") {
@@ -855,6 +840,8 @@ watch(
 
       // Start special countdown for image ads (0s to 30s)
       if (props.advert?.type === "image") {
+        // Track start time for image ads
+        imageStartTime.value = Date.now();
         // Small delay to ensure resetCountdown has completed
         nextTick(() => {
           startImageAdCountdown();
@@ -932,3 +919,4 @@ onUnmounted(() => {
   height: 100vh;
 }
 </style>
+

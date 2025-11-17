@@ -145,69 +145,48 @@ const handleTouchStart = () => {
 
 // Navigation
 const goBack = async () => {
-  console.log("🔍 goBack called, videoPlayer:", !!videoPlayer.value);
-
   // End playback session before navigating
   if (
     videoPlayer.value &&
     typeof videoPlayer.value.isSessionActive === "function"
   ) {
     const isActive = videoPlayer.value.isSessionActive();
-    console.log("🔍 Session is active:", isActive);
-    console.log("🔍 Already ended session:", hasEndedSession.value);
 
     if (isActive && !hasEndedSession.value) {
-      console.log(
-        "🏁 Back button pressed - ending playback session before navigation"
-      );
       hasEndedSession.value = true; // Prevent double-ending
       try {
-        console.log("📞 Calling endPlaybackSession...");
         await videoPlayer.value.endPlaybackSession("abandoned");
-        console.log("✅ Playback session ended successfully");
       } catch (err) {
-        console.error("❌ Failed to end playback session:", err);
         // Continue with navigation even if session end fails
       }
     } else {
-      console.log("⏭️ Skipping session end - already ended or not active");
     }
   } else {
-    console.log("⏭️ No video player or isSessionActive not available");
   }
 
   // Simple approach: Use browser history if available
   if (history.length > 1 && document.referrer) {
     // Go back to previous page in browser history
-    console.log("🔙 Going back to previous page in browser history");
     router.back();
   } else {
     // Fallback: navigate to content detail page
-    console.log(`🔙 Navigating to content detail page`);
     router.push(`/watch/${route.params.slug}`);
   }
 };
 
 // Video event handlers
 const handleVideoStarted = () => {
-  console.log("Main video started");
   // Clear any previous errors
   if (error.value) {
     clearError();
   }
 };
 
-const handleVideoPaused = () => {
-  console.log("Main video paused");
-};
+const handleVideoPaused = () => {};
 
-const handleVideoEnded = () => {
-  console.log("Main video ended");
-};
+const handleVideoEnded = () => {};
 
 const handleVideoError = (videoError) => {
-  console.error("Main video error:", videoError);
-
   // Use the standardized error handling
   if (typeof videoError === "string") {
     setError({
@@ -230,7 +209,6 @@ const handleVideoError = (videoError) => {
 };
 
 const handleVideoReady = () => {
-  console.log("Main video ready");
   // Clear any previous errors
   if (error.value) {
     clearError();
@@ -248,9 +226,7 @@ const retryVideo = async () => {
 
     // Small delay to ensure the DOM updates properly
     await nextTick();
-    console.log(`Video retry initiated with key ${videoKey.value}`);
   } catch (err) {
-    console.error("Retry failed:", err);
     // Error will be handled by the error view
   }
 };
@@ -262,7 +238,6 @@ const loadContent = async () => {
     const response = await ContentService.getContentBySlug(route.params.slug);
     content.value = response.data;
   } catch (err) {
-    console.error("Error fetching content details:", err);
     handleApiError(err);
   }
 };
@@ -274,15 +249,9 @@ const ensureAdvertsLoaded = async () => {
 
   // If no adverts are loaded, fetch them
   if (!advertStore.adverts || advertStore.adverts.length === 0) {
-    console.log("📊 No adverts loaded, fetching adverts for content");
     try {
       await advertStore.fetchAdverts({ content_id: content.value?.id });
-      console.log("✅ Adverts loaded successfully");
-    } catch (error) {
-      console.warn("⚠️ Failed to load adverts, continuing without ads:", error);
-    }
-  } else {
-    console.log("📊 Adverts already loaded:", advertStore.adverts.length);
+    } catch (error) {}
   }
 };
 
@@ -292,9 +261,6 @@ onMounted(async () => {
     !document.referrer ||
     !document.referrer.includes(window.location.origin)
   ) {
-    console.log(
-      "🚫 Direct access to video page blocked - redirecting to detail page"
-    );
     router.push(`/watch/${route.params.slug}`);
     return;
   }
@@ -322,14 +288,10 @@ onBeforeUnmount(async () => {
   ) {
     const isActive = videoPlayer.value.isSessionActive();
     if (isActive) {
-      console.log("🏁 Page unmounting - ending playback session");
       hasEndedSession.value = true; // Prevent double-ending
       try {
         await videoPlayer.value.endPlaybackSession("abandoned");
-        console.log("✅ Playback session ended successfully on page exit");
-      } catch (err) {
-        console.error("❌ Failed to end playback session on page exit:", err);
-      }
+      } catch (err) {}
     }
   }
 });

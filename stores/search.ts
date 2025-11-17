@@ -35,7 +35,6 @@ export const useSearchStore = defineStore("search", () => {
 
       searchResults.value = response.data || [];
     } catch (error: any) {
-      console.error("Search error:", error);
       searchError.value = error.message || "Search failed";
       searchResults.value = [];
     } finally {

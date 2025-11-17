@@ -203,9 +203,7 @@ const fetchAnticipatedContent = async () => {
     // Preload all images for anticipated content
     try {
       await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some anticipated images:", error);
-    }
+    } catch (error) {}
   } catch (err) {
     anticipatedError.value = err.message;
   } finally {
@@ -224,9 +222,7 @@ const fetchRecommendedContent = async () => {
     // Preload all images for recommended content
     try {
       await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some recommended images:", error);
-    }
+    } catch (error) {}
   } catch (err) {
     recommendedError.value = err.message;
   } finally {
@@ -245,9 +241,7 @@ const fetchTrendingContent = async () => {
     // Preload all images for trending content
     try {
       await preloadContentImages(response.data, "public");
-    } catch (error) {
-      console.warn("Failed to preload some trending images:", error);
-    }
+    } catch (error) {}
   } catch (err) {
     trendingError.value = err.message;
   } finally {
@@ -259,24 +253,19 @@ const handleLogout = async () => {
   try {
     await authStore.logout();
     navigateTo("/login");
-  } catch (error) {
-    console.error("Logout failed:", error);
-  }
+  } catch (error) {}
 };
 
 // HeroHome event handlers
 const handleWatchContent = (content) => {
-  console.log("Watching content:", content.title);
   // Additional logic can be added here (analytics, etc.)
 };
 
 const handleAddToList = (content) => {
-  console.log("Added to list:", content.title);
   // You can add toast notification or update user's watchlist here
 };
 
 const handleFilterClick = (filterType) => {
-  console.log("Filter clicked:", filterType);
   // Handle filter logic here
   switch (filterType) {
     case "genre":
@@ -292,12 +281,10 @@ const handleFilterClick = (filterType) => {
       // Handle sort filter
       break;
     default:
-      console.log("Unknown filter type:", filterType);
   }
 };
 
 const handleFiltersChanged = async (filterParams) => {
-  console.log("Filters changed:", filterParams);
   // Apply filters to search results
   if (hasSearchQuery.value) {
     await fetchSearchResultsWithFilters(filterParams);
@@ -316,7 +303,6 @@ const fetchSearchResultsWithFilters = async (filterParams) => {
 
     searchStore.searchResults = response.data || [];
   } catch (error) {
-    console.error("Filtered search error:", error);
     searchStore.searchError = error.message || "Search failed";
     searchStore.searchResults = [];
   }

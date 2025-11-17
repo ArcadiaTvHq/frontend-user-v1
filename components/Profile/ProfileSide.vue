@@ -403,7 +403,6 @@ async function setDefaultCard(cardId) {
       card.isDefault = true;
     }
     // TODO: Implement API call to set default card
-    console.log("Setting card as default:", cardId);
   } catch (error) {
     console.error("Error setting default card:", error);
   }
@@ -433,7 +432,6 @@ async function removeCard(cardId) {
           paymentCards.value[0].isDefault = true;
         }
       } catch (error) {
-        console.error("Error removing card:", error);
         openConfirmModal({
           title: "Failed to Remove Card",
           message: "We couldn't remove this payment method. Please try again.",
@@ -447,7 +445,7 @@ async function removeCard(cardId) {
 
 function addNewCard() {
   // TODO: Implement add new card functionality
-  console.log("Adding new card");
+  debugLog("Adding new card");
 }
 
 async function handleCancelSubscription() {

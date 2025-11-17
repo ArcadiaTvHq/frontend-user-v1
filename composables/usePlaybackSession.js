@@ -68,7 +68,6 @@ export function usePlaybackSession() {
         startHeartbeat();
         startTokenRefresh();
 
-        console.log("✅ Playback session started successfully", response.data);
         return response.data;
       } else {
         throw new Error(response.message || "Failed to start playback session");
@@ -77,7 +76,6 @@ export function usePlaybackSession() {
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error occurred";
       error.value = errorMessage;
-      console.error("❌ Error starting playback session:", err);
       throw err;
     } finally {
       isLoading.value = false;
@@ -102,7 +100,6 @@ export function usePlaybackSession() {
         };
 
         stats.value.tokenRefreshCount++;
-        console.log("✅ Playback session updated successfully");
         return response.data;
       } else {
         throw new Error(
@@ -113,13 +110,11 @@ export function usePlaybackSession() {
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error occurred";
       error.value = errorMessage;
-      console.error("❌ Error updating playback session:", err);
       throw err;
     }
   };
 
   const stopPlayback = () => {
-    console.log("⏹️ Stopping playback session");
 
     // Clear intervals
     if (heartbeatInterval) {
@@ -138,7 +133,6 @@ export function usePlaybackSession() {
     stats.value.activeTokens = 0;
     error.value = null;
 
-    console.log("⏹️ Playback session stopped");
   };
 
   // Heartbeat functionality
@@ -156,14 +150,8 @@ export function usePlaybackSession() {
         if (currentVideoTime !== null && currentVideoTime >= 0) {
           watchStretches =
             watchTracker.endActiveStretchAndGetNewStretches(currentVideoTime);
-          console.log(
-            `💓 Ended active stretch and sending heartbeat with ${watchStretches.length} NEW watch stretches`
-          );
         } else {
           watchStretches = watchTracker.getWatchStretches();
-          console.log(
-            `💓 Sending heartbeat with ${watchStretches.length} watch stretches (no video time provided)`
-          );
         }
       }
 
@@ -174,7 +162,6 @@ export function usePlaybackSession() {
 
       if (response.success) {
         stats.value.heartbeatCount++;
-        console.log("💓 Heartbeat sent successfully");
 
         // Mark stretches as sent to avoid resending them
         if (
@@ -187,14 +174,11 @@ export function usePlaybackSession() {
 
         // Check if current token is about to expire (within 1 minute)
         if (isTokenExpiringSoon.value) {
-          console.log("⚠️ Token expiring soon, triggering auto-refresh");
           await updatePlayback(contentId);
         }
       } else {
-        console.warn("⚠️ Heartbeat failed:", response.message);
       }
     } catch (err) {
-      console.warn("⚠️ Heartbeat error:", err);
     }
   };
 
@@ -206,7 +190,6 @@ export function usePlaybackSession() {
       sendHeartbeat(currentSession.value.contentId);
     }, 30000);
 
-    console.log("💓 Heartbeat started (every 30 seconds)");
   };
 
   // Token refresh functionality
@@ -216,18 +199,13 @@ export function usePlaybackSession() {
     // Check token expiry every 30 seconds and refresh if needed
     tokenRefreshInterval = setInterval(async () => {
       if (currentSession.value && isTokenExpiringSoon.value) {
-        console.log("🔄 Proactive token refresh triggered");
         try {
           await updatePlayback(currentSession.value.contentId);
         } catch (err) {
-          console.error("❌ Failed to refresh token:", err);
         }
       }
     }, 30000);
 
-    console.log(
-      "🔄 Proactive token refresh started (checking every 30 seconds)"
-    );
   };
 
   // Auto-update video URL when token changes
@@ -238,7 +216,6 @@ export function usePlaybackSession() {
 
     // Only update if there's already a video loaded
     if (currentSrc && currentSrc.includes("cloudflarestream.com")) {
-      console.log("🔄 Auto-updating video URL with new token");
 
       // Store current playback position and state
       const currentTime = videoElement.currentTime;
@@ -254,13 +231,9 @@ export function usePlaybackSession() {
         if (videoElement.readyState >= 1) {
           if (currentTime > 0) {
             videoElement.currentTime = currentTime;
-            console.log(
-              `⏱️ Restored playback position to ${Math.floor(currentTime)}s`
-            );
           }
           if (wasPlaying) {
             videoElement.play().catch((e) => {
-              console.warn(`⚠️ Could not auto-resume: ${e.message}`);
             });
           }
         }
@@ -274,7 +247,6 @@ export function usePlaybackSession() {
       const response = await PlaybackService.testPrivateKey();
 
       if (response.success) {
-        console.log("✅ Private key test successful:", response.data);
         return response.data;
       } else {
         throw new Error(response.message || "Private key test failed");
@@ -283,21 +255,14 @@ export function usePlaybackSession() {
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error occurred";
       error.value = errorMessage;
-      console.error("❌ Error testing private key:", err);
       throw err;
     }
   };
 
   // End playback session functionality
   const endPlaybackSession = async (status) => {
-    console.log("🔍 endPlaybackSession called with status:", status);
-    console.log("🔍 currentSession.value:", currentSession.value);
-    console.log("🔍 contentId:", currentSession.value?.contentId);
 
     if (!currentSession.value?.contentId) {
-      console.warn(
-        "⚠️ Cannot end session - no contentId found in currentSession"
-      );
       return;
     }
 
@@ -306,9 +271,6 @@ export function usePlaybackSession() {
       let watchStretches = [];
       if (watchTracker && typeof watchTracker.getAllStretches === "function") {
         watchStretches = watchTracker.getAllStretches();
-        console.log(
-          `🏁 Ending playback session with status '${status}' and ${watchStretches.length} watch stretches`
-        );
       }
 
       const response = await PlaybackService.endPlaybackSession(
@@ -318,9 +280,6 @@ export function usePlaybackSession() {
       );
 
       if (response.success) {
-        console.log(
-          `🏁 Playback session ended successfully with status: ${status}`
-        );
 
         // Clear any active stretches if completed
         if (watchTracker && typeof watchTracker.clearData === "function") {
@@ -350,11 +309,6 @@ export function usePlaybackSession() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error occurred";
-      console.error(
-        `❌ Error ending playback session with status '${status}':`,
-        err
-      );
-
       // Still clear the local session state even if the API call failed
       stopPlayback();
 
@@ -370,11 +324,10 @@ export function usePlaybackSession() {
   // Watch tracker functionality
   const setWatchTracker = (tracker) => {
     watchTracker = tracker;
-    console.log("📊 Watch tracker attached to playback session");
   };
 
   // Auto-update stats every second
-  const statsInterval = setInterval(updateStats, 5000); // Changed from 1000ms to 5000ms to reduce CPU usage
+  const statsInterval = setInterval(updateStats, 5000);
 
   // Cleanup on unmount
   onUnmounted(() => {

@@ -118,7 +118,6 @@ onMounted(async () => {
     const response = await SubscriptionService.getSubscriptions();
     subscriptions.value = response.data || [];
   } catch (error) {
-    console.error("Failed to fetch subscriptions:", error);
     subscriptions.value = [];
   }
 

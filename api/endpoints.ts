@@ -34,7 +34,8 @@ export const ENDPOINTS = {
     TEST_KEY: "/playback/test-private-key",
   },
   ADVERTS: {
-    FETCH: "/adverts/public/fetch",
+    FETCH: "/adverts/fetch/playback",
+    ACTIVITY: "/adverts/activity",
   },
   CONTENT_INTERACTION: {
     COMMENTS: (contentId: string) =>

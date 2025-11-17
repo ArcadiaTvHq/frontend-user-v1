@@ -375,9 +375,7 @@ const { data: contentData, pending: contentPending } = await useAsyncData(
         response.data.in_watch_list = watchlistStore.isInWatchlist(
           response.data.id
         );
-      } catch (error) {
-        console.error("Failed to fetch watchlist:", error);
-      }
+      } catch (error) {}
     }
     return response;
   },
@@ -401,9 +399,7 @@ const { data: similarData, pending: similarPending } = await useAsyncData(
         response.data.forEach((item) => {
           item.in_watch_list = watchlistStore.isInWatchlist(item.id);
         });
-      } catch (error) {
-        console.error("Failed to fetch watchlist for similar content:", error);
-      }
+      } catch (error) {}
     }
     return response;
   },
@@ -445,24 +441,12 @@ const detectMobileDevice = () => {
     (isSmallScreen && hasMobileFeatures) ||
     isMobileMediaQuery;
 
-  // Debug logging
-  console.log("Mobile detection debug:", {
-    userAgent: userAgent.substring(0, 100) + "...",
-    isMobileUA,
-    hasTouch,
-    isSmallScreen,
-    hasMobileFeatures,
-    isMobileMediaQuery,
-    finalResult: isMobileDevice,
-  });
-
   return isMobileDevice;
 };
 
 // Initialize mobile detection once on mount
 const initializeMobileDetection = () => {
   isMobile.value = detectMobileDevice();
-  console.log("Device detected as:", isMobile.value ? "mobile" : "desktop");
 };
 
 // Fallback mobile detection using computed property for reliability
@@ -475,9 +459,6 @@ const isMobileComputed = computed(() => {
 
   // If screen size suggests mobile but detection didn't, log it
   if (screenSizeMobile && !isMobile.value) {
-    console.warn(
-      "Mobile detection may have failed, using screen size fallback"
-    );
   }
 
   return isMobile.value || screenSizeMobile;
@@ -496,16 +477,12 @@ const checkEpisodeAccess = () => {
 
       // If we reach a series (not a season), navigate to it
       if (currentContent.type === "series") {
-        console.log(
-          `🔙 Redirecting from episode to series: ${currentContent.slug}`
-        );
         router.push(`/watch/${currentContent.slug}`);
         return;
       }
     }
 
     // Fallback: if no series found, redirect to home
-    console.log(`🔙 No series found for episode, redirecting to home`);
     router.push("/");
   }
   // If content is a season, redirect to its parent series
@@ -519,16 +496,12 @@ const checkEpisodeAccess = () => {
 
       // If we reach a series, navigate to it
       if (currentContent.type === "series") {
-        console.log(
-          `🔙 Redirecting from season to series: ${currentContent.slug}`
-        );
         router.push(`/watch/${currentContent.slug}`);
         return;
       }
     }
 
     // Fallback: if no series found, redirect to home
-    console.log(`🔙 No series found for season, redirecting to home`);
     router.push("/");
   }
 };
@@ -558,62 +531,23 @@ onMounted(async () => {
       // Fetch adverts for this content so pause ads can work
       if (advertStore && content.value?.id) {
         try {
-          console.log("📺 Fetching adverts for content:", content.value.id);
           const fetchedAdverts = await advertStore.fetchAdverts({
             content_id: content.value.id,
           });
-          console.log("📺 Adverts fetched successfully:", {
-            totalAdverts: fetchedAdverts?.length || 0,
-            pauseAdverts: advertStore.pauseAdverts?.length || 0,
-            beginningAdverts: advertStore.beginningAdverts?.length || 0,
-          });
-        } catch (error) {
-          console.warn("⚠️ Failed to fetch adverts:", error);
-        }
+        } catch (error) {}
       } else {
-        console.log("📺 Cannot fetch adverts:", {
-          hasAdvertStore: !!advertStore,
-          hasContentId: !!content.value?.id,
-        });
       }
     }
 
     if (similarData.value?.data) {
       relatedContent.value = similarData.value.data;
-      console.log(
-        "Similar content loaded:",
-        relatedContent.value.length,
-        "items"
-      );
-      console.log("First item:", relatedContent.value[3]);
-
-      // Debug image IDs
-      if (relatedContent.value[3]) {
-        console.log(
-          "First item poster ID:",
-          relatedContent.value[3].poster_image_id
-        );
-        console.log(
-          "First item banner ID:",
-          relatedContent.value[3].banner_image_id
-        );
-        console.log(
-          "First item thumbnail ID:",
-          relatedContent.value[3].thumbnail_image_id
-        );
-      }
 
       // Preload images and wait for them to be ready
       try {
         await preloadContentImages(similarData.value.data, "public");
-        console.log("Images preloaded successfully");
-      } catch (error) {
-        console.warn("Failed to preload some similar images:", error);
-      }
+      } catch (error) {}
     }
-  } catch (error) {
-    console.error("Error processing content data:", error);
-  }
+  } catch (error) {}
   // No loading state to manage - component-level loading eliminated
 });
 
@@ -642,7 +576,6 @@ watchEffect(() => {
 
   if (!content.value && !contentPending.value) {
     // Content failed to load
-    console.error("Content failed to load");
     // This will trigger the error state in the template
   }
 });
@@ -650,11 +583,8 @@ watchEffect(() => {
 // Watch for video error state changes
 watch(videoError, (newErrorState) => {
   if (newErrorState) {
-    console.log("Video error state activated");
-    // Log additional debugging information
     checkVideoPlayerHealth();
   } else {
-    console.log("Video error state cleared");
   }
 });
 
@@ -708,12 +638,9 @@ const handleVideoStarted = () => {
   videoStarted.value = true;
 };
 
-const handleVideoPaused = () => {
-  console.log("Video paused");
-};
+const handleVideoPaused = () => {};
 
 const handleVideoEnded = () => {
-  console.log("Video ended");
   // On mobile, close the trailer when it ends
   if (isMobileComputed.value) {
     watchingTrailer.value = false;
@@ -721,7 +648,6 @@ const handleVideoEnded = () => {
 };
 
 const handleVideoError = (error) => {
-  console.error("Video error:", error);
   videoRetryCount.value++;
 
   if (videoRetryCount.value <= maxVideoRetries.value) {
@@ -732,10 +658,6 @@ const handleVideoError = (error) => {
       error.code === "FETCH_FAILED";
 
     if (shouldAutoRetry) {
-      console.log(
-        `Auto-retrying video (${videoRetryCount.value}/${maxVideoRetries.value})...`
-      );
-
       // If not watching trailer, do silent background retry
       if (!watchingTrailer.value) {
         startBackgroundRetry();
@@ -769,7 +691,6 @@ const handleVideoError = (error) => {
 };
 
 const handleVideoReady = () => {
-  console.log("✅ Video is ready");
   videoError.value = false;
   videoErrorMessage.value = "";
   videoRetryCount.value = 0;
@@ -783,11 +704,9 @@ const handleVideoReady = () => {
 };
 
 const retryVideo = async () => {
-  console.log("🔄 Retrying video playback...");
   videoRetryCount.value++;
 
   if (videoRetryCount.value > maxVideoRetries.value) {
-    console.log("❌ Max retry attempts reached");
     videoErrorMessage.value =
       "Maximum retry attempts reached. Please try again later.";
     return;
@@ -804,8 +723,6 @@ const retryVideo = async () => {
       : videoPlayerRefs.value.desktop;
 
     if (currentPlayer && typeof currentPlayer.forceRetry === "function") {
-      console.log("Using video player's built-in retry method...");
-
       // Clear any existing error state in the player
       if (typeof currentPlayer.clearError === "function") {
         currentPlayer.clearError();
@@ -817,26 +734,18 @@ const retryVideo = async () => {
       }, 100);
     } else {
       // Fallback: increment video key to force re-render
-      console.log("Using fallback retry method...");
       videoKey.value++;
     }
 
     // Small delay to ensure the DOM updates properly
-    nextTick(() => {
-      console.log(`Video retry initiated with key ${videoKey.value}`);
-    });
-
-    console.log("✅ Video retry completed");
+    nextTick(() => {});
   } catch (error) {
-    console.error("❌ Video retry failed:", error);
     videoError.value = true;
     videoErrorMessage.value = "Failed to retry video. Please try again.";
   }
 };
 
 const goBackToDetail = async () => {
-  console.log("🔙 Navigating back to content listing...");
-
   try {
     // First, try to end the playback session if there's an active video player
     const currentPlayer = isMobile.value
@@ -848,12 +757,9 @@ const goBackToDetail = async () => {
       typeof currentPlayer.isSessionActive === "function" &&
       currentPlayer.isSessionActive()
     ) {
-      console.log("🏁 Ending playback session before navigation...");
       try {
         await currentPlayer.endPlaybackSession("abandoned");
-        console.log("✅ Playback session ended successfully");
       } catch (sessionError) {
-        console.error("❌ Failed to end playback session:", sessionError);
         // Continue with navigation even if session end fails
       }
     }
@@ -875,13 +781,10 @@ const goBackToDetail = async () => {
       targetRoute = "/movies";
     }
 
-    console.log(`🎯 Navigating to: ${targetRoute}`);
-
     // Use a more robust navigation approach
     try {
       await navigateTo(targetRoute);
     } catch (navError) {
-      console.error("❌ navigateTo failed:", navError);
       // Try alternative navigation methods
       if (window.history && window.history.length > 1) {
         window.history.back();
@@ -891,7 +794,6 @@ const goBackToDetail = async () => {
       }
     }
   } catch (error) {
-    console.error("❌ Navigation failed:", error);
     // Fallback to window.history
     if (window.history && window.history.length > 1) {
       window.history.back();
@@ -969,7 +871,6 @@ const retryContent = async () => {
       (response) => {
         if (response?.data) {
           relatedContent.value = response.data;
-          console.log("Related content:", relatedContent.value);
         }
       }
     );
@@ -979,10 +880,7 @@ const retryContent = async () => {
     videoErrorMessage.value = "";
     videoRetryCount.value = 0;
     videoKey.value = 0; // Reset video key for clean state
-
-    console.log("Content refreshed successfully");
   } catch (error) {
-    console.error("Failed to refresh content:", error);
     // Show error message
     videoError.value = true;
     videoErrorMessage.value =
@@ -1009,12 +907,10 @@ const checkVideoPlayerHealth = () => {
 
   if (mobilePlayer && typeof mobilePlayer.getUrlHealth === "function") {
     const mobileHealth = mobilePlayer.getUrlHealth();
-    console.log("Mobile video player health:", mobileHealth);
   }
 
   if (desktopPlayer && typeof desktopPlayer.getUrlHealth === "function") {
     const desktopHealth = desktopPlayer.getUrlHealth();
-    console.log("Desktop video player health:", desktopHealth);
   }
 };
 
@@ -1022,7 +918,6 @@ const checkVideoPlayerHealth = () => {
 const startBackgroundRetry = () => {
   if (isBackgroundRetrying.value) return;
 
-  console.log("🔄 Starting silent background retry...");
   isBackgroundRetrying.value = true;
 
   // Clear any existing interval
@@ -1036,11 +931,6 @@ const startBackgroundRetry = () => {
       videoRetryCount.value <= maxVideoRetries.value &&
       !watchingTrailer.value
     ) {
-      console.log(
-        `🔄 Silent background retry attempt ${videoRetryCount.value + 1}/${
-          maxVideoRetries.value
-        }`
-      );
       silentRetryVideo();
     } else {
       stopBackgroundRetry();
@@ -1054,11 +944,9 @@ const stopBackgroundRetry = () => {
     backgroundRetryInterval.value = null;
   }
   isBackgroundRetrying.value = false;
-  console.log("🔄 Background retry stopped");
 };
 
 const silentRetryVideo = () => {
-  console.log("🔄 Silent video retry...");
   const currentPlayer = isMobile.value
     ? videoPlayerRefs.value.mobile
     : videoPlayerRefs.value.desktop;

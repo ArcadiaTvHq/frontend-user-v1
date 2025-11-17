@@ -269,24 +269,20 @@ function handleUpgradePlan(subscription) {
 
 function handleCancelSubscription() {
   // TODO: Implement cancellation logic
-  console.log("Cancelling subscription");
 }
 
 // Initialize payment for subscription
 async function initializePayment(subscriptionId) {
   try {
-    console.log("Initializing payment for subscription:", subscriptionId);
     const response = await apiClient.post(
       ENDPOINTS.SUBSCRIPTION.INITIALIZE_PAYMENT(subscriptionId)
     );
-    console.log("Payment initialization response:", response);
 
     // Check if the response is successful and has authorization URL
     if (response.status === "success" && response.data?.authorization_url) {
       // Redirect to Paystack checkout
       window.location.href = response.data.authorization_url;
     } else {
-      console.error("Invalid response format or missing authorization URL");
     }
   } catch (error) {
     console.error("Error initializing payment:", error);
