@@ -417,8 +417,7 @@ const handlePlaybackUpdate = async (
       if (shouldContinueAtPosition && wasPlaying) {
         setTimeout(() => {
           if (videoPlayer.value && videoPlayer.value.paused) {
-            safePlay(false, "high").catch((err) => {
-            });
+            safePlay(false, "high").catch((err) => {});
           }
         }, 500);
       }
@@ -429,7 +428,6 @@ const handlePlaybackUpdate = async (
       );
     }
   } catch (error) {
-
     // Increment retry count
     errorRetryCount++;
 
@@ -465,7 +463,6 @@ const handleResumeFromLastDuration = async (timeInSeconds) => {
 
         // Play the video
         await videoPlayer.value.play();
-
       } else {
         // Wait for video to be ready
         const waitForReady = () => {
@@ -725,8 +722,7 @@ const sendHeartbeat = async () => {
       await updatePlayback(props.contentId);
       emit("tokenRefreshed");
     }
-  } catch (err) {
-  }
+  } catch (err) {}
 };
 
 const startHeartbeat = () => {
@@ -741,7 +737,6 @@ const startHeartbeat = () => {
   heartbeatInterval = setInterval(() => {
     sendHeartbeat();
   }, 300000);
-
 };
 
 const startTokenRefresh = () => {
@@ -789,13 +784,10 @@ const startTokenRefresh = () => {
             currentSession.value.expires_at =
               response.expires_at || response.expires_in_seconds;
           }
-
         }
-      } catch (err) {
-      }
+      } catch (err) {}
     }
   }, 780000); // 13 minutes
-
 };
 
 // Smart token refresh with adaptive timing
@@ -843,13 +835,10 @@ const startSmartTokenRefresh = () => {
             currentSession.value.expires_at =
               response.expires_at || response.expires_in_seconds;
           }
-
         }
-      } catch (err) {
-      }
+      } catch (err) {}
     }
   }, 780000); // 13 minutes
-
 };
 
 // Loading message is no longer needed - simplified loading experience
@@ -910,8 +899,7 @@ const onCanPlay = () => {
     !showAdvertOverlay.value &&
     !hasAds
   ) {
-    safePlay(false, "high").catch((err) => {
-    });
+    safePlay(false, "high").catch((err) => {});
   } else if (showAdvertOverlay.value || hasAds) {
   }
 
@@ -980,8 +968,7 @@ const onWaiting = () => {
       if (!jumped && hlsInstance) {
         try {
           hlsInstance.startLoad();
-        } catch (e) {
-        }
+        } catch (e) {}
       }
     }
   } catch (e) {}
@@ -1033,12 +1020,10 @@ const onError = (e) => {
 
   error.value = enhancedError;
   emit("error", enhancedError);
-
 };
 
 // Retry playback functionality
 const retryPlayback = async () => {
-
   try {
     // Reset error state
     error.value = null;
@@ -1048,8 +1033,7 @@ const retryPlayback = async () => {
     if (props.contentId && isSessionActive.value) {
       try {
         await updatePlayback(props.contentId);
-      } catch (sessionError) {
-      }
+      } catch (sessionError) {}
     }
 
     // Reset video player
@@ -1063,9 +1047,7 @@ const retryPlayback = async () => {
       await initializeStreaming();
     } else {
     }
-
   } catch (retryError) {
-
     // Check if it's an authentication error
     if (retryError.message && retryError.message.includes("401")) {
       error.value = {
@@ -1097,7 +1079,6 @@ const resetError = () => {
 
 // Handle HLS 401/403 errors by updating playback session and retrying
 const handleHls401Error = async () => {
-
   try {
     // Show loading state
     isLoading.value = true;
@@ -1215,8 +1196,7 @@ const handleTimeUpdate = (e) => {
     props.autoplay &&
     !showAdvertOverlay.value
   ) {
-    safePlay(false, "high").catch((err) => {
-    });
+    safePlay(false, "high").catch((err) => {});
   }
 
   // Record time update with watch tracker
@@ -1256,8 +1236,7 @@ const handleTimeUpdate = (e) => {
     hasEndedPlayback.value = true;
 
     // End playback session as COMPLETED
-    endPlaybackSession("completed").catch((err) => {
-    });
+    endPlaybackSession("completed").catch((err) => {});
   }
 
   if (Math.floor(current) !== lastEmittedSecond.value) {
@@ -1300,7 +1279,6 @@ const handleVideoClick = () => {
 
 // Enhanced seeking event handlers
 const handleSeeking = () => {
-
   // Store the current time as the "from" time for tracking
   seekFromTime.value = currentTime.value;
 
@@ -1316,7 +1294,6 @@ const handleSeeking = () => {
 };
 
 const handleSeeked = () => {
-
   // Store the seek target time
   seekToTime.value = currentTime.value;
 
@@ -1420,7 +1397,6 @@ const showBeginningAdvert = () => {
     showAdvertOverlay.value = true;
     hasShownBeginningAd.value = true;
 
-
     // Double-check video is paused after a small delay
     setTimeout(() => {
       if (videoPlayer.value && !videoPlayer.value.paused) {
@@ -1434,7 +1410,6 @@ const showBeginningAdvert = () => {
 };
 
 const showMiddleAdvert = () => {
-
   // Check if advert store is available
   if (!advertStore) {
     return;
@@ -1468,13 +1443,11 @@ const showMiddleAdvert = () => {
     currentAdvert.value = middleAdvert;
     showAdvertOverlay.value = true;
     hasShownMiddleAd.value = true;
-
   } else {
   }
 };
 
 const showEndAdvert = () => {
-
   // Check if advert store is available
   if (!advertStore) {
     return;
@@ -1508,13 +1481,11 @@ const showEndAdvert = () => {
     currentAdvert.value = endAdvert;
     showAdvertOverlay.value = true;
     hasShownEndAd.value = true;
-
   } else {
   }
 };
 
 const showPauseAdvert = () => {
-
   // Prevent pause ads during beginning ads
   if (showAdvertOverlay.value && hasShownBeginningAd.value === false) {
     return;
@@ -1575,7 +1546,6 @@ const trackAdvertActivity = async (clicked, skipped, durationWatched) => {
 };
 
 const onAdvertClose = (durationWatched = 0) => {
-
   // Track activity: not clicked, not skipped, with duration watched
   trackAdvertActivity(false, false, durationWatched);
 
@@ -1595,7 +1565,6 @@ const onAdvertClose = (durationWatched = 0) => {
   // Video ads (beginning, middle, end) should resume playback
   const shouldResumePlayback =
     isVideoAd && (isBeginningAd || isMiddleAd || isEndAd);
-
 
   // Clean up advert state
   showAdvertOverlay.value = false;
@@ -1625,7 +1594,6 @@ const onAdvertClose = (durationWatched = 0) => {
     const startMainVideoWithDelay = (delay = 100) => {
       setTimeout(() => {
         if (videoPlayer.value && videoPlayer.value.paused) {
-
           // Check if video is ready to play
           if (canPlay.value && !isLoading.value) {
             // Use user interaction-aware autoplay
@@ -1661,7 +1629,6 @@ const onAdvertClose = (durationWatched = 0) => {
 };
 
 const onAdvertSkip = (durationWatched = 0) => {
-
   // Track activity: not clicked, skipped, with duration watched
   trackAdvertActivity(false, true, durationWatched);
 
@@ -1679,7 +1646,6 @@ const onAdvertSkip = (durationWatched = 0) => {
   // Video ads (beginning, middle, end) should resume playback
   const shouldResumePlayback =
     isVideoAd && (isBeginningAd || isMiddleAd || isEndAd);
-
 
   showAdvertOverlay.value = false;
   currentAdvert.value = null;
@@ -1700,7 +1666,6 @@ const onAdvertSkip = (durationWatched = 0) => {
     // Start the main video
     safePlay(false, "high")
       .then(() => {
-
         // Show resume toast after main video starts (if available and not already shown)
         if (
           !hasShownResumeToast.value &&
@@ -1714,14 +1679,12 @@ const onAdvertSkip = (durationWatched = 0) => {
         } else if (hasShownResumeToast.value) {
         }
       })
-      .catch((err) => {
-      });
+      .catch((err) => {});
   } else if (!shouldResumePlayback) {
   }
 };
 
 const onAdvertVisit = (durationWatched = 0) => {
-
   // Track activity: clicked, not skipped, with duration watched
   trackAdvertActivity(true, false, durationWatched);
 
@@ -1731,7 +1694,6 @@ const onAdvertVisit = (durationWatched = 0) => {
     !hasShownBeginningAd.value ||
     advertType === "short_video" ||
     advertType === "long_video";
-
 
   // Advert was clicked, close overlay
   showAdvertOverlay.value = false;
@@ -1744,11 +1706,9 @@ const onAdvertVisit = (durationWatched = 0) => {
 
   // Only start playing the main video for beginning ads, not pause ads
   if (isBeginningAd && videoPlayer.value && videoPlayer.value.paused) {
-
     // Start the main video
     safePlay(false, "high")
       .then(() => {
-
         // Show resume toast after main video starts (if available and not already shown)
         if (
           !hasShownResumeToast.value &&
@@ -1762,8 +1722,7 @@ const onAdvertVisit = (durationWatched = 0) => {
         } else if (hasShownResumeToast.value) {
         }
       })
-      .catch((err) => {
-      });
+      .catch((err) => {});
   } else if (!isBeginningAd) {
   }
 };
@@ -1921,7 +1880,6 @@ const startProactiveBufferMonitoring = () => {
 };
 
 const startBufferRebuilding = () => {
-
   // Monitor buffer growth during rebuilding
   const rebuildCheckInterval = setInterval(() => {
     const currentBuffer = getCurrentBufferLength();
@@ -1960,11 +1918,9 @@ const resumePlaybackAfterRebuild = () => {
       videoPlayer.value.paused &&
       currentBuffer >= NETWORK_OPTIMIZATION.criticalBufferThreshold
     ) {
-
       // Use unified playback control for automatic resumption
       safePlay(false, "high")
-        .then(() => {
-        })
+        .then(() => {})
         .catch((error) => {
           // Retry with normal priority after a delay
           setTimeout(() => {
@@ -2100,8 +2056,7 @@ const handleBufferStallRecovery = (errorData) => {
       } else {
       }
     }, 5000);
-  } catch (error) {
-  }
+  } catch (error) {}
 };
 
 const reduceQualityToLowest = () => {
@@ -2174,9 +2129,7 @@ const optimizeVideoPerformance = () => {
     if (videoPlayer.value.preload !== "auto") {
       videoPlayer.value.preload = "auto";
     }
-
-  } catch (e) {
-  }
+  } catch (e) {}
 };
 
 // Enhanced quality adaptation based on buffer levels - Stable playback mode with segment cancellation prevention
@@ -2267,8 +2220,7 @@ const setupUserInteractionListeners = () => {
 
     // Try to start video
     if (videoPlayer.value && videoPlayer.value.paused) {
-      safePlay(false, "high").catch((err) => {
-      });
+      safePlay(false, "high").catch((err) => {});
     }
   };
 
@@ -2327,7 +2279,6 @@ const showPlayButtonFallback = () => {
 
     // Add proper click handler with video reference safety
     playButton.addEventListener("click", () => {
-
       // Remove the overlay first
       if (overlay.parentNode) {
         overlay.remove();
@@ -2342,8 +2293,7 @@ const showPlayButtonFallback = () => {
         safePlay(false, "high").catch((err) => {
           // Fallback: try direct play
           if (videoPlayer.value && videoPlayer.value.paused) {
-            videoPlayer.value.play().catch((directError) => {
-            });
+            videoPlayer.value.play().catch((directError) => {});
           }
         });
       } else {
@@ -2422,12 +2372,10 @@ const startPreBuffering = async () => {
       monitorPreloadBuffer();
     });
 
-    preloadHls.on(Hls.Events.LEVEL_LOADED, () => {
-    });
+    preloadHls.on(Hls.Events.LEVEL_LOADED, () => {});
 
     preloadHls.on(Hls.Events.ERROR, (event, data) => {
       if (data.fatal) {
-
         // Check if it's a 401/403 error in preload
         if (
           data.details === "FRAG_LOAD_ERROR" &&
@@ -2597,8 +2545,7 @@ const initializeDirectVideo = (url) => {
 
   // Auto-play if enabled - but don't start if ads are showing
   if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
-    safePlay(false, "high").catch((err) => {
-    });
+    safePlay(false, "high").catch((err) => {});
   } else if (showAdvertOverlay.value) {
   }
 
@@ -2707,8 +2654,7 @@ const initializeHLS = (url) => {
       // Without this, HLS won't fetch video segments and only heartbeat will show in network tab
       try {
         hlsInstance.startLoad();
-      } catch (e) {
-      }
+      } catch (e) {}
 
       // Start buffering immediately
       startBuffering();
@@ -2729,24 +2675,19 @@ const initializeHLS = (url) => {
     hlsInstance.on(Hls.Events.FRAG_LOADED, () => {
       // Update buffering progress when fragments are loaded
       bufferedPercent.value = calculateBufferedPercent();
-
     });
 
     hlsInstance.on(Hls.Events.FRAG_LOADING, () => {
       // Monitor fragment loading to prevent unnecessary cancellations
     });
 
-    hlsInstance.on(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED, () => {
-    });
+    hlsInstance.on(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED, () => {});
 
-    hlsInstance.on(Hls.Events.FRAG_LOAD_ERROR, (event, data) => {
-    });
+    hlsInstance.on(Hls.Events.FRAG_LOAD_ERROR, (event, data) => {});
 
     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-
       // Smart error management with self-recovery to avoid endless buffering
       if (data.fatal) {
-
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           try {
             hlsInstance.startLoad();
@@ -2811,8 +2752,7 @@ const initializeHLS = (url) => {
     videoPlayer.value.src = url;
     // Auto-play immediately for native HLS - but don't start if ads are showing
     if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
-      safePlay(false, "high").catch((err) => {
-      });
+      safePlay(false, "high").catch((err) => {});
     } else if (showAdvertOverlay.value) {
     }
   } else {
@@ -2821,8 +2761,7 @@ const initializeHLS = (url) => {
       videoPlayer.value.src = url;
       // Auto-play immediately for fallback - but don't start if ads are showing
       if (props.autoplay && !isPlaying.value && !showAdvertOverlay.value) {
-        safePlay(false, "high").catch((err) => {
-        });
+        safePlay(false, "high").catch((err) => {});
       } else if (showAdvertOverlay.value) {
       }
     } else {
@@ -2832,7 +2771,6 @@ const initializeHLS = (url) => {
 
 // Token update callback for auto-updating video URL
 const onTokenUpdate = async (newToken) => {
-
   if (hlsInstance && hlsInstance.media) {
     try {
       // Store current playback position and state
@@ -2843,7 +2781,6 @@ const onTokenUpdate = async (newToken) => {
 
       // Check if we have a pre-buffered stream that's truly ready
       if (preloadBufferReady && isStreamReady && preloadHls && preloadUrl) {
-
         // Perform instant switch using pre-buffered stream
         await performInstantSwitch(
           currentTime,
@@ -2852,7 +2789,6 @@ const onTokenUpdate = async (newToken) => {
           currentPlaybackRate
         );
       } else {
-
         // Switch to new stream seamlessly
         await switchToNewStream(
           newToken,
@@ -2862,8 +2798,7 @@ const onTokenUpdate = async (newToken) => {
           currentPlaybackRate
         );
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   } else if (
     videoPlayer.value.src &&
     videoPlayer.value.src.includes("cloudflarestream.com")
@@ -2891,13 +2826,13 @@ const onTokenUpdate = async (newToken) => {
           videoPlayer.value.playbackRate = currentPlaybackRate;
 
           if (wasPlaying) {
-            safePlay(true, "high").catch((e) =>
-            );
+            safePlay(true, "high").catch(() => {});
           }
         },
         { once: true }
       );
     } catch (error) {
+      // Ignore native video source update errors silently after removing logs
     }
   }
 };
@@ -2947,8 +2882,7 @@ const switchToNewStream = async (
         : 100;
       setTimeout(() => {
         // Use unified playback control to prevent conflicts
-        safePlay(true, "high").catch((error) => {
-        });
+        safePlay(true, "high").catch((error) => {});
       }, adaptiveDelay);
     }
 
@@ -2998,8 +2932,7 @@ const performInstantSwitch = async (
         ? 50
         : 100;
       setTimeout(() => {
-        safePlay(true, "high").catch((error) => {
-        });
+        safePlay(true, "high").catch((error) => {});
       }, adaptiveDelay);
     }
 
@@ -3068,10 +3001,8 @@ const waitForSufficientBuffer = () => {
       if (bufferLength >= MIN_BUFFER_LENGTH) {
         // Use unified playback control for initial start
         safePlay(false, "high")
-          .then(() => {
-          })
-          .catch((error) => {
-          });
+          .then(() => {})
+          .catch((error) => {});
       } else {
         // Still building initial buffer
         setTimeout(checkBuffer, 200);
@@ -3101,7 +3032,6 @@ const initializePlaybackSession = async () => {
     const session = await startPlayback(props.contentId, navigator.userAgent);
 
     if (session) {
-
       // Reset completion tracking for new session
       hasEndedPlayback.value = false;
 
@@ -3229,10 +3159,15 @@ onMounted(() => {
 
   // Small delay to ensure everything is initialized
   setTimeout(() => {
-
     // Check if advert store is available and has adverts
     // Also check if beginning ads haven't already been shown
-    if (advertStore && advertStore.adverts && advertStore.adverts.length > 0 && !hasShownBeginningAd.value && !showAdvertOverlay.value) {
+    if (
+      advertStore &&
+      advertStore.adverts &&
+      advertStore.adverts.length > 0 &&
+      !hasShownBeginningAd.value &&
+      !showAdvertOverlay.value
+    ) {
       // Video loaded, showing beginning advert immediately
       showBeginningAdvert();
     } else {
@@ -3304,7 +3239,6 @@ const handleSeek = (time) => {
 
   // Wait for seek to complete and resume playback smoothly
   seekTimeout = setTimeout(() => {
-
     // Reset seeking state
     isSeeking = false;
 
@@ -3344,8 +3278,7 @@ const handleSeek = (time) => {
 
             // Only resume if we have sufficient buffer
             if (bufferLength >= MIN_BUFFER_LENGTH) {
-              safePlay(true, "high").catch((err) => {
-              });
+              safePlay(true, "high").catch((err) => {});
             } else {
               // Wait for more buffer
               waitForBufferAfterSeek();
@@ -3388,8 +3321,7 @@ const waitForBufferAfterSeek = () => {
     }
 
     if (bufferLength >= MIN_BUFFER_LENGTH) {
-      safePlay(true, "high").catch((err) => {
-      });
+      safePlay(true, "high").catch((err) => {});
     } else {
       setTimeout(checkBuffer, 100);
     }
@@ -3459,8 +3391,7 @@ watch(
     if (newBannerImage) {
       try {
         await preloadImage(newBannerImage, "size3");
-      } catch (err) {
-      }
+      } catch (err) {}
     }
   },
   { immediate: true }
