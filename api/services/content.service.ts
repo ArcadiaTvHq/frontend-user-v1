@@ -171,11 +171,25 @@ export class ContentService {
   static async getRecommendedContent(
     type?: string
   ): Promise<ContentListResponse> {
+    // Check cache first (only if no type filter)
+    if (!type) {
+      const cachedRecommended = LocalStorageService.getRecommendedContent();
+      if (cachedRecommended) {
+        return cachedRecommended;
+      }
+    }
+
     const params = type ? { type } : {};
     const response = await apiClient.get<ContentListResponse>(
       ENDPOINTS.CONTENT.RECOMMENDED,
       { params }
     );
+
+    // Cache the response (only if no type filter)
+    if (!type) {
+      LocalStorageService.setRecommendedContent(response);
+    }
+
     return response;
   }
 
@@ -185,11 +199,25 @@ export class ContentService {
    * @returns Promise with content list response
    */
   static async getTrendingContent(type?: string): Promise<ContentListResponse> {
+    // Check cache first (only if no type filter)
+    if (!type) {
+      const cachedTrending = LocalStorageService.getTrendingContent();
+      if (cachedTrending) {
+        return cachedTrending;
+      }
+    }
+
     const params = type ? { type } : {};
     const response = await apiClient.get<ContentListResponse>(
       ENDPOINTS.CONTENT.TRENDING,
       { params }
     );
+
+    // Cache the response (only if no type filter)
+    if (!type) {
+      LocalStorageService.setTrendingContent(response);
+    }
+
     return response;
   }
 

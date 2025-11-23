@@ -4,13 +4,14 @@ import type { Content, ContentListResponse } from "../types/content";
 export const CACHE_KEYS = {
   FEATURED_CONTENT: "featured_content",
   ANTICIPATED_CONTENT: "anticipated_content",
+  RECOMMENDED_CONTENT: "recommended_content",
+  TRENDING_CONTENT: "trending_content",
   SIMILAR_CONTENT: "similar_content",
   SINGLE_CONTENT: (id: string) => `content_${id}`,
 } as const;
 
-// Cache duration in milliseconds (24 hours)
-// const CACHE_DURATION = 24 * 60 * 60 * 1000;
-const CACHE_DURATION = 4 * 60 * 60 * 1000; // 4 hours
+// Cache duration in milliseconds (6 hours)
+const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 
 interface CacheItem<T> {
   data: T;
@@ -89,6 +90,22 @@ export class LocalStorageService {
 
   static getSimilarContent(): ContentListResponse | null {
     return this.get<ContentListResponse>(CACHE_KEYS.SIMILAR_CONTENT);
+  }
+
+  static setRecommendedContent(content: ContentListResponse): void {
+    this.set(CACHE_KEYS.RECOMMENDED_CONTENT, content);
+  }
+
+  static getRecommendedContent(): ContentListResponse | null {
+    return this.get<ContentListResponse>(CACHE_KEYS.RECOMMENDED_CONTENT);
+  }
+
+  static setTrendingContent(content: ContentListResponse): void {
+    this.set(CACHE_KEYS.TRENDING_CONTENT, content);
+  }
+
+  static getTrendingContent(): ContentListResponse | null {
+    return this.get<ContentListResponse>(CACHE_KEYS.TRENDING_CONTENT);
   }
 
   static setSingleContent(id: string, content: Content): void {
