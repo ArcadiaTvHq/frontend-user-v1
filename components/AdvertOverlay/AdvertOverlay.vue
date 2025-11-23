@@ -193,6 +193,22 @@ const closeButtonTimer = ref(null);
 // HLS instance for video ads
 let hlsInstance = null;
 
+// Buffer monitoring for poor network conditions
+let bufferMonitorInterval = null;
+let isBufferRebuilding = false;
+let bufferRebuildTimer = null;
+let lastQualityChangeTime = 0;
+
+// Buffer monitoring thresholds
+const BUFFER_CONFIG = {
+  criticalThreshold: 5, // Pause and rebuild if buffer < 5 seconds
+  warningThreshold: 10, // Reduce quality if buffer < 10 seconds
+  targetBuffer: 15, // Target buffer before resuming playback
+  qualityIncreaseThreshold: 20, // Increase quality if buffer > 20 seconds
+  checkInterval: 1000, // Check buffer every 1 second
+  qualityChangeCooldown: 8000, // Wait 8 seconds between quality changes
+};
+
 const onVideoLoaded = () => {
   // Only handle video ads in this function
   if (
@@ -491,13 +507,22 @@ const initializeHLS = (url) => {
 
   if (Hls.isSupported()) {
     hlsInstance = new Hls({
-      // Simplified configuration for advert playback
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
+      // Optimized configuration for poor network conditions
+      // Strategy: Start with low quality, build buffer, then increase quality
+      maxBufferLength: 30, // Buffer length for smooth playback
+      maxMaxBufferLength: 60, // Maximum buffer for poor networks
       maxBufferSize: 30 * 1000 * 1000, // 30MB for ads
+      maxBufferHole: 0.1, // Small gaps only to prevent stuttering
       enableWorker: true,
-      startLevel: -1,
+      startLevel: 0, // Start with lowest quality for quick playback on poor networks
       debug: false, // Disable debug for production
+
+      // Adaptive Bitrate settings for poor networks
+      abrEwmaDefaultEstimate: 200000, // Conservative bandwidth estimate (200kbps)
+      abrBandWidthFactor: 0.75, // Use 75% of measured bandwidth (safety margin)
+      abrBandWidthUpFactor: 0.5, // Slow quality increases (prevents rapid switching)
+      abrBandWidthDownFactor: 0.9, // Fast quality decreases (quickly adapt to poor network)
+      abrEwmaSlowVoD: 10.0, // Slower adaptation for stability
     });
 
     hlsInstance.loadSource(url);
@@ -513,6 +538,14 @@ const initializeHLS = (url) => {
     });
 
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+      // Start with lowest quality for quick playback on poor networks
+      if (hlsInstance.levels && hlsInstance.levels.length > 0) {
+        hlsInstance.currentLevel = 0; // Force lowest quality initially
+      }
+
+      // Start buffer monitoring for poor network handling
+      startBufferMonitoring();
+
       // Try to play the video with user interaction awareness
       if (advertVideo.value) {
         // Check if user has interacted with the page
@@ -522,7 +555,6 @@ const initializeHLS = (url) => {
           window.userHasInteracted;
 
         if (hasUserInteracted) {
-          debugLog("✅ User has interacted, attempting advert autoplay");
           advertVideo.value.muted = false;
           advertVideo.value
             .play()
@@ -533,9 +565,6 @@ const initializeHLS = (url) => {
               advertVideo.value
                 .play()
                 .then(() => {
-                  debugLog(
-                    "✅ Advert started playing muted, will unmute in 2 seconds"
-                  );
                   // Unmute after 2 seconds with user interaction check
                   setTimeout(() => {
                     if (advertVideo.value) {
@@ -639,6 +668,179 @@ const onPlaying = () => {
 
 const onWaiting = () => {
   // Video is waiting/buffering
+  // This is handled by buffer monitoring
+};
+
+// Get current buffer length in seconds
+const getCurrentBufferLength = () => {
+  if (!advertVideo.value || !advertVideo.value.buffered.length) {
+    return 0;
+  }
+
+  const currentTime = advertVideo.value.currentTime;
+  const buffered = advertVideo.value.buffered;
+
+  // Find the buffered range that contains the current time
+  for (let i = 0; i < buffered.length; i++) {
+    if (currentTime >= buffered.start(i) && currentTime <= buffered.end(i)) {
+      return buffered.end(i) - currentTime;
+    }
+  }
+
+  // If current time is not in any buffered range, return 0
+  return 0;
+};
+
+// Reduce quality to lowest level
+const reduceQualityToLowest = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastQualityChangeTime < BUFFER_CONFIG.qualityChangeCooldown) {
+    return; // Too soon to change quality
+  }
+
+  if (hlsInstance.currentLevel > 0) {
+    hlsInstance.currentLevel = 0; // Lowest quality
+    lastQualityChangeTime = now;
+  }
+};
+
+// Reduce quality by one level
+const reduceQualityByOne = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastQualityChangeTime < BUFFER_CONFIG.qualityChangeCooldown) {
+    return; // Too soon to change quality
+  }
+
+  const currentLevel = hlsInstance.currentLevel;
+  if (currentLevel > 0) {
+    hlsInstance.currentLevel = currentLevel - 1;
+    lastQualityChangeTime = now;
+  }
+};
+
+// Gradually increase quality
+const increaseQualityGradually = () => {
+  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastQualityChangeTime < BUFFER_CONFIG.qualityChangeCooldown) {
+    return; // Too soon to change quality
+  }
+
+  const currentLevel = hlsInstance.currentLevel;
+  const maxLevel = hlsInstance.levels.length - 1;
+
+  if (currentLevel < maxLevel) {
+    hlsInstance.currentLevel = Math.min(currentLevel + 1, maxLevel);
+    lastQualityChangeTime = now;
+  }
+};
+
+// Start buffer rebuilding process
+const startBufferRebuilding = () => {
+  if (isBufferRebuilding) {
+    return;
+  }
+
+  isBufferRebuilding = true;
+
+  // Monitor buffer growth during rebuilding
+  const rebuildCheckInterval = setInterval(() => {
+    const currentBuffer = getCurrentBufferLength();
+
+    if (currentBuffer >= BUFFER_CONFIG.targetBuffer) {
+      // Buffer is sufficient, resume playback
+      clearInterval(rebuildCheckInterval);
+      resumePlaybackAfterRebuild();
+    }
+  }, 500); // Check every 500ms during rebuilding
+
+  // Set a maximum rebuild time to prevent infinite waiting
+  bufferRebuildTimer = setTimeout(() => {
+    clearInterval(rebuildCheckInterval);
+    resumePlaybackAfterRebuild();
+  }, 10000); // Max 10 seconds to rebuild buffer
+};
+
+// Resume playback after buffer rebuild
+const resumePlaybackAfterRebuild = () => {
+  if (!isBufferRebuilding || !advertVideo.value) {
+    return;
+  }
+
+  isBufferRebuilding = false;
+
+  if (advertVideo.value.paused) {
+    advertVideo.value.play().catch((err) => {
+      // If play fails, continue monitoring
+    });
+  }
+
+  if (bufferRebuildTimer) {
+    clearTimeout(bufferRebuildTimer);
+    bufferRebuildTimer = null;
+  }
+};
+
+// Start buffer monitoring for poor network conditions
+const startBufferMonitoring = () => {
+  // Clear any existing monitoring
+  if (bufferMonitorInterval) {
+    clearInterval(bufferMonitorInterval);
+  }
+
+  bufferMonitorInterval = setInterval(() => {
+    if (!hlsInstance || !advertVideo.value || advertVideo.value.paused) {
+      return; // Skip if not ready or paused by user
+    }
+
+    const currentBuffer = getCurrentBufferLength();
+
+    // CRITICAL: Buffer below 5 seconds - pause and rebuild
+    if (currentBuffer < BUFFER_CONFIG.criticalThreshold) {
+      // Reduce to lowest quality immediately
+      reduceQualityToLowest();
+
+      // Pause playback to rebuild buffer if not already rebuilding
+      if (!isBufferRebuilding && !advertVideo.value.paused) {
+        advertVideo.value.pause();
+        startBufferRebuilding();
+      }
+    }
+    // WARNING: Buffer below 10 seconds - reduce quality
+    else if (currentBuffer < BUFFER_CONFIG.warningThreshold) {
+      reduceQualityByOne();
+    }
+    // Buffer is healthy - can increase quality gradually
+    else if (currentBuffer > BUFFER_CONFIG.qualityIncreaseThreshold) {
+      increaseQualityGradually();
+    }
+  }, BUFFER_CONFIG.checkInterval);
+};
+
+// Stop buffer monitoring
+const stopBufferMonitoring = () => {
+  if (bufferMonitorInterval) {
+    clearInterval(bufferMonitorInterval);
+    bufferMonitorInterval = null;
+  }
+
+  if (bufferRebuildTimer) {
+    clearTimeout(bufferRebuildTimer);
+    bufferRebuildTimer = null;
+  }
+
+  isBufferRebuilding = false;
 };
 
 const onAdEnded = () => {
@@ -803,6 +1005,9 @@ const resetCountdown = () => {
     clearTimeout(closeButtonTimer.value);
   }
 
+  // Stop buffer monitoring
+  stopBufferMonitoring();
+
   // Only destroy advert HLS instance, not the main video's HLS
   if (hlsInstance && advertVideo.value) {
     hlsInstance.destroy();
@@ -848,6 +1053,9 @@ watch(
         });
       }
     } else {
+      // Stop buffer monitoring when hiding overlay
+      stopBufferMonitoring();
+
       // Clean up advert HLS when hiding overlay
       if (hlsInstance && advertVideo.value) {
         hlsInstance.destroy();
@@ -899,6 +1107,9 @@ onUnmounted(() => {
     clearTimeout(closeButtonTimer.value);
   }
 
+  // Stop buffer monitoring
+  stopBufferMonitoring();
+
   // Clean up HLS instance
   if (hlsInstance) {
     hlsInstance.destroy();
@@ -919,4 +1130,3 @@ onUnmounted(() => {
   height: 100vh;
 }
 </style>
-

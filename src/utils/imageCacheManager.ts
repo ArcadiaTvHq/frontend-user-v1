@@ -67,15 +67,6 @@ export class ImageCacheManager {
       stats.totalMemory > 0
         ? Math.round((stats.totalMemory / (1024 * 1024)) * 100) / 100
         : 0;
-
-    debugLog("📊 Image Cache Stats:", {
-      totalImages: stats.totalBlobs,
-      memoryUsage: `${memoryUsageMB} MB`,
-      averageAccessCount: stats.averageAccessCount,
-      loadingCount: stats.loadingCount,
-      errorCount: stats.errorCount,
-      limits: stats.memoryLimits,
-    });
   }
 
   /**

@@ -384,8 +384,6 @@ const formatTime = (seconds) => {
 
 // Smart error management functions
 const showPlaybackError = (message, errorType) => {
-  debugLog(`🚨 Playback error (${errorType}): ${message}`);
-
   // Show error screen for user-facing errors
   if (errorType === "CONTENT_NOT_FOUND" || errorType === "UNKNOWN_ERROR") {
     error.value = {
@@ -2360,7 +2358,7 @@ const startPreBuffering = async () => {
       lowLatencyMode: false,
       backBufferLength: 60, // Increased for better caching
       autoStartLoad: true,
-      startLevel: -1,
+      startLevel: 0, // Start with lowest quality for quick playback on poor networks
       enableWorker: true,
     });
 
@@ -2613,7 +2611,7 @@ const initializeHLS = (url) => {
 
       // Performance optimizations - Maximum performance
       enableWorker: true, // Use Web Workers for better performance
-      startLevel: -1, // Let HLS choose best starting quality (was 0 which forced lowest)
+      startLevel: 0, // Start with lowest quality for quick playback on poor networks (consistent with advert overlay)
       capLevelOnFPSDrop: true,
       enableSoftwareAES: true, // Better encryption handling
       debug: false, // Disable debug logging for performance
@@ -2649,6 +2647,11 @@ const initializeHLS = (url) => {
 
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       // HLS manifest loaded successfully
+
+      // Start with lowest quality for quick playback on poor networks
+      if (hlsInstance.levels && hlsInstance.levels.length > 0) {
+        hlsInstance.currentLevel = 0; // Force lowest quality initially
+      }
 
       // CRITICAL: Explicitly start loading segments
       // Without this, HLS won't fetch video segments and only heartbeat will show in network tab
@@ -3048,7 +3051,6 @@ const initializePlaybackSession = async () => {
 
       // Set the stream URL to the token (which is the full video URL)
       streamUrl.value = session.token;
-      debugLog("🎬 Video URL set from session token");
 
       // Start heartbeat and smart token refresh for this session
       startHeartbeat();
@@ -3059,7 +3061,6 @@ const initializePlaybackSession = async () => {
         if (videoPlayer.value) {
           initializeHLS(session.token);
         } else {
-          debugLog("Video player not found");
         }
       });
 
@@ -3088,7 +3089,6 @@ const initializePlayer = () => {
 
     // Check if using direct URL or session-based approach
     if (props.useDirectUrl && props.videoUrl) {
-      debugLog("🎬 Using direct video URL:", props.videoUrl);
       initializeDirectVideo(props.videoUrl);
     } else if (props.useDirectUrl && !props.videoUrl) {
       // Direct URL mode but no URL provided
@@ -3115,14 +3115,12 @@ watch(currentSession, (newSession) => {
 // Watch for token expiry to show warnings and trigger refresh
 watch(isTokenExpiringSoon, (expiringSoon) => {
   if (expiringSoon) {
-    debugLog("⚠️ Token expiring soon, will auto-refresh");
   }
 });
 
 // Watch for token expiry to show warnings
 watch(isTokenExpiringSoon, (expiringSoon) => {
   if (expiringSoon) {
-    debugLog("⚠️ Token expiring soon, will auto-refresh");
   }
 });
 
@@ -3176,7 +3174,6 @@ onMounted(() => {
       if (videoPlayer.value && videoPlayer.value.paused) {
         // Double-check that no advert overlay is active
         if (!showAdvertOverlay.value) {
-          debugLog("▶️ Starting main video (no ads)");
           // Use user interaction-aware autoplay
           startVideoWithUserInteraction();
 

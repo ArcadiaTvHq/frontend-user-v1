@@ -4,7 +4,7 @@
   >
     <!-- Background images -->
     <img
-      v-for="(poster, index) in props.posters"
+      v-for="poster in props.posters"
       :key="`bg-${poster.id}`"
       :src="
         getHoverImageUrl(poster) ||
@@ -13,7 +13,7 @@
       "
       :alt="`Background for ${poster.title}`"
       class="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-2000"
-      :class="{ 'opacity-100': index === centerPosterIndex }"
+      :class="{ 'opacity-100': poster.id === centerPosterId }"
       @error="handleImageError"
     />
 
@@ -61,7 +61,8 @@
       >
         <NuxtLink
           v-for="(poster, index) in visiblePosters"
-          :key="poster.id"
+          :key="index"
+          :data-poster-id="poster.id"
           :to="`/watch/${poster.slug}`"
           :class="['poster', positionClasses[index]]"
           @mouseenter="pauseRotation"
@@ -290,36 +291,45 @@ const handleClick = () => {
 
 const positionClasses = ["pos-1", "pos-2", "pos-3", "pos-4", "pos-5"];
 
-let visiblePosters = computed(() => props.posters.slice(0, 5));
-// Visible posters updated
 // Use reactive currentIndex for visiblePosters to enable rotation
 const currentIndex = ref(0);
 
-visiblePosters = computed(() => {
+// Computed property to get the number of posters to display
+const displayCount = computed(() => {
+  const count = props.posters?.length || 0;
+  return Math.min(count, 5);
+});
+
+// Visible posters updated
+const visiblePosters = computed(() => {
   const posters = props.posters;
   if (!posters || posters.length === 0) return [];
 
-  // Create a window of 5 posters centered around currentIndex
-  const startIndex = currentIndex.value;
-  const result = [];
+  const count = displayCount.value;
 
-  for (let i = 0; i < 5; i++) {
-    const index = (startIndex + i) % posters.length;
-    result.push(posters[index]);
+  // If we have 5 or more posters, use the rotation logic
+  if (posters.length >= 5) {
+    const startIndex = currentIndex.value;
+    const result = [];
+    for (let i = 0; i < 5; i++) {
+      const index = (startIndex + i) % posters.length;
+      result.push(posters[index]);
+    }
+    return result;
   }
 
-  return result;
+  // If we have fewer than 5 posters, just show all of them without rotation
+  return posters.slice(0, count);
 });
 
-//  let intervalId = null;
+// Compute the center poster ID for background image
+const centerPosterId = computed(() => {
+  const posters = visiblePosters.value;
+  if (!posters || posters.length === 0) return null;
 
-// Compute the actual poster index that should be in the center
-const centerPosterIndex = computed(() => {
-  const posters = props.posters;
-  if (!posters || posters.length === 0) return 0;
-
-  // The center poster is at currentIndex + 2 (since we show 5 posters, center is at index 2)
-  return (currentIndex.value + 2) % posters.length;
+  // Center poster is at index 2 for 5 posters, or middle index for fewer
+  const centerIdx = Math.floor((posters.length - 1) / 2);
+  return posters[centerIdx]?.id || null;
 });
 
 // Simple carousel rotation with internal state
@@ -328,6 +338,8 @@ const isRotationPaused = ref(false);
 
 const startRotation = () => {
   if (isRotationPaused.value) return;
+  // Only rotate if we have 5 or more posters
+  if (props.posters.length < 5) return;
   stopRotation();
   intervalId = setInterval(() => {
     currentIndex.value = (currentIndex.value + 1) % props.posters.length;

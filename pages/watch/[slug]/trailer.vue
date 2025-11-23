@@ -124,25 +124,15 @@ onMounted(async () => {
 });
 
 // Video event handlers
-const handleVideoStarted = () => {
-  debugLog("Trailer video started");
-};
+const handleVideoStarted = () => {};
 
-const handleVideoPaused = () => {
-  debugLog("Trailer video paused");
-};
+const handleVideoPaused = () => {};
 
-const handleVideoEnded = () => {
-  debugLog("Trailer video ended");
-};
+const handleVideoEnded = () => {};
 
-const handleVideoError = (error) => {
-  console.error("Trailer video error:", error);
-};
+const handleVideoError = (error) => {};
 
-const handleVideoReady = () => {
-  debugLog("Trailer video ready");
-};
+const handleVideoReady = () => {};
 </script>
 
 <style scoped>

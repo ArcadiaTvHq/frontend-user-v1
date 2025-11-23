@@ -31,9 +31,6 @@ export default defineNuxtPlugin(() => {
     // Expose cache manager to global scope for debugging
     if (process.dev) {
       (window as any).imageCacheManager = imageCacheManager;
-      debugLog(
-        "🔧 Image cache manager available as window.imageCacheManager (dev only)"
-      );
     }
   }
 });

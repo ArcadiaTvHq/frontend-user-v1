@@ -445,7 +445,6 @@ async function removeCard(cardId) {
 
 function addNewCard() {
   // TODO: Implement add new card functionality
-  debugLog("Adding new card");
 }
 
 async function handleCancelSubscription() {
