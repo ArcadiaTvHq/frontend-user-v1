@@ -91,6 +91,11 @@ definePageMeta({
   middleware: ["auth"],
 });
 
+// Set component name for KeepAlive exclusion
+defineOptions({
+  name: "watch-trailer",
+});
+
 const route = useRoute();
 const content = ref(null);
 const relatedContent = ref([]);

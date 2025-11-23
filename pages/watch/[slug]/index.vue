@@ -1,7 +1,7 @@
 <template>
   <Review v-if="content" :content="content" />
   <div class="min-h-screen bg-black" v-if="!review">
-    <Navbar />
+    <Navbar v-if="content" />
     <main v-if="content" class="bg-black">
       <!-- Mobile Template -->
       <template v-if="isMobileComputed">
@@ -257,18 +257,12 @@
       </div>
     </main>
 
-    <!-- Loading State - Standardized -->
-    <StandardLoadingScreen
-      v-else-if="contentPending"
-      variant="content"
-      :show-progress="true"
-      :progress="loadingProgress"
-      :progress-text="loadingMessage"
-    />
+    <!-- Loading State - Skeleton Loader (show immediately when no content) -->
+    <SkeletonContentDetail v-if="!content && contentPending" />
 
-    <!-- Error State for Content Loading -->
+    <!-- Error State for Content Loading (only show when content failed to load) -->
     <div
-      v-else
+      v-else-if="!content && !contentPending"
       class="min-h-screen error-container flex items-center justify-center"
     >
       <div class="text-center text-white p-8 max-w-md">
@@ -318,7 +312,7 @@ import Navbar from "~/components/Navbar/Navbar.vue";
 import CustomTrailerPlayer from "~/components/VideoPlayer/CustomTrailerPlayer.vue";
 import SectionTwo from "~/components/sectionTwo/sectionTwo.vue";
 import { buildImageUrl } from "~/src/utils/helpers";
-import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
+import SkeletonContentDetail from "~/components/Skeleton/SkeletonContentDetail.vue";
 
 //review component
 const modal = useModal();
@@ -357,15 +351,24 @@ const isBackgroundRetrying = ref(false); // Track background retry state
 const backgroundRetryInterval = ref(null); // Background retry timer
 const videoPlayerRefs = ref({ mobile: null, desktop: null }); // References to video player components
 
-// Loading state for standardized loading screen
-const loadingProgress = ref(0);
-const loadingMessage = ref("Loading content...");
+// Loading state managed by useAsyncData
 
-// Single async data call for content
-const { data: contentData, pending: contentPending } = await useAsyncData(
-  `content-${route.params.slug}`,
-  async () => {
-    const response = await ContentService.getContentBySlug(route.params.slug);
+// Manual data fetching to completely avoid Suspense and prevent remounts
+// Using refs and watch instead of useLazyAsyncData
+const contentData = ref(null);
+const contentPending = ref(false);
+const contentError = ref(null);
+
+const similarData = ref(null);
+const similarPending = ref(false);
+const similarError = ref(null);
+
+// Function to fetch content data
+const fetchContent = async (slug: string) => {
+  contentPending.value = true;
+  contentError.value = null;
+  try {
+    const response = await ContentService.getContentBySlug(slug);
     // Fetch watchlist to update in_watch_list property
     if (response?.data) {
       try {
@@ -377,19 +380,21 @@ const { data: contentData, pending: contentPending } = await useAsyncData(
         );
       } catch (error) {}
     }
-    return response;
-  },
-  {
-    server: false, // Only fetch on client to reduce server load
-    lazy: true, // Don't block initial render
+    contentData.value = response;
+  } catch (error) {
+    contentError.value = error;
+    contentData.value = null;
+  } finally {
+    contentPending.value = false;
   }
-);
+};
 
-// Single async data call for similar content
-const { data: similarData, pending: similarPending } = await useAsyncData(
-  "similar-content",
-  async () => {
-    const response = await ContentService.getSimilarContent(route.params.slug);
+// Function to fetch similar content
+const fetchSimilarContent = async (slug: string) => {
+  similarPending.value = true;
+  similarError.value = null;
+  try {
+    const response = await ContentService.getSimilarContent(slug);
     // Fetch watchlist to update in_watch_list property for similar content
     if (response?.data) {
       try {
@@ -401,13 +406,42 @@ const { data: similarData, pending: similarPending } = await useAsyncData(
         });
       } catch (error) {}
     }
-    return response;
-  },
-  {
-    server: false,
-    lazy: true,
+    similarData.value = response;
+  } catch (error) {
+    similarError.value = error;
+    similarData.value = null;
+  } finally {
+    similarPending.value = false;
   }
-);
+};
+
+// Refresh functions for retry
+const refreshContent = async () => {
+  await fetchContent(route.params.slug as string);
+};
+
+const refreshSimilar = async () => {
+  await fetchSimilarContent(route.params.slug as string);
+};
+
+// Watch for slug changes and fetch data (only on client)
+if (process.client) {
+  // Initial fetch
+  fetchContent(route.params.slug as string);
+  fetchSimilarContent(route.params.slug as string);
+
+  // Watch for slug changes
+  watch(
+    () => route.params.slug,
+    (newSlug, oldSlug) => {
+      if (newSlug && newSlug !== oldSlug) {
+        fetchContent(newSlug as string);
+        fetchSimilarContent(newSlug as string);
+      }
+    },
+    { immediate: false }
+  );
+}
 
 // Blob images composable
 const { preloadContentImages } = useBlobImages();
@@ -551,18 +585,31 @@ onMounted(async () => {
   // No loading state to manage - component-level loading eliminated
 });
 
-// Set content after data is loaded
+// Set content after data is loaded - watch for changes when slug changes
 watchEffect(() => {
-  if (contentData.value?.data && !content.value) {
-    content.value = contentData.value.data;
+  // Update content when contentData changes (including when slug changes)
+  if (contentData.value?.data) {
+    // Only update if it's different content (different ID or slug)
+    const newContentId = contentData.value.data.id;
+    const newSlug = contentData.value.data.slug;
+    const shouldUpdate = !content.value ||
+                        content.value.id !== newContentId ||
+                        content.value.slug !== newSlug;
 
-    // Check if trying to access episode detail page and redirect
-    checkEpisodeAccess();
+    if (shouldUpdate) {
+      content.value = contentData.value.data;
 
-    // Set the content type when content is loaded
-    setContentType(content.value.type);
+      // Check if trying to access episode detail page and redirect
+      checkEpisodeAccess();
+
+      // Set the content type when content is loaded
+      setContentType(content.value.type);
+    }
   }
-  if (similarData.value?.data && !relatedContent.value.length) {
+
+  // Update similar content when similarData changes
+  if (similarData.value?.data) {
+    // Always update similar content when data changes
     relatedContent.value = similarData.value.data;
   }
 });
@@ -851,29 +898,29 @@ const retryContent = async () => {
     // Reset loading state
     loadingStore.startLoading();
 
-    // Re-fetch content data
-    await ContentService.getContentBySlug(route.params.slug).then(
-      (response) => {
-        if (response?.data) {
-          content.value = response.data;
-          // Set the content type based on the content's type
-          if (content.value.movie) {
-            setContentType("movie");
-          } else if (content.value.series) {
-            setContentType("series");
-          }
-        }
-      }
-    );
+    // Refresh the async data using the refresh method from useLazyAsyncData
+    await refreshContent();
 
-    // Re-fetch similar content
-    await ContentService.getSimilarContent(route.params.slug).then(
-      (response) => {
-        if (response?.data) {
-          relatedContent.value = response.data;
-        }
+    // Update content from the refreshed data
+    if (contentData.value?.data) {
+      content.value = contentData.value.data;
+      // Set the content type based on the content's type
+      if (content.value.movie) {
+        setContentType("movie");
+      } else if (content.value.series) {
+        setContentType("series");
       }
-    );
+    }
+
+    // Re-fetch similar content using refresh method
+    await refreshSimilar();
+
+    // Update similar content from refreshed data
+    if (similarData.value?.data) {
+      relatedContent.value = similarData.value.data;
+    }
+
+    // Old code removed - now using refreshSimilar() method above
 
     // Reset error states
     videoError.value = false;
@@ -966,7 +1013,13 @@ const silentRetryVideo = () => {
 };
 
 definePageMeta({
+  keepalive: true, // Keep component alive when navigating between slugs to prevent remounts
   middleware: ["auth"],
+});
+
+// Set component name for KeepAlive
+defineOptions({
+  name: 'watch-slug',
 });
 </script>
 

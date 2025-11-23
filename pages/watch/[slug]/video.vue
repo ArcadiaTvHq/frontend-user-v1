@@ -83,6 +83,11 @@ definePageMeta({
   middleware: ["auth"],
 });
 
+// Set component name for KeepAlive exclusion
+defineOptions({
+  name: 'watch-video',
+});
+
 const route = useRoute();
 const router = useRouter();
 
@@ -234,10 +239,17 @@ const retryVideo = async () => {
 // Load content
 const loadContent = async () => {
   try {
+    loadingProgress.value = 0;
     const { ContentService } = await import("~/api/services/content.service");
     const response = await ContentService.getContentBySlug(route.params.slug);
-    content.value = response.data;
+    if (response?.data) {
+      content.value = response.data;
+      loadingProgress.value = 100;
+    } else {
+      throw new Error('No content data received');
+    }
   } catch (err) {
+    console.error('Error loading content:', err);
     handleApiError(err);
   }
 };
@@ -256,16 +268,7 @@ const ensureAdvertsLoaded = async () => {
 };
 
 onMounted(async () => {
-  // Prevent direct access to video page - users must come from detail page
-  if (
-    !document.referrer ||
-    !document.referrer.includes(window.location.origin)
-  ) {
-    router.push(`/watch/${route.params.slug}`);
-    return;
-  }
-
-  // Add event listeners
+  // Add event listeners first
   document.addEventListener("mousemove", handleMouseMove);
   document.addEventListener("touchstart", handleTouchStart);
 
@@ -273,11 +276,26 @@ onMounted(async () => {
   checkMobile();
   window.addEventListener("resize", checkMobile);
 
-  // Load content first
+  // Load content immediately - don't wait for referrer check
   await loadContent();
 
   // Then ensure adverts are loaded
-  await ensureAdvertsLoaded();
+  if (content.value?.id) {
+    await ensureAdvertsLoaded();
+  }
+
+  // Check referrer after content is loaded (non-blocking)
+  // Only redirect if it's a direct access with no history
+  const referrer = document.referrer;
+  const isSPANavigation = referrer && referrer.includes(window.location.origin);
+  const isDirectAccess = !referrer || (!isSPANavigation && referrer !== window.location.href);
+
+  // Only redirect if it's a direct access (no referrer or external referrer) and no history
+  // Allow SPA navigation (when referrer is from same origin)
+  if (isDirectAccess && history.length <= 1 && !content.value) {
+    router.push(`/watch/${route.params.slug}`);
+    return;
+  }
 });
 
 onBeforeUnmount(async () => {

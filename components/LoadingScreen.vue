@@ -1,19 +1,6 @@
 <template>
-  <Transition name="fade" mode="out-in">
-    <div
-      v-if="isInitialLoading"
-      class="fixed inset-0 bg-black z-50 flex items-center justify-center"
-    >
-      <div class="text-center">
-        <img
-          class="w-[100px] h-[100px] object-contain animate-pulse mb-4"
-          src="@/assets/logo2.png"
-          alt="Logo"
-        />
-        <p class="text-white text-lg font-medium">{{ loadingTitle }}</p>
-      </div>
-    </div>
-  </Transition>
+  <!-- LoadingScreen component - now hidden as we use skeleton loaders instead -->
+  <!-- This component is kept for compatibility but doesn't render anything -->
 </template>
 
 <script setup>

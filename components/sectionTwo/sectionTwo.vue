@@ -26,14 +26,13 @@
     <div
       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 sm:gap-7 md:gap-10 text-textprimary tileHolder"
     >
-      <div
-        v-if="shouldShowLoading"
-        class="col-span-full flex justify-center items-center p-8"
-      >
-        <div
-          class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gold"
-        ></div>
-      </div>
+      <template v-if="shouldShowLoading">
+        <SkeletonCard
+          v-for="n in itemsPerRow"
+          :key="`skeleton-${n}`"
+          class="col-span-1"
+        />
+      </template>
       <div v-else-if="error" class="col-span-full text-red-500 text-center p-4">
         {{ error }}
       </div>
@@ -274,6 +273,7 @@ import { useBlobImages } from "~/composables/useBlobImages";
 import { useAuthStore } from "~/stores/auth";
 import { useWatchlistStore } from "~/stores/watchlist";
 import { useToast } from "~/composables/useToast";
+import SkeletonCard from "~/components/Skeleton/SkeletonCard.vue";
 
 const props = defineProps({
   title: {

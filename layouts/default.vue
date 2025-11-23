@@ -1,69 +1,36 @@
 <template>
   <div>
-    <!-- Standardized loading screen -->
-    <StandardLoadingScreen
-      v-if="showInitialLoading"
-      variant="auth"
-      :show-progress="true"
-      :progress="loadingProgress"
-      :progress-text="loadingMessage"
-    />
+    <!-- Skeleton loader for initial page load (overlay) -->
+    <SkeletonPageLoader v-if="showInitialLoading" />
 
     <!-- Vue-level loading screen -->
     <LoadingScreen />
 
+    <!-- Always show slot so NuxtPage is always visible -->
     <slot />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeMount } from "vue";
-import StandardLoadingScreen from "~/components/LoadingScreen/StandardLoadingScreen.vue";
+import { ref, onMounted } from "vue";
+import SkeletonPageLoader from "~/components/Skeleton/SkeletonPageLoader.vue";
 
 const showInitialLoading = ref(true);
-const loadingProgress = ref(0);
-const loadingMessage = ref("Initializing...");
+const hasMounted = ref(false);
 
-// Start loading immediately
-onBeforeMount(() => {
-  showInitialLoading.value = true;
-  loadingProgress.value = 10;
-  loadingMessage.value = "Loading application...";
-});
-
-// Progressive loading simulation
+// Only run onMounted once - not on every navigation
 onMounted(() => {
-  // Simulate loading progress
-  const progressSteps = [
-    { progress: 20, message: "Loading components..." },
-    { progress: 40, message: "Fetching content..." },
-    { progress: 60, message: "Loading images..." },
-    { progress: 80, message: "Preparing interface..." },
-    { progress: 95, message: "Almost ready..." },
-    { progress: 100, message: "Ready!" },
-  ];
-
-  let currentStep = 0;
-  const progressInterval = setInterval(() => {
-    if (currentStep < progressSteps.length) {
-      const step = progressSteps[currentStep];
-      loadingProgress.value = step.progress;
-      loadingMessage.value = step.message;
-      currentStep++;
-    } else {
-      clearInterval(progressInterval);
-      // Hide loading screen
-      setTimeout(() => {
-        showInitialLoading.value = false;
-      }, 500);
-    }
-  }, 800); // Update every 800ms
-
-  // Fallback - hide after 8 seconds max
-  setTimeout(() => {
-    clearInterval(progressInterval);
+  // Only show initial loading on first mount, not on navigation
+  if (!hasMounted.value) {
+    hasMounted.value = true;
+    // Hide skeleton loader quickly to avoid white screen
+    setTimeout(() => {
+      showInitialLoading.value = false;
+    }, 300);
+  } else {
+    // On subsequent navigations, don't show loading
     showInitialLoading.value = false;
-  }, 8000);
+  }
 });
 </script>
 

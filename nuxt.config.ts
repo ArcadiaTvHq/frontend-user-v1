@@ -8,6 +8,24 @@ export default defineNuxtConfig({
   experimental: {
     payloadExtraction: false, // Disable payload extraction for better performance
     viewTransition: false, // Disable view transitions for better performance
+    watcher: "chokidar-granular", // Better file watching
+  },
+
+  // Vue configuration
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => false,
+    },
+    propsDestructure: true,
+  },
+
+  // Router options to prevent full remounts
+  router: {
+    options: {
+      linkActiveClass: "active-link",
+      linkExactActiveClass: "exact-active-link",
+      scrollBehavior: () => ({ left: 0, top: 0 }), // Ensure consistent scroll behavior
+    },
   },
 
   css: ["~/assets/css/main.css"],
@@ -42,7 +60,14 @@ export default defineNuxtConfig({
     },
   },
 
-  plugins: [{ src: "~/plugins/Lenis.client.js", mode: "client" }],
+  plugins: [
+    { src: "~/plugins/prevent-full-reload.client.ts", mode: "client" },
+    { src: "~/plugins/nuxt-link-fix.client.ts", mode: "client" },
+    { src: "~/plugins/prevent-remount.client.ts", mode: "client" },
+    { src: "~/plugins/spa-behavior.client.ts", mode: "client" },
+    { src: "~/plugins/Lenis.client.js", mode: "client" },
+    { src: "~/plugins/pinia-persist.client.ts", mode: "client" },
+  ],
 
   app: {
     head: {
@@ -97,5 +122,6 @@ export default defineNuxtConfig({
   piniaPersistedstate: {
     storage: "localStorage",
     debug: false, // Disable debug in production
+    auto: true, // Auto-persist all stores
   },
 });
