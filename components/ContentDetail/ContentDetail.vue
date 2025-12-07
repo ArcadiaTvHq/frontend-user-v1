@@ -472,12 +472,20 @@ const handleWatchClick = async () => {
     const nextEpisode =
       props.content.type === "series" ? findNextEpisode() : null;
 
-    // For series, navigate to the next episode instead
+    // For series, navigate to series video page with episode query param
     if (props.content.type === "series" && nextEpisode?.episode) {
-      targetSlug = nextEpisode.episode.slug;
-      targetContentId = nextEpisode.episode.id;
+      // Use series slug with episode ID in query
+      await advertStore.fetchAdverts({
+        content_id: nextEpisode.episode.id,
+      });
+      router.push({
+        path: `/watch/${props.content.slug}/video`,
+        query: { episode: nextEpisode.episode.id },
+      });
+      return;
     }
 
+    // For movies, use the movie slug directly
     // Fetch adverts for this content
     await advertStore.fetchAdverts({
       content_id: targetContentId,
@@ -486,16 +494,23 @@ const handleWatchClick = async () => {
     // Navigate to video page
     router.push(`/watch/${targetSlug}/video`);
   } catch (error) {
-    // Determine fallback slug
-    let fallbackSlug = props.content.slug;
+    // Determine fallback navigation
     if (props.content.type === "series") {
       const nextEpisode = findNextEpisode();
       if (nextEpisode?.episode) {
-        fallbackSlug = nextEpisode.episode.slug;
+        // Use series slug with episode query param
+        router.push({
+          path: `/watch/${props.content.slug}/video`,
+          query: { episode: nextEpisode.episode.id },
+        });
+      } else {
+        // No episode found, just go to series page
+        router.push(`/watch/${props.content.slug}`);
       }
+    } else {
+      // For movies, use the movie slug directly
+      router.push(`/watch/${props.content.slug}/video`);
     }
-    // Still navigate to video page even if adverts fail
-    router.push(`/watch/${fallbackSlug}/video`);
   } finally {
     watchLoading.value = false;
   }

@@ -21,7 +21,9 @@
               : 'border-transparent text-gray-400 hover:text-white'
           "
         >
-          Season {{ season.season_number || "N/A" }}
+          Season {{ season.season_number || "N/A" }} ({{
+            season.children?.length || 0
+          }})
         </button>
       </div>
     </div>
@@ -179,9 +181,15 @@ const selectedSeason = computed(() => {
   );
 });
 
-// Navigation
+// Navigation - use series slug with episode query param
 const navigateToEpisode = (episode: Content) => {
-  navigateTo(`/watch/${episode.slug}/video`);
+  // Navigate to series video page with episode ID in query
+  if (props.content?.slug) {
+    navigateTo({
+      path: `/watch/${props.content.slug}/video`,
+      query: { episode: episode.id },
+    });
+  }
 };
 
 // Image error handler

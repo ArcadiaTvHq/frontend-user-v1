@@ -3,7 +3,10 @@
   <!-- DO NOT add keys - they cause remounts -->
   <!-- Use KeepAlive only for detail pages, exclude video pages -->
   <NuxtLayout>
-    <KeepAlive :include="['watch-slug']" :exclude="['watch-video', 'watch-trailer']">
+    <KeepAlive
+      :include="['watch-slug']"
+      :exclude="['watch-video', 'watch-trailer']"
+    >
       <NuxtPage />
     </KeepAlive>
   </NuxtLayout>
@@ -39,7 +42,7 @@ const hasAppMounted = ref(false);
 
 // Use onMounted with a check to ensure it only runs once
 // Store the mounted state in a way that persists across potential remounts
-const globalMountedKey = '__nuxt_app_mounted__';
+const globalMountedKey = "__nuxt_app_mounted__";
 
 onMounted(() => {
   if (process.client) {
@@ -47,7 +50,8 @@ onMounted(() => {
     // Access window properties using getItem/setItem pattern to avoid parsing issues
     let wasMounted = false;
     try {
-      wasMounted = window[globalMountedKey] === true || hasAppMounted.value === true;
+      wasMounted =
+        window[globalMountedKey] === true || hasAppMounted.value === true;
     } catch (e) {
       wasMounted = hasAppMounted.value === true;
     }
@@ -114,12 +118,28 @@ router.afterEach(() => {
   // Use nextTick to ensure DOM is updated first
   nextTick(() => {
     // Give pages time to mount and show their own skeletons
+    // For video pages, wait a bit longer to ensure content is loaded
+    const isVideoPage = route.path.includes("/video");
+    const delay = isVideoPage ? 100 : 200;
+
     navigationTimeout = setTimeout(() => {
       isNavigating.value = false;
       navigationTimeout = null;
-    }, 200);
+    }, delay);
   });
 });
+
+// Listen for page-loaded event from video pages
+if (process.client) {
+  window.addEventListener("page-loaded", () => {
+    // Immediately clear navigation skeleton when page signals it's ready
+    if (navigationTimeout) {
+      clearTimeout(navigationTimeout);
+      navigationTimeout = null;
+    }
+    isNavigating.value = false;
+  });
+}
 
 // Also watch route path as a fallback for immediate response
 // This ensures skeleton shows even if router hooks are delayed

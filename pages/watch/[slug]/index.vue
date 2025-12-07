@@ -1,8 +1,8 @@
 <template>
   <Review v-if="content" :content="content" />
   <div class="min-h-screen bg-black" v-if="!review">
-    <Navbar v-if="content" />
-    <main v-if="content" class="bg-black">
+    <Navbar v-if="shouldShowContent" />
+    <main v-if="shouldShowContent" class="bg-black">
       <!-- Mobile Template -->
       <template v-if="isMobileComputed">
         <!-- Background Image and Content (hidden when watching trailer) -->
@@ -57,9 +57,11 @@
           <!-- Video Player with Error Handling -->
           <div v-if="!videoError" class="w-full h-full">
             <CustomTrailerPlayer
+              v-if="shouldShowContent"
               ref="videoPlayerRefs.mobile"
               :key="`mobile-${content.slug}-${videoKey}`"
               :contentSlug="content.slug"
+              :contentType="content.type"
               player-type="trailer"
               :bannerImage="content.banner_image_id"
               :autoplay="watchingTrailer"
@@ -136,9 +138,11 @@
           >
             <div v-if="!videoError" class="w-full h-full">
               <CustomTrailerPlayer
+                v-if="shouldShowContent"
                 ref="videoPlayerRefs.desktop"
                 :key="`desktop-${content.slug}-${videoKey}`"
                 :contentSlug="content.slug"
+                :contentType="content.type"
                 player-type="trailer"
                 :bannerImage="content.banner_image_id"
                 :autoplay="true"
@@ -205,6 +209,7 @@
 
           <!-- Content Detail Section (only shown when not watching trailer and no error) -->
           <ContentDetail
+            v-if="shouldShowContent"
             v-show="!watchingTrailer && !videoError"
             :content="content"
             :showPosterOverlay="true"
@@ -215,6 +220,7 @@
 
         <!-- Content Detail Section (shown below video when watching trailer or when there's an error) -->
         <div
+          v-if="shouldShowContent"
           v-show="watchingTrailer || videoError"
           class="content-detail-below"
           :class="
@@ -232,16 +238,20 @@
       </template>
 
       <!-- Series Component -->
-      <Series v-if="content?.type === 'series'" :content="content" />
+      <Series
+        v-if="shouldShowContent && content?.type === 'series'"
+        :content="content"
+      />
 
       <Comment
-        v-if="content"
+        v-if="shouldShowContent && content"
         :content-id="content.id"
         :interactions="content.interactions"
       />
 
       <!-- Similar Content Section -->
       <SectionTwo
+        v-if="shouldShowContent"
         title="More Like This"
         iconAlt="Similar content icon"
         :content="relatedContent"
@@ -498,46 +508,18 @@ const isMobileComputed = computed(() => {
   return isMobile.value || screenSizeMobile;
 });
 
-// Check if content is an episode or season and redirect if trying to access their detail pages
-const checkEpisodeAccess = () => {
-  // If content is an episode, redirect to its parent series
-  if (content.value?.type === "episode") {
-    // Find the root series (episode -> season -> series)
-    let currentContent = content.value;
+// Helper function to find parent series slug
+const findParentSeriesSlug = (contentItem) => {
+  if (!contentItem) return null;
 
-    // Traverse up the hierarchy until we find the series
-    while (currentContent?.parent) {
-      currentContent = currentContent.parent;
-
-      // If we reach a series (not a season), navigate to it
-      if (currentContent.type === "series") {
-        router.push(`/watch/${currentContent.slug}`);
-        return;
-      }
+  let currentContent = contentItem;
+  while (currentContent?.parent) {
+    currentContent = currentContent.parent;
+    if (currentContent.type === "series") {
+      return currentContent.slug;
     }
-
-    // Fallback: if no series found, redirect to home
-    router.push("/");
   }
-  // If content is a season, redirect to its parent series
-  else if (content.value?.type === "season") {
-    // Find the root series (season -> series)
-    let currentContent = content.value;
-
-    // Traverse up the hierarchy until we find the series
-    while (currentContent?.parent) {
-      currentContent = currentContent.parent;
-
-      // If we reach a series, navigate to it
-      if (currentContent.type === "series") {
-        router.push(`/watch/${currentContent.slug}`);
-        return;
-      }
-    }
-
-    // Fallback: if no series found, redirect to home
-    router.push("/");
-  }
+  return null;
 };
 
 // Remove the resize listener since we're not using screen size anymore
@@ -550,10 +532,35 @@ onMounted(async () => {
   try {
     // Use the data from useAsyncData instead of making duplicate calls
     if (contentData.value?.data) {
-      content.value = contentData.value.data;
+      const newContent = contentData.value.data;
 
-      // Check if trying to access episode detail page and redirect
-      checkEpisodeAccess();
+      // Check content type BEFORE setting content to prevent component initialization
+      if (newContent.type === "episode" || newContent.type === "season") {
+        // Find parent series and redirect immediately
+        let currentContent = newContent;
+        let seriesSlug = null;
+
+        while (currentContent?.parent) {
+          currentContent = currentContent.parent;
+          if (currentContent.type === "series") {
+            seriesSlug = currentContent.slug;
+            break;
+          }
+        }
+
+        // Redirect immediately - don't set content to prevent component initialization
+        if (seriesSlug) {
+          router.push(`/watch/${seriesSlug}`);
+          return; // Exit early, don't set content
+        } else {
+          // Fallback: redirect to home
+          router.push("/");
+          return;
+        }
+      }
+
+      // Only set content if it's not an episode/season
+      content.value = newContent;
 
       // Set the content type based on the content's type (movie or series)
       if (content.value.movie) {
@@ -585,6 +592,13 @@ onMounted(async () => {
   // No loading state to manage - component-level loading eliminated
 });
 
+// Computed to check if content should be shown (not episode/season)
+const shouldShowContent = computed(() => {
+  if (!content.value) return false;
+  // Don't show content if it's an episode or season (will redirect)
+  return content.value.type !== "episode" && content.value.type !== "season";
+});
+
 // Set content after data is loaded - watch for changes when slug changes
 watchEffect(() => {
   // Update content when contentData changes (including when slug changes)
@@ -592,15 +606,41 @@ watchEffect(() => {
     // Only update if it's different content (different ID or slug)
     const newContentId = contentData.value.data.id;
     const newSlug = contentData.value.data.slug;
-    const shouldUpdate = !content.value ||
-                        content.value.id !== newContentId ||
-                        content.value.slug !== newSlug;
+    const shouldUpdate =
+      !content.value ||
+      content.value.id !== newContentId ||
+      content.value.slug !== newSlug;
 
     if (shouldUpdate) {
-      content.value = contentData.value.data;
+      const newContent = contentData.value.data;
 
-      // Check if trying to access episode detail page and redirect
-      checkEpisodeAccess();
+      // Episodes and seasons don't have detail pages - redirect to parent series
+      if (newContent.type === "episode" || newContent.type === "season") {
+        // Find parent series and redirect immediately
+        let currentContent = newContent;
+        let seriesSlug = null;
+
+        while (currentContent?.parent) {
+          currentContent = currentContent.parent;
+          if (currentContent.type === "series") {
+            seriesSlug = currentContent.slug;
+            break;
+          }
+        }
+
+        // Redirect immediately - don't set content to prevent component initialization
+        if (seriesSlug) {
+          router.push(`/watch/${seriesSlug}`);
+          return; // Exit early, don't set content
+        } else {
+          // Fallback: redirect to home
+          router.push("/");
+          return;
+        }
+      }
+
+      // Only set content if it's not an episode/season
+      content.value = newContent;
 
       // Set the content type when content is loaded
       setContentType(content.value.type);
@@ -1019,7 +1059,7 @@ definePageMeta({
 
 // Set component name for KeepAlive
 defineOptions({
-  name: 'watch-slug',
+  name: "watch-slug",
 });
 </script>
 

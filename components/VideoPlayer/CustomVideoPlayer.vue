@@ -332,13 +332,9 @@ let isProcessingPlayback = false;
 let lastPlaybackAction = 0;
 let playbackActionCooldown = 500; // Minimum 500ms between actions
 
-// Proactive buffer monitoring system
+// Simplified buffer monitoring
 let bufferMonitorInterval = null;
 let lastQualityLevel = -1;
-let bufferWarningShown = false;
-let bufferCriticalShown = false;
-let isBufferRebuilding = false;
-let bufferRebuildTimer = null;
 
 // Pre-buffering system for seamless token refresh
 let isPreloading = false;
@@ -356,22 +352,11 @@ let lastQualityChangeTime = 0;
 const MIN_BUFFER_LENGTH = 8; // Minimum buffer for stable start
 const TARGET_BUFFER_LENGTH = 15; // Target buffer for smooth playback
 
-// Enhanced network optimization settings for stable playback
+// Simplified network optimization settings
 const NETWORK_OPTIMIZATION = {
-  // Proactive buffer monitoring - Balanced for stability
-  proactiveBufferMonitoring: true,
-  criticalBufferThreshold: 5, // Critical buffer level for immediate action (5 seconds)
-  warningBufferThreshold: 10, // Warning buffer level for quality reduction (10 seconds)
-  qualityReductionThreshold: 10, // Quality reduction threshold (10 seconds)
-  bufferCheckInterval: 1000, // Check buffer every 1 second for stability
-
-  // Quality adaptation settings - Balanced for stability
+  // Basic buffer monitoring - only intervene when critical
   enableQualityAdaptation: true,
-  qualitySwitchThreshold: 0.8, // 80% buffer before quality increase (stable)
-  qualityDropThreshold: 0.4, // 40% buffer before quality decrease (stable)
-
-  // Adaptive behavior settings
-  adaptiveBufferLength: true, // Enable adaptive delays based on network conditions
+  criticalBufferThreshold: 5, // Only reduce quality if buffer < 5 seconds
 };
 
 // Helper function to format time
@@ -1186,7 +1171,7 @@ const handleTimeUpdate = (e) => {
   progressPercent.value = total > 0 ? (current / total) * 100 : 0;
   bufferedPercent.value = calculateBufferedPercent();
 
-  // Auto-play when video can play and autoplay is enabled using coordinated system
+  // Auto-play when video can play and autoplay is enabled
   // BUT: Don't autoplay if ads are showing
   if (
     canPlay.value &&
@@ -1788,149 +1773,23 @@ const startProactiveBufferMonitoring = () => {
     clearInterval(bufferMonitorInterval);
   }
 
-  if (!NETWORK_OPTIMIZATION.proactiveBufferMonitoring) {
-    return;
-  }
-
-  // Starting proactive buffer monitoring
-
+  // Simple monitoring - only reduce quality when buffer is critically low
   bufferMonitorInterval = setInterval(() => {
-    if (
-      !hlsInstance ||
-      !hlsInstance.media ||
-      isSourceSwitching ||
-      isBufferRebuilding
-    ) {
-      return; // Skip monitoring during source switches or buffer rebuilding
-    }
-
-    // Only skip monitoring during active resumption, not during stable playback
-    if (playbackState === "resuming") {
-      return; // Skip monitoring during active playback resumption
+    if (!hlsInstance || !hlsInstance.media || isSourceSwitching) {
+      return;
     }
 
     const currentBuffer = getCurrentBufferLength();
     const criticalThreshold = NETWORK_OPTIMIZATION.criticalBufferThreshold;
-    const warningThreshold = NETWORK_OPTIMIZATION.warningBufferThreshold;
-    const qualityThreshold = NETWORK_OPTIMIZATION.qualityReductionThreshold;
 
-    // CRITICAL: Buffer below 10 seconds - immediate action required
+    // Only intervene if buffer is critically low
     if (currentBuffer < criticalThreshold) {
-      if (!bufferCriticalShown) {
-        bufferCriticalShown = true;
-      }
-
-      // Immediate quality reduction to lowest level
-      reduceQualityToLowest();
-
-      // Pause playback temporarily to rebuild buffer ONLY if not already rebuilding
-      if (
-        !videoPlayer.value.paused &&
-        currentBuffer < 5 &&
-        !isBufferRebuilding &&
-        playbackState === "playing"
-      ) {
-        isBufferRebuilding = true;
-
-        // Mark as buffering pause to prevent ad triggers
-        isBuffering.value = true;
-        isPauseDueToBuffering = true; // Set flag to prevent pause ads
-
-        safePause("high"); // High priority pause
-
-        // Clear any existing rebuild timer
-        if (bufferRebuildTimer) {
-          clearTimeout(bufferRebuildTimer);
-        }
-
-        // Start buffer rebuilding process
-        startBufferRebuilding();
-      }
-    }
-    // WARNING: Buffer below 15 seconds - reduce quality
-    else if (currentBuffer < warningThreshold) {
-      if (!bufferWarningShown) {
-        bufferWarningShown = true;
-      }
-
-      // Reduce quality when buffer gets low
-      if (currentBuffer < qualityThreshold) {
-        reduceQualityByOne();
-      }
-    }
-    // Buffer is healthy - can increase quality
-    else {
-      // Reset warning flags
-      if (bufferWarningShown || bufferCriticalShown) {
-        bufferWarningShown = false;
-        bufferCriticalShown = false;
-      }
-
-      // Gradually increase quality if buffer is stable
-      if (currentBuffer > warningThreshold + 10) {
-        increaseQualityGradually();
-      }
-
-      // Enhanced quality adaptation based on buffer levels
       adaptQualityBasedOnBuffer();
     }
-  }, NETWORK_OPTIMIZATION.bufferCheckInterval);
+  }, 2000); // Check every 2 seconds
 };
 
-const startBufferRebuilding = () => {
-  // Monitor buffer growth during rebuilding
-  const rebuildCheckInterval = setInterval(() => {
-    const currentBuffer = getCurrentBufferLength();
-    const targetBuffer = NETWORK_OPTIMIZATION.criticalBufferThreshold;
-
-    if (currentBuffer >= targetBuffer) {
-      // Buffer is sufficient, resume playback
-      clearInterval(rebuildCheckInterval);
-      resumePlaybackAfterRebuild();
-    }
-  }, 500); // Check every 500ms during rebuilding
-
-  // Set a maximum rebuild time to prevent infinite waiting - BALANCED for smooth playback
-  bufferRebuildTimer = setTimeout(() => {
-    clearInterval(rebuildCheckInterval);
-    resumePlaybackAfterRebuild();
-  }, 12000); // Balanced at 12s for smooth playback
-};
-
-const resumePlaybackAfterRebuild = () => {
-  if (!isBufferRebuilding) return;
-
-  const currentBuffer = getCurrentBufferLength();
-
-  // Reset rebuilding state
-  isBufferRebuilding = false;
-  bufferCriticalShown = false;
-
-  // Reset buffering flags
-  isBuffering.value = false;
-  isPauseDueToBuffering = false;
-
-  // Resume playback using unified system
-  setTimeout(() => {
-    if (
-      videoPlayer.value.paused &&
-      currentBuffer >= NETWORK_OPTIMIZATION.criticalBufferThreshold
-    ) {
-      // Use unified playback control for automatic resumption
-      safePlay(false, "high")
-        .then(() => {})
-        .catch((error) => {
-          // Retry with normal priority after a delay
-          setTimeout(() => {
-            if (videoPlayer.value.paused && playbackState === "paused") {
-              safePlay(false, "normal").catch((e) => {});
-            }
-          }, 2000);
-        });
-    } else {
-    }
-  }, 100); // Reduced delay for faster resumption
-};
+// Removed buffer rebuilding - let HLS.js and browser handle buffering naturally
 
 const getCurrentBufferLength = () => {
   if (!hlsInstance || !hlsInstance.media || !hlsInstance.media.buffered) {
@@ -2057,45 +1916,7 @@ const handleBufferStallRecovery = (errorData) => {
   } catch (error) {}
 };
 
-const reduceQualityToLowest = () => {
-  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
-    return;
-
-  const lowestLevel = hlsInstance.levels.length - 1;
-  if (hlsInstance.currentLevel !== lowestLevel) {
-    lastQualityLevel = hlsInstance.currentLevel;
-    hlsInstance.currentLevel = lowestLevel;
-    // Quality reduced to lowest level to preserve buffer
-  }
-};
-
-const reduceQualityByOne = () => {
-  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
-    return;
-
-  const currentLevel = hlsInstance.currentLevel;
-  if (currentLevel > 0) {
-    lastQualityLevel = currentLevel;
-    hlsInstance.currentLevel = currentLevel - 1;
-    // Quality reduced by one level to preserve buffer
-  }
-};
-
-const increaseQualityGradually = () => {
-  if (!hlsInstance || !hlsInstance.levels || hlsInstance.levels.length === 0)
-    return;
-
-  const currentLevel = hlsInstance.currentLevel;
-  const maxLevel = hlsInstance.levels.length - 1;
-
-  // Only increase if we have room and buffer is stable
-  if (
-    currentLevel < maxLevel &&
-    getCurrentBufferLength() > NETWORK_OPTIMIZATION.warningBufferThreshold + 15
-  ) {
-    hlsInstance.currentLevel = currentLevel + 1;
-  }
-};
+// Removed individual quality functions - use adaptQualityBasedOnBuffer instead
 
 // Optimize video element for better performance
 const optimizeVideoPerformance = () => {
@@ -2130,7 +1951,8 @@ const optimizeVideoPerformance = () => {
   } catch (e) {}
 };
 
-// Enhanced quality adaptation based on buffer levels - Stable playback mode with segment cancellation prevention
+// Simplified quality adaptation - let HLS.js handle most of it
+// Only intervene when buffer is critically low
 const adaptQualityBasedOnBuffer = () => {
   if (
     !NETWORK_OPTIMIZATION.enableQualityAdaptation ||
@@ -2141,43 +1963,17 @@ const adaptQualityBasedOnBuffer = () => {
   }
 
   const currentBuffer = getCurrentBufferLength();
-  const totalDuration = videoPlayer.value?.duration || 0;
-
-  if (totalDuration === 0) return;
-
-  const bufferPercentage = currentBuffer / totalDuration;
   const currentLevel = hlsInstance.currentLevel;
-  const maxLevel = hlsInstance.levels.length - 1;
 
-  // Prevent rapid quality switching that causes segment cancellations and frame skipping
-  // For bad networks: Longer cooldown prevents constant quality switching
-  const now = Date.now();
-  if (!lastQualityChangeTime || now - lastQualityChangeTime < 10000) {
-    // Wait at least 10 seconds between quality changes (was 5s) - prevents frame skipping on poor networks
-    return;
-  }
-
-  // Quality decrease when buffer is below 15 seconds (increased from 10s for bad networks)
-  // More aggressive threshold prevents buffer depletion and frame skipping
-  if (currentBuffer <= 15 && currentLevel > 0) {
-    const targetLevel = Math.max(0, currentLevel - 1);
-    if (targetLevel !== currentLevel) {
-      hlsInstance.currentLevel = targetLevel;
+  // Only reduce quality if buffer is critically low (< 5 seconds)
+  // Let HLS.js ABR handle normal quality switching
+  if (currentBuffer < 5 && currentLevel > 0) {
+    const now = Date.now();
+    // Prevent rapid switching - wait at least 5 seconds between changes
+    if (!lastQualityChangeTime || now - lastQualityChangeTime > 5000) {
+      hlsInstance.currentLevel = Math.max(0, currentLevel - 1);
       lastQualityChangeTime = now;
     }
-  }
-  // Quality increase when buffer is above 30 seconds (increased from 20s for bad networks)
-  // More conservative threshold ensures stable buffer before upgrading quality
-  else if (currentBuffer >= 30 && currentLevel < maxLevel) {
-    const targetLevel = Math.min(currentLevel + 1, maxLevel);
-    if (targetLevel !== currentLevel) {
-      hlsInstance.currentLevel = targetLevel;
-      lastQualityChangeTime = now;
-    }
-  }
-
-  // Log buffer status for monitoring
-  if (currentBuffer < 15) {
   }
 };
 
@@ -2600,33 +2396,27 @@ const initializeHLS = (url) => {
 
   if (Hls.isSupported()) {
     hlsInstance = new Hls({
-      // Buffer Management - Optimized for bad networks and smooth playback
-      maxBufferLength: 40, // Increased buffer for bad networks (was 30) - more headroom
-      maxMaxBufferLength: 90, // Increased max buffer for poor networks (was 60) - prevents stalling
-      maxBufferSize: 90 * 1000 * 1000, // 90MB buffer size for poor networks (was 60MB) - more cache
-      maxBufferHole: 0.05, // Very small gaps only (was 0.1) - prevents frame skipping on poor networks
-      backBufferLength: 40, // Increased back buffer (was 30) - better seeking on poor networks
-      lowLatencyMode: false, // Disable low latency for stability - important for poor networks
-      autoStartLoad: true, // Automatically start loading when ready
+      // Buffer Management - Sensible defaults
+      maxBufferLength: 30, // Standard buffer length
+      maxMaxBufferLength: 60, // Maximum buffer
+      maxBufferSize: 60 * 1000 * 1000, // 60MB buffer
+      maxBufferHole: 0.5, // Allow gaps up to 500ms (HLS.js handles gap jumping)
+      backBufferLength: 30, // Back buffer for seeking
+      lowLatencyMode: false, // Disable for VOD content
+      autoStartLoad: true, // Auto-start loading
 
-      // Performance optimizations - Maximum performance
-      enableWorker: true, // Use Web Workers for better performance
-      startLevel: 0, // Start with lowest quality for quick playback on poor networks (consistent with advert overlay)
-      capLevelOnFPSDrop: true,
-      enableSoftwareAES: true, // Better encryption handling
-      debug: false, // Disable debug logging for performance
+      // Performance optimizations
+      enableWorker: true, // Use Web Workers
+      startLevel: -1, // Let HLS.js choose initial quality
+      capLevelOnFPSDrop: true, // Cap quality on FPS drops
+      enableSoftwareAES: true, // Software AES decryption
+      debug: false, // Disable debug logging
 
-      // Adaptive Bitrate (ABR) - Optimized for bad networks
-      // For poor networks: More conservative, slower quality changes, prioritize stability
-      abrEwmaDefaultEstimate: 200000, // Lower default estimate for poor networks (was 400000)
-      abrBandWidthFactor: 0.75, // More conservative bandwidth usage (was 0.9) - prevents overestimating
-      abrBandWidthUpFactor: 0.5, // Much slower quality increases (was 0.7) - prevents rapid switching
-      abrBandWidthDownFactor: 0.9, // Faster quality decreases (was 0.8) - quickly adapt to poor network
-      abrMaxWithRealBitrate: true, // Use real bitrate for ABR decisions
-      abrEwmaFastLive: 6.0, // Slower adaptation for live content (was 4.0) - more stable
-      abrEwmaSlowLive: 12.0, // Much slower adaptation for stability (was 8.0) - prevents frame skipping
-      abrEwmaFastVoD: 6.0, // Slower adaptation for VOD content (was 4.0) - smoother playback
-      abrEwmaSlowVoD: 12.0, // Much slower adaptation for stability (was 8.0) - prevents frame skipping
+      // Adaptive Bitrate (ABR) - Use HLS.js defaults with slight tuning
+      abrBandWidthFactor: 0.9, // Use 90% of measured bandwidth
+      abrBandWidthUpFactor: 0.7, // Moderate quality increases
+      abrBandWidthDownFactor: 0.8, // Moderate quality decreases
+      abrMaxWithRealBitrate: true, // Use real bitrate
 
       // Loading Timeouts and Retries - Stable to prevent segment cancellation
       fragLoadingTimeOut: 8000, // Longer timeout to prevent cancellations
@@ -3478,9 +3268,7 @@ onUnmounted(() => {
     clearInterval(bufferMonitorInterval);
   }
 
-  if (bufferRebuildTimer) {
-    clearTimeout(bufferRebuildTimer);
-  }
+  // Removed buffer rebuild timer
 
   if (seekTimeout) {
     clearTimeout(seekTimeout);
@@ -3507,9 +3295,7 @@ onUnmounted(() => {
   isStreamReady = false;
   isSourceSwitching = false;
   lastQualityLevel = -1;
-  bufferWarningShown = false;
-  bufferCriticalShown = false;
-  isBufferRebuilding = false;
+  // Removed buffer warning flags
   isSeeking = false;
   seekStartTime = 0;
   seekCooldown = false;
@@ -3564,12 +3350,13 @@ defineExpose({
   // Expose pre-buffering methods
   startPreBuffering,
   // Expose quality control methods
-  reduceQualityToLowest,
-  reduceQualityByOne,
-  increaseQualityGradually,
   adaptQualityBasedOnBuffer,
   // Expose seeking state
   isSeeking: () => isSeeking,
+  // Expose video time information
+  getCurrentTime: () => currentTime.value,
+  getDuration: () => duration.value,
+  getVideoElement: () => videoPlayer.value,
 });
 
 // Keyboard event handling to prevent space key from auto-playing during ads

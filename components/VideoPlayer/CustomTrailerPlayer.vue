@@ -130,6 +130,12 @@ const props = defineProps({
     type: String,
     required: false,
   },
+  contentType: {
+    type: String,
+    required: false,
+    validator: (value) =>
+      !value || ["movie", "series", "season", "episode"].includes(value),
+  },
   playerType: {
     type: String,
     required: true,
@@ -206,6 +212,11 @@ const bufferedPercent = ref(0);
 const lastEmittedSecond = ref(-1);
 const canPlay = ref(false);
 const isRetrying = ref(false); // Flag to track retry operations
+
+// Fetch guards to prevent unnecessary requests
+const isFetching = ref(false); // Track if a fetch is in progress
+const lastFetchParams = ref({ contentId: null, contentSlug: null }); // Track last fetch params to prevent duplicates
+let fetchDebounceTimer = null; // Debounce timer for fetch requests
 
 // HLS instance
 let hlsInstance = null;
@@ -350,6 +361,16 @@ const onError = (e) => {
     details: video.error,
   });
 
+  // Guard: Don't auto-retry for episodes
+  if (props.contentType === "episode" && props.playerType === "trailer") {
+    return;
+  }
+
+  // Guard: Don't retry if already fetching
+  if (isFetching.value) {
+    return;
+  }
+
   // Auto-retry on network errors (code 2) or if URL might be expired
   if (
     errorCode === 2 ||
@@ -358,7 +379,9 @@ const onError = (e) => {
   ) {
     // Auto-retrying due to network error or missing URL
     setTimeout(() => {
-      fetchStreamUrl();
+      if (!isFetching.value) {
+        fetchStreamUrl();
+      }
     }, 2000); // Wait 2 seconds before retry
   }
 };
@@ -526,6 +549,17 @@ const seekTo = (time) => {
 };
 
 const retryLoad = () => {
+  // Guard: Don't retry for episodes
+  if (props.contentType === "episode" && props.playerType === "trailer") {
+    error.value = "Episodes do not have trailers";
+    return;
+  }
+
+  // Guard: Don't retry if already fetching
+  if (isFetching.value) {
+    return;
+  }
+
   // Retrying video load
 
   // Set retry flag to prevent play operations
@@ -577,7 +611,9 @@ const retryLoad = () => {
 
   // Small delay to ensure cleanup is complete before re-fetching
   setTimeout(() => {
-    fetchStreamUrl();
+    if (!isFetching.value) {
+      fetchStreamUrl();
+    }
   }, 200);
 };
 
@@ -585,9 +621,19 @@ const retryLoad = () => {
 const initializeHLS = (url) => {
   if (!url || !videoPlayer.value) return;
 
+  // Guard: Don't reinitialize if already using the same URL
+  if (hlsInstance && streamUrl.value === url) {
+    // Already initialized with this URL, don't recreate
+    return;
+  }
+
   // Clean up existing HLS instance
   if (hlsInstance) {
-    hlsInstance.destroy();
+    try {
+      hlsInstance.destroy();
+    } catch (e) {
+      // Ignore errors during cleanup
+    }
     hlsInstance = null;
   }
 
@@ -758,7 +804,46 @@ const getRetryDelay = (attempt) => {
 
 // Fetch stream URL with retry logic
 const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
+  // Guard: Don't fetch if no content ID or slug
   if (!props.contentId && !props.contentSlug) return;
+
+  // Guard: Don't fetch for episodes (episodes don't have trailers)
+  if (props.contentType === "episode" && props.playerType === "trailer") {
+    isLoading.value = false;
+    error.value = "Episodes do not have trailers";
+    return;
+  }
+
+  // Guard: Prevent duplicate fetches for the same content
+  const currentParams = {
+    contentId: props.contentId,
+    contentSlug: props.contentSlug,
+  };
+  if (
+    !isRetry &&
+    isFetching.value &&
+    lastFetchParams.value.contentId === currentParams.contentId &&
+    lastFetchParams.value.contentSlug === currentParams.contentSlug
+  ) {
+    return; // Already fetching the same content
+  }
+
+  // Guard: Prevent fetching if already in progress for different content (unless it's a retry)
+  // Allow retries and allow if fetching different content (which should be rare)
+  if (!isRetry && isFetching.value) {
+    // Only block if we're fetching the exact same content
+    if (
+      lastFetchParams.value.contentId === currentParams.contentId &&
+      lastFetchParams.value.contentSlug === currentParams.contentSlug
+    ) {
+      return; // Wait for current fetch to complete
+    }
+    // If different content, allow it (this handles content switching)
+  }
+
+  // Update fetch state
+  isFetching.value = true;
+  lastFetchParams.value = { ...currentParams };
 
   try {
     loadingMessage.value = isRetry
@@ -821,10 +906,16 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
       isLoading.value = false;
       // Reset retry flag when successful
       isRetrying.value = false;
+      // Reset fetch state on success
+      isFetching.value = false;
     } else {
       throw new Error("No URL in response");
     }
   } catch (error) {
+    // Reset fetch state on error (will be retried if needed)
+    if (retryCount >= MAX_RETRIES) {
+      isFetching.value = false;
+    }
     if (retryCount < MAX_RETRIES) {
       const delay = getRetryDelay(retryCount + 1);
       setTimeout(() => {
@@ -866,7 +957,34 @@ const fetchStreamUrl = async (isRetry = false, retryCount = 0) => {
 };
 
 const initializePlayer = () => {
+  // Guard: Don't initialize for episodes when fetching trailers
+  if (props.contentType === "episode" && props.playerType === "trailer") {
+    isLoading.value = false;
+    error.value = "Episodes do not have trailers";
+    return;
+  }
+
   if (props.contentId || props.contentSlug) {
+    // Only clear debounce timer if we're not currently fetching
+    // This prevents cancelling in-flight requests
+    if (fetchDebounceTimer && !isFetching.value) {
+      clearTimeout(fetchDebounceTimer);
+      fetchDebounceTimer = null;
+    }
+
+    // Don't reset state if we're already fetching the same content
+    const currentParams = {
+      contentId: props.contentId,
+      contentSlug: props.contentSlug,
+    };
+    if (
+      isFetching.value &&
+      lastFetchParams.value.contentId === currentParams.contentId &&
+      lastFetchParams.value.contentSlug === currentParams.contentSlug
+    ) {
+      return; // Already fetching, don't interrupt
+    }
+
     streamUrl.value = null;
     isLoading.value = true;
     loadingMessage.value = "Loading...";
@@ -875,15 +993,38 @@ const initializePlayer = () => {
     isPlaying.value = false;
     canPlay.value = false;
 
-    fetchStreamUrl();
+    // Debounce fetch to prevent rapid successive calls, but only if not already fetching
+    if (!isFetching.value) {
+      fetchDebounceTimer = setTimeout(() => {
+        fetchStreamUrl();
+        fetchDebounceTimer = null;
+      }, 100); // 100ms debounce
+    } else {
+      // If already fetching, just call directly (it will be guarded inside)
+      fetchStreamUrl();
+    }
   }
 };
 
 // Watch for changes to contentId or contentSlug
 watch(
-  [() => props.contentId, () => props.contentSlug],
-  ([newContentId, newContentSlug], [oldContentId, oldContentSlug]) => {
-    if (newContentId !== oldContentId || newContentSlug !== oldContentSlug) {
+  [() => props.contentId, () => props.contentSlug, () => props.contentType],
+  (
+    [newContentId, newContentSlug, newContentType],
+    [oldContentId, oldContentSlug, oldContentType]
+  ) => {
+    // Only reinitialize if content actually changed
+    if (
+      newContentId !== oldContentId ||
+      newContentSlug !== oldContentSlug ||
+      newContentType !== oldContentType
+    ) {
+      // Guard: Don't initialize for episodes when fetching trailers
+      if (newContentType === "episode" && props.playerType === "trailer") {
+        isLoading.value = false;
+        error.value = "Episodes do not have trailers";
+        return;
+      }
       initializePlayer();
     }
   },
@@ -994,6 +1135,15 @@ onUnmounted(() => {
     clearTimeout(autoStartTimer.value);
     autoStartTimer.value = null;
   }
+
+  // Clear fetch debounce timer
+  if (fetchDebounceTimer) {
+    clearTimeout(fetchDebounceTimer);
+    fetchDebounceTimer = null;
+  }
+
+  // Reset fetch state
+  isFetching.value = false;
 });
 
 // Expose player methods for parent components
@@ -1006,6 +1156,14 @@ defineExpose({
   togglePlay,
   retryLoad,
   refreshUrl: () => {
+    // Guard: Don't refresh for episodes
+    if (props.contentType === "episode" && props.playerType === "trailer") {
+      return;
+    }
+    // Guard: Don't refresh if already fetching
+    if (isFetching.value) {
+      return;
+    }
     fetchStreamUrl();
   },
   getStreamUrl: () => streamUrl.value,
